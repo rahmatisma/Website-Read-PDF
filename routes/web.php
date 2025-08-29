@@ -1,11 +1,12 @@
 <?php
 
 use App\Http\Controllers\UploadController;
+use App\Http\Controllers\DocumentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    return Inertia::render('auth/login');
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -15,14 +16,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 
     // Documents
-    Route::prefix('documents')->group(function () {
-        // tampilkan halaman documents/index (dengan tab PDF/Gambar/Doc)
-        Route::get('/', [UploadController::class, 'index'])->name('documents.index');
+    Route::prefix('documents')->name('documents.')->group(function () {
+        // Upload berdasarkan tipe
+        Route::post('/pdf', [UploadController::class, 'storePDF'])->name('store.pdf');
+        Route::post('/image', [UploadController::class, 'storeImage'])->name('store.image');
+        Route::post('/doc', [UploadController::class, 'storeDoc'])->name('store.doc');
 
-        // upload PDF
-        Route::post('/', [UploadController::class, 'store'])->name('documents.store');
+        // Filter dokumen berdasarkan tipe
+        Route::get('/{type}', [DocumentController::class, 'filter'])
+            ->where('type', 'pdf|gambar|doc')
+            ->name('filter');
     });
+
+    Route::get('/dashboard', [DocumentController::class, 'dashboard'])->name('dashboard');
+
 });
 
-require __DIR__.'/settings.php';
-require __DIR__.'/auth.php';
+require __DIR__ . '/settings.php';
+require __DIR__ . '/auth.php';

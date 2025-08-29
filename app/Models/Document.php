@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Upload extends Model
+class Document extends Model
 {
     use HasFactory;
 
@@ -26,4 +26,5 @@ class Upload extends Model
         'file_size',
         'tipe_dokumen'
     ];
+    
 }

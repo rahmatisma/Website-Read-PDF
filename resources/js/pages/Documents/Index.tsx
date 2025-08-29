@@ -1,54 +1,74 @@
 import TabSwitcher from '@/components/TabSwitcher';
 import AppLayout from '@/layouts/app-layout';
-import { Head } from '@inertiajs/react';
 import { type BreadcrumbItem } from '@/types';
-import { useState, useEffect } from 'react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 
-// Import halaman isinya
-import Pdf from './partials/Pdf';
-import Gambar from './partials/Gambar';
 import Doc from './partials/Doc';
+import Gambar from './partials/Gambar';
+import Pdf from './partials/Pdf';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Documents', href: '/documents' },
-];
+type PageProps = {
+    documents?: any[];
+    activeTab?: 'pdf' | 'gambar' | 'doc';
+};
+
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Documents', href: '/documents' }];
+
+const toLabel = (v: string) => {
+    switch (v.toLowerCase()) {
+        case 'pdf':
+            return 'PDF';
+        case 'gambar':
+            return 'Gambar';
+        case 'doc':
+            return 'Doc';
+        default:
+            return 'PDF'; // default ke PDF
+    }
+};
+
+const toValue = (label: string) => label.toLowerCase();
 
 export default function Index() {
+    // default activeTab kalau tidak dikirim → 'pdf'
+    const { documents = [], activeTab = 'pdf' } = usePage<PageProps>().props;
+
     const tabs = ['PDF', 'Gambar', 'Doc'];
+    const [currentTab, setCurrentTab] = useState<string>(toLabel(activeTab));
 
-    // Baca tab dari URL saat pertama load
-    const getInitialTab = () => {
-        const path = window.location.pathname.split('/').pop()?.toLowerCase();
-        if (path && tabs.map(t => t.toLowerCase()).includes(path)) {
-            return path.charAt(0).toUpperCase() + path.slice(1);
-        }
-        return 'PDF';
+    useEffect(() => {
+        setCurrentTab(toLabel(activeTab));
+    }, [activeTab]);
+
+    const handleTabChange = (label: string) => {
+        setCurrentTab(label);
+        const value = toValue(label);
+        router.get(`/documents/${value}`);
     };
 
-    const [activeTab, setActiveTab] = useState(getInitialTab);
-
-    const handleTabChange = (tab: string) => {
-        setActiveTab(tab);
-        window.history.pushState({}, '', `/documents/${tab.toLowerCase()}`);
-    };
-
-    // Render isi tab
     const renderContent = () => {
         switch (activeTab) {
-            case 'PDF': return <Pdf />;
-            case 'Gambar': return <Gambar />;
-            case 'Doc': return <Doc />;
-            default: return null;
+            case 'pdf':
+                return <Pdf documents={documents} />;
+            case 'gambar':
+                return <Gambar documents={documents} />;
+            case 'doc':
+                return <Doc documents={documents} />;
+            default:
+                return <Pdf documents={documents} />; // fallback tetap PDF
         }
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Documents" />
-            <TabSwitcher tabs={tabs} defaultTab={activeTab} onChange={handleTabChange} />
-            <div className="mt-6">
-                {renderContent()}
-            </div>
+            <TabSwitcher
+                tabs={tabs}
+                defaultTab={currentTab}
+                onChange={handleTabChange}
+            />
+            <div className="mt-6">{renderContent()}</div>
         </AppLayout>
     );
 }

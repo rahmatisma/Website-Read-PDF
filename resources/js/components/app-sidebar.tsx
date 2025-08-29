@@ -15,7 +15,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Documents',
-        href: '/documents',
+        href: '/documents/pdf',
         icon: FileText,
     },
     {
