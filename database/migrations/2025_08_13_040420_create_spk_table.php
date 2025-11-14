@@ -13,14 +13,17 @@ return new class extends Migration
     {
         Schema::create('spk', function (Blueprint $table) {
             $table->id('id_spk');
-            $table->string('no_spk', 50);
-            $table->date('tanggal_spk');
-            $table->string('tipe_spk', 50); // INSTALL, DISMANTLE, dll.
-            $table->foreignId('id_jaringan')->constrained('jaringan','id_jaringan')->cascadeOnDelete();
-            $table->string('no_mr', 50)->nullable();
-            $table->string('no_fps', 50)->nullable();
-            $table->foreignId('id_vendor')->constrained('vendor','id_vendor')->cascadeOnDelete();
+            $table->string('document_type', 50)->nullable();
+            $table->enum('jenis_spk', ['aktivasi', 'dismantle', 'instalasi', 'survey']);
+            $table->string('no_spk', 100)->unique();
+            $table->date('tanggal_spk')->nullable();
+            $table->string('no_mr', 100)->nullable();
+            $table->string('no_fps', 100)->nullable();
             $table->timestamps();
+            
+            // Additional indexes
+            $table->index('jenis_spk');
+            $table->index('tanggal_spk');
         });
     }
 
