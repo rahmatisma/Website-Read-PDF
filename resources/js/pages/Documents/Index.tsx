@@ -37,7 +37,7 @@ export default function DocumentTable({ documents }: DocumentTableProps) {
     };
 
     const isImage = (ext: string) => ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
-    const isPdf = (ext: string) => ext === 'pdf';
+    // const isPdf = (ext: string) => ext === 'pdf';
 
     return (
         <div className="mt-6 overflow-x-auto rounded-2xl border border-gray-800 shadow-lg">
