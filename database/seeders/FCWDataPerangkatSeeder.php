@@ -10,52 +10,60 @@ class FCWDataPerangkatSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * Data perangkat untuk Form Checklist Wireline
+     * 2 EXISTING, 2 TIDAK TERPAKAI
      */
     public function run(): void
     {
-        $now = Carbon::now();
-        
         $perangkat = [
-            // FCW #1 - BNI Aktivasi - EXISTING DEVICES
+            // ========================================
+            // EXISTING DEVICES (2 items)
+            // ========================================
             [
+                'id_perangkat' => 1,
                 'id_fcw' => 1,
                 'kategori' => 'existing',
-                'nama_barang' => 'HUAWEI Router B311As + Antena',
+                'nama_barang' => 'HUAAWEI Router B311As + Antena',
                 'no_reg' => 'B2WN0150152MA0732',
-                'serial_number' => 'SN-HW-B311-2021-001',
-                'created_at' => $now,
+                'serial_number' => null,
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_perangkat' => 2,
                 'id_fcw' => 1,
                 'kategori' => 'existing',
                 'nama_barang' => 'FORTIGATE-50E HW AND WARRANTY',
                 'no_reg' => 'B2WN0262020HA1346',
-                'serial_number' => 'FGT50E-2021-001346',
-                'created_at' => $now,
+                'serial_number' => null,
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
+
+            // ========================================
+            // TIDAK TERPAKAI (2 items)
+            // ========================================
             [
+                'id_perangkat' => 3,
                 'id_fcw' => 1,
-                'kategori' => 'existing',
+                'kategori' => 'tidak_terpakai',
                 'nama_barang' => 'PSU FORTI FG-50E/FG-30E',
                 'no_reg' => 'B2WN0286208MA1443',
-                'serial_number' => 'PSU-FGT-2021-1443',
-                'created_at' => $now,
+                'serial_number' => null,
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_perangkat' => 4,
                 'id_fcw' => 1,
-                'kategori' => 'existing',
+                'kategori' => 'tidak_terpakai',
                 'nama_barang' => 'ADAPTOR 12V 1A',
                 'no_reg' => 'B2WN0150153MA0732',
-                'serial_number' => 'ADP-12V-2021-0732',
-                'created_at' => $now,
+                'serial_number' => null,
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
-            
-            // FCW #2 - Multimedia Survey - TIDAK ADA PERANGKAT (karena masih survey)
-            // Kosongkan untuk survey, nanti diisi saat instalasi
+
+            // Note: CABUT dan PENGGANTI/PASANG BARU kosong
         ];
 
-        DB::table('fcw_data_perangkat')->insert($perangkat);
-        
-        $this->command->info('✓ FCW_Data_Perangkat seeded: 4 records (FCW #1 only, FCW #2 empty for survey)');
+        DB::table('FCW_Data_Perangkat')->insert($perangkat);
     }
 }

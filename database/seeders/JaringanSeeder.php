@@ -74,3 +74,4 @@ class JaringanSeeder extends Seeder
         DB::table('JARINGAN')->insert($jaringan);
     }
 }
+

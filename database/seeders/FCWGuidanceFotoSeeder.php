@@ -10,103 +10,73 @@ class FCWGuidanceFotoSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * Data guidance foto untuk Form Checklist Wireline (8 jenis)
      */
     public function run(): void
     {
-        $now = Carbon::now();
-        
-        $guidanceFoto = [
-            // FCW #1 - BNI Aktivasi - MAINTENANCE PHOTOS
+        $guidance = [
+            // ========================================
+            // GUIDANCE FOTO FCW SPK 3 (8 jenis)
+            // ========================================
             [
+                'id_guidance' => 1,
                 'id_fcw' => 1,
-                'jenis_foto' => 'Teknisi Yang Aktivasi',
-                'patch_foto' => 'guidance/fcw1_teknisi_aktivasi.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'teknisi_aktivasi',
+                'path_foto' => 'fcw_guidance/teknisi_aktivasi_hal4.jpg',
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_guidance' => 2,
                 'id_fcw' => 1,
-                'jenis_foto' => 'Kondisi Sebelum Perbaikan',
-                'patch_foto' => 'guidance/fcw1_kondisi_sebelum.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'kondisi_sebelum_perbaikan',
+                'path_foto' => 'fcw_guidance/kondisi_sebelum_hal4.jpg',
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_guidance' => 3,
                 'id_fcw' => 1,
-                'jenis_foto' => 'Action / Perbaikan',
-                'patch_foto' => 'guidance/fcw1_action_perbaikan.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'action_perbaikan',
+                'path_foto' => 'fcw_guidance/action_perbaikan_hal4.jpg',
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_guidance' => 4,
                 'id_fcw' => 1,
-                'jenis_foto' => 'Kondisi Setelah Perbaikan',
-                'patch_foto' => 'guidance/fcw1_kondisi_setelah.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'kondisi_setelah_perbaikan',
+                'path_foto' => 'fcw_guidance/kondisi_setelah_hal4.jpg',
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_guidance' => 5,
                 'id_fcw' => 1,
-                'jenis_foto' => 'Test Ping',
-                'patch_foto' => 'guidance/fcw1_test_ping.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'test_ping',
+                'path_foto' => 'fcw_guidance/test_ping_hal4.jpg',
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_guidance' => 6,
                 'id_fcw' => 1,
-                'jenis_foto' => 'Catuan Listrik',
-                'patch_foto' => 'guidance/fcw1_catuan_listrik.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'catuan_listrik',
+                'path_foto' => 'fcw_guidance/catuan_listrik_hal4.jpg',
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_guidance' => 7,
                 'id_fcw' => 1,
-                'jenis_foto' => 'Indikator Perangkat',
-                'patch_foto' => 'guidance/fcw1_indikator_perangkat.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'indikator_perangkat',
+                'path_foto' => 'fcw_guidance/indikator_perangkat_hal5.jpg',
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
             [
+                'id_guidance' => 8,
                 'id_fcw' => 1,
-                'jenis_foto' => 'Kondisi Rak/Meja Penempatan Perangkat',
-                'patch_foto' => 'guidance/fcw1_rak_perangkat.jpg',
-                'created_at' => $now,
-            ],
-            
-            // FCW #2 - Multimedia Survey - SURVEY PHOTOS
-            [
-                'id_fcw' => 2,
-                'jenis_foto' => 'Teknisi Survey',
-                'patch_foto' => 'guidance/fcw2_teknisi_survey.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcw' => 2,
-                'jenis_foto' => 'Ruang Server / Penempatan Perangkat',
-                'patch_foto' => 'guidance/fcw2_ruang_server.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcw' => 2,
-                'jenis_foto' => 'Jalur Kabel Dalam Gedung',
-                'patch_foto' => 'guidance/fcw2_jalur_kabel.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcw' => 2,
-                'jenis_foto' => 'Rak Server Available',
-                'patch_foto' => 'guidance/fcw2_rak_available.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcw' => 2,
-                'jenis_foto' => 'Power Outlet',
-                'patch_foto' => 'guidance/fcw2_power_outlet.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcw' => 2,
-                'jenis_foto' => 'Grounding Bar',
-                'patch_foto' => 'guidance/fcw2_grounding_bar.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'kondisi_rak_penempatan',
+                'path_foto' => 'fcw_guidance/kondisi_rak_hal5.jpg',
+                'created_at' => Carbon::parse('2021-05-20 12:20:00'),
             ],
         ];
 
-        DB::table('fcw_guidance_foto')->insert($guidanceFoto);
-        
-        $this->command->info('✓ FCW_Guidance_Foto seeded: 14 records (8 for FCW #1, 6 for FCW #2)');
+        DB::table('FCW_Guidance_Foto')->insert($guidance);
     }
 }

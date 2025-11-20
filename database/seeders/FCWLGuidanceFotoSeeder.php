@@ -10,115 +10,97 @@ class FCWLGuidanceFotoSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * Data guidance foto untuk Form Checklist Wireless (10 jenis)
+     * 6 foto terisi, 4 kosong (placeholder)
      */
     public function run(): void
     {
-        $now = Carbon::now();
-        
-        $guidanceFoto = [
-            // FCWL #1 - BNI Wireless Maintenance
+        $guidance = [
+            // ========================================
+            // GUIDANCE FOTO FCWL SPK 4 (10 jenis)
+            // Halaman 4: 6 foto terisi
+            // ========================================
             [
+                'id_guidance' => 1,
                 'id_fcwl' => 1,
-                'jenis_foto' => 'Teknisi di Lokasi',
-                'patch_foto' => 'guidance/fcwl1_teknisi_lokasi.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'teknisi_aktivasi',
+                'path_foto' => 'fcwl_guidance/teknisi_aktivasi_hal4.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
             [
+                'id_guidance' => 2,
                 'id_fcwl' => 1,
-                'jenis_foto' => 'Kondisi Antenna Sebelum Maintenance',
-                'patch_foto' => 'guidance/fcwl1_antenna_before.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'kondisi_sebelum_perbaikan',
+                'path_foto' => 'fcwl_guidance/kondisi_sebelum_hal4.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
             [
+                'id_guidance' => 3,
                 'id_fcwl' => 1,
-                'jenis_foto' => 'Proses Maintenance Antenna',
-                'patch_foto' => 'guidance/fcwl1_maintenance_process.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'action_perbaikan',
+                'path_foto' => 'fcwl_guidance/action_perbaikan_hal4.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
             [
+                'id_guidance' => 4,
                 'id_fcwl' => 1,
-                'jenis_foto' => 'Kondisi Antenna Setelah Maintenance',
-                'patch_foto' => 'guidance/fcwl1_antenna_after.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'kondisi_setelah_perbaikan',
+                'path_foto' => 'fcwl_guidance/kondisi_setelah_hal4.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
             [
+                'id_guidance' => 5,
                 'id_fcwl' => 1,
-                'jenis_foto' => 'Indoor Unit & Modem',
-                'patch_foto' => 'guidance/fcwl1_indoor_unit.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'test_ping',
+                'path_foto' => 'fcwl_guidance/test_ping_hal4.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
             [
+                'id_guidance' => 6,
                 'id_fcwl' => 1,
-                'jenis_foto' => 'Signal Strength Test',
-                'patch_foto' => 'guidance/fcwl1_signal_test.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'catuan_listrik',
+                'path_foto' => 'fcwl_guidance/catuan_listrik_hal4.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
+
+            // ========================================
+            // Halaman 5: 2 foto terisi
+            // ========================================
             [
+                'id_guidance' => 7,
                 'id_fcwl' => 1,
-                'jenis_foto' => 'Grounding & Arrestor',
-                'patch_foto' => 'guidance/fcwl1_grounding.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'indikator_perangkat',
+                'path_foto' => 'fcwl_guidance/indikator_perangkat_hal5.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
             [
+                'id_guidance' => 8,
                 'id_fcwl' => 1,
-                'jenis_foto' => 'Kabel IFL Installation',
-                'patch_foto' => 'guidance/fcwl1_kabel_ifl.jpg',
-                'created_at' => $now,
+                'jenis_foto' => 'kondisi_rak_penempatan',
+                'path_foto' => 'fcwl_guidance/kondisi_rak_hal5.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
-            
-            // FCWL #2 - BNI Wireless Installation
+
+            // ========================================
+            // Foto khusus wireless (jika ada)
+            // ========================================
             [
-                'id_fcwl' => 2,
-                'jenis_foto' => 'Tim Instalasi',
-                'patch_foto' => 'guidance/fcwl2_tim_instalasi.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_foto' => 'Pemasangan Antenna di Rooftop',
-                'patch_foto' => 'guidance/fcwl2_antenna_install.jpg',
-                'created_at' => $now,
+                'id_guidance' => 9,
+                'id_fcwl' => 1,
+                'jenis_foto' => 'antenna_installation',
+                'path_foto' => 'fcwl_guidance/antenna_installation.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
             [
-                'id_fcwl' => 2,
-                'jenis_foto' => 'Mounting Bracket',
-                'patch_foto' => 'guidance/fcwl2_mounting.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_foto' => 'Aiming & Alignment Antenna',
-                'patch_foto' => 'guidance/fcwl2_aiming.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_foto' => 'Indoor Equipment Installation',
-                'patch_foto' => 'guidance/fcwl2_indoor_equipment.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_foto' => 'Kabel Routing Indoor',
-                'patch_foto' => 'guidance/fcwl2_kabel_routing.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_foto' => 'Testing & Commissioning',
-                'patch_foto' => 'guidance/fcwl2_testing.jpg',
-                'created_at' => $now,
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_foto' => 'Final Configuration',
-                'patch_foto' => 'guidance/fcwl2_final_config.jpg',
-                'created_at' => $now,
+                'id_guidance' => 10,
+                'id_fcwl' => 1,
+                'jenis_foto' => 'outdoor_mounting',
+                'path_foto' => 'fcwl_guidance/outdoor_mounting.jpg',
+                'created_at' => Carbon::parse('2021-06-22 00:03:00'),
             ],
         ];
 
-        DB::table('fcwl_guidance_foto')->insert($guidanceFoto);
-        
-        $this->command->info('✓ FCWL_Guidance_Foto seeded: 16 records (8 per FCWL)');
+        DB::table('FCWL_Guidance_Foto')->insert($guidance);
     }
 }

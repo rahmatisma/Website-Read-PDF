@@ -89,3 +89,4 @@ class SPKInformasiGedungSeeder extends Seeder
         DB::table('SPK_Informasi_Gedung')->insert($informasi_gedung);
     }
 }
+

@@ -4,102 +4,61 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class FCWLWaktuPelaksanaanSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * Data waktu pelaksanaan Form Checklist Wireless (8 jenis waktu)
      */
     public function run(): void
     {
         $waktu = [
-            // FCWL #1 - BNI Wireless Maintenance (083806/WO-LA/2021)
+            // ========================================
+            // WAKTU PELAKSANAAN FCWL SPK 4
+            // Timeline maintenance wireless BNI
+            // ========================================
             [
+                'id_waktu' => 1,
                 'id_fcwl' => 1,
                 'jenis_waktu' => 'perintah',
-                'waktu' => '2021-06-21 18:00:00',
+                'waktu' => Carbon::parse('2021-06-21 18:00:00'),
             ],
             [
+                'id_waktu' => 2,
                 'id_fcwl' => 1,
                 'jenis_waktu' => 'persiapan',
-                'waktu' => '2021-06-21 18:08:00',
+                'waktu' => Carbon::parse('2021-06-21 18:08:00'),
             ],
             [
+                'id_waktu' => 3,
                 'id_fcwl' => 1,
                 'jenis_waktu' => 'berangkat',
-                'waktu' => '2021-06-21 18:08:00',
+                'waktu' => Carbon::parse('2021-06-21 18:08:00'),
             ],
             [
+                'id_waktu' => 4,
                 'id_fcwl' => 1,
                 'jenis_waktu' => 'tiba_lokasi',
-                'waktu' => '2021-06-21 19:42:00',
+                'waktu' => Carbon::parse('2021-06-21 19:42:00'),
             ],
             [
+                'id_waktu' => 5,
                 'id_fcwl' => 1,
                 'jenis_waktu' => 'mulai_kerja',
-                'waktu' => '2021-06-21 19:42:00',
+                'waktu' => Carbon::parse('2021-06-21 19:42:00'),
             ],
             [
+                'id_waktu' => 6,
                 'id_fcwl' => 1,
                 'jenis_waktu' => 'selesai_kerja',
-                'waktu' => '2021-06-22 00:03:00',
+                'waktu' => Carbon::parse('2021-06-22 00:03:00'),
             ],
-            [
-                'id_fcwl' => 1,
-                'jenis_waktu' => 'pulang',
-                'waktu' => '2021-06-22 00:15:00',
-            ],
-            [
-                'id_fcwl' => 1,
-                'jenis_waktu' => 'tiba_kantor',
-                'waktu' => '2021-06-22 01:30:00',
-            ],
-            
-            // FCWL #2 - BNI Wireless Installation (065752/WO-LA/2021)
-            [
-                'id_fcwl' => 2,
-                'jenis_waktu' => 'perintah',
-                'waktu' => '2021-03-03 14:00:00',
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_waktu' => 'persiapan',
-                'waktu' => '2021-03-03 14:30:00',
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_waktu' => 'berangkat',
-                'waktu' => '2021-03-03 14:45:00',
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_waktu' => 'tiba_lokasi',
-                'waktu' => '2021-03-03 15:30:00',
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_waktu' => 'mulai_kerja',
-                'waktu' => '2021-03-03 15:45:00',
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_waktu' => 'selesai_kerja',
-                'waktu' => '2021-03-03 18:20:00',
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_waktu' => 'pulang',
-                'waktu' => '2021-03-03 18:30:00',
-            ],
-            [
-                'id_fcwl' => 2,
-                'jenis_waktu' => 'tiba_kantor',
-                'waktu' => '2021-03-03 19:45:00',
-            ],
+            // Note: Jam Pulang dan Tiba Kantor tidak diisi (NULL)
         ];
 
-        DB::table('fcwl_waktu_pelaksanaan')->insert($waktu);
-        
-        $this->command->info('✓ FCWL_Waktu_Pelaksanaan seeded: 16 records (8 per FCWL)');
+        DB::table('FCWL_Waktu_Pelaksanaan')->insert($waktu);
     }
 }

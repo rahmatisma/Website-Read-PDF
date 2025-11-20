@@ -9,33 +9,27 @@ class FCWLPerangkatAntenaSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * Data perangkat antenna untuk Form Checklist Wireless
      */
     public function run(): void
     {
-        $perangkatAntenna = [
-            // FCWL #1 - BNI Wireless Maintenance
+        $antenna = [
+            // ========================================
+            // PERANGKAT ANTENNA FCWL SPK 4
+            // Data antenna dan instalasinya
+            // ========================================
             [
+                'id_antena' => 1,
                 'id_fcwl' => 1,
-                'polarisasi' => 'Vertical',
-                'altitude' => '45 MDPL',
-                'lokasi' => 'Rooftop Gedung BNI ATM Center',
-                'antenna_terbounding_dengan_ground' => 'Ya, kencang',
-                'posisi_antena_sejajar' => 'Ya',
-            ],
-            
-            // FCWL #2 - BNI Wireless Installation
-            [
-                'id_fcwl' => 2,
-                'polarisasi' => 'Horizontal',
-                'altitude' => '38 MDPL',
-                'lokasi' => 'Rooftop Gedung Kantor Cabang',
-                'antenna_terbounding_dengan_ground' => 'Ya, kencang',
-                'posisi_antena_sejajar' => 'Ya',
+                'polarisasi' => '. MDPL',
+                'altitude' => null,
+                'lokasi' => null,
+                'antena_terbounding_dengan_ground' => 'ya',
+                'posisi_antena_sejajar' => 'ya',
             ],
         ];
 
-        DB::table('fcwl_perangkat_antenna')->insert($perangkatAntenna);
-        
-        $this->command->info('✓ FCWL_Perangkat_Antenna seeded: 2 records');
+        DB::table('FCWL_Perangkat_Antena')->insert($antenna);
     }
 }

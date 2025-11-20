@@ -9,23 +9,32 @@ class SPKSarpenRuangServerSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * Data Sarana Penunjang Ruang Server (hanya untuk SPK Survey)
      */
     public function run(): void
     {
-        DB::table('spk_sarpen_ruang_server')->insert([
+        $sarpen = [
+            // ========================================
+            // SARPEN SPK 6: SURVEY MLT
+            // Data lengkap kondisi ruang server
+            // ========================================
             [
                 'id_sarpen' => 1,
-                'id_spk' => 4, // SPK Survey
-                'power_line_listrik' => 'PLN',
+                'id_spk' => 6,
+                'power_line_listrik' => null,
                 'ketersediaan_power_outlet' => 'Ada',
-                'grounding_listrik' => 'Ada',
-                'ups' => 'Tersedia/Ada',
-                'ruangan_ber_ac' => 'Ada',
-                'suhu_ruangan' => 'lebih kecil 20°C',
-                'lantai' => '2',
+                'grounding_listrik' => 'ada',
+                'ups' => 'tersedia',
+                'ruangan_ber_ac' => 'ada',
+                'suhu_ruangan_value' => 20.0,
+                'suhu_ruangan_keterangan' => 'lebih kecil 20°C',
+                'lantai' => null,
                 'ruang' => 'Ada rak khusus',
                 'perangkat_pelanggan' => 'Sudah Ada',
             ],
-        ]);
+        ];
+
+        DB::table('SPK_Sarpen_Ruang_Server')->insert($sarpen);
     }
 }

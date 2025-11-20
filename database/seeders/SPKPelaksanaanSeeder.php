@@ -92,3 +92,4 @@ class SPKPelaksanaanSeeder extends Seeder
         DB::table('SPK_Pelaksanaan')->insert($pelaksanaan);
     }
 }
+
