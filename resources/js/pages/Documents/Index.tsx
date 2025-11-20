@@ -8,8 +8,20 @@ import Doc from './partials/Doc';
 import Gambar from './partials/Gambar';
 import Pdf from './partials/Pdf';
 
+// ✅ Definisikan tipe Document yang spesifik
+type Document = {
+    id: number;
+    name: string;
+    file_path: string;
+    file_size: number;
+    mime_type: string;
+    created_at: string;
+    updated_at: string;
+    // tambahkan field lain sesuai struktur data Anda
+};
+
 type PageProps = {
-    documents?: any[];
+    documents?: Document[]; // ✅ Ganti any[] dengan Document[]
     activeTab?: 'pdf' | 'gambar' | 'doc';
 };
 
@@ -24,14 +36,13 @@ const toLabel = (v: string) => {
         case 'doc':
             return 'Doc';
         default:
-            return 'PDF'; // default ke PDF
+            return 'PDF';
     }
 };
 
 const toValue = (label: string) => label.toLowerCase();
 
 export default function Index() {
-    // default activeTab kalau tidak dikirim → 'pdf'
     const { documents = [], activeTab = 'pdf' } = usePage<PageProps>().props;
 
     const tabs = ['PDF', 'Gambar', 'Doc'];
@@ -50,13 +61,13 @@ export default function Index() {
     const renderContent = () => {
         switch (activeTab) {
             case 'pdf':
-                return <Pdf documents={documents} />;
+                return <Pdf documents={documents as any} />;
             case 'gambar':
-                return <Gambar documents={documents} />;
+                return <Gambar documents={documents as any} />;
             case 'doc':
-                return <Doc documents={documents} />;
+                return <Doc documents={documents as any} />;
             default:
-                return <Pdf documents={documents} />; // fallback tetap PDF
+                return <Pdf documents={documents as any} />;
         }
     };
 

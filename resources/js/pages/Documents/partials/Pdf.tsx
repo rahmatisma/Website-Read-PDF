@@ -16,35 +16,23 @@ interface PdfProps {
 }
 
 export default function Pdf({ documents }: PdfProps) {
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-        });
-    };
-
-    const formatFileSize = (size: number) => {
-        if (size >= 1024 * 1024) {
-            return (size / (1024 * 1024)).toFixed(2) + ' MB';
-        } else {
-            return (size / 1024).toFixed(2) + ' KB';
-        }
-    };
-
     return (
         <>
             <Head title="Daftar Dokumen PDF" />
+
             <div className="space-y-6 p-6">
+                
                 {/* Upload Box */}
                 <UploadPDFBox />
 
+                {/* Daftar Dokumen */}
                 <div className="mt-6">
                     <h2 className="mb-4 text-xl font-semibold">Daftar Dokumen</h2>
-                    {/* 🔎 Search & Filter */}
+
+                    {/* Search */}
                     <SearchFilter />
-                    {/* Tampilan dokumen */}
+
+                    {/* Table */}
                     <DocumentTable documents={documents} type="pdf" />
                 </div>
             </div>

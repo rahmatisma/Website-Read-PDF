@@ -16,23 +16,6 @@ interface PdfProps {
 }
 
 export default function Pdf({ documents }: PdfProps) {
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-        });
-    };
-
-    const formatFileSize = (size: number) => {
-        if (size >= 1024 * 1024) {
-            return (size / (1024 * 1024)).toFixed(2) + ' MB';
-        } else {
-            return (size / 1024).toFixed(2) + ' KB';
-        }
-    };
-
     return (
         <>
             <Head title="Daftar Dokumen PDF" />
