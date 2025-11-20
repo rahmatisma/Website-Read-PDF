@@ -8,17 +8,14 @@ import Doc from './partials/Doc';
 import Gambar from './partials/Gambar';
 import Pdf from './partials/Pdf';
 
-// ✅ Definisikan tipe Document yang spesifik
-type Document = {
-    id: number;
-    name: string;
+interface Document {
+    id_upload: number;
+    file_name: string;
     file_path: string;
-    file_size: number;
-    mime_type: string;
     created_at: string;
-    updated_at: string;
-    // tambahkan field lain sesuai struktur data Anda
-};
+    file_size: string;
+}
+
 
 type PageProps = {
     documents?: Document[]; // ✅ Ganti any[] dengan Document[]
@@ -61,13 +58,13 @@ export default function Index() {
     const renderContent = () => {
         switch (activeTab) {
             case 'pdf':
-                return <Pdf documents={documents as any} />;
+                return <Pdf documents={documents} />;
             case 'gambar':
-                return <Gambar documents={documents as any} />;
+                return <Gambar documents={documents} />;
             case 'doc':
-                return <Doc documents={documents as any} />;
+                return <Doc documents={documents} />;
             default:
-                return <Pdf documents={documents as any} />;
+                return <Pdf documents={documents} />;
         }
     };
 
