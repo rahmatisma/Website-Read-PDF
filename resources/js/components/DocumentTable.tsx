@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface Document {
     id_upload: number;
     file_name: string;
@@ -16,6 +14,8 @@ interface DocumentTableProps {
 export default function DocumentTable({ documents, type }: DocumentTableProps) {
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '-';
+
         return date.toLocaleDateString('id-ID', {
             day: 'numeric',
             month: 'long',
@@ -23,12 +23,14 @@ export default function DocumentTable({ documents, type }: DocumentTableProps) {
         });
     };
 
-    const formatFileSize = (size: number) => {
+    const formatFileSize = (sizeValue: string) => {
+        const size = Number(sizeValue);
+        if (isNaN(size)) return '-';
+
         if (size >= 1024 * 1024) {
             return (size / (1024 * 1024)).toFixed(2) + ' MB';
-        } else {
-            return (size / 1024).toFixed(2) + ' KB';
         }
+        return (size / 1024).toFixed(2) + ' KB';
     };
 
     return (
@@ -43,25 +45,26 @@ export default function DocumentTable({ documents, type }: DocumentTableProps) {
                         <th className="px-4 py-3">Aksi</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {documents.length > 0 ? (
                         documents.map((upload, index) => (
                             <tr key={upload.id_upload} className="transition-colors hover:bg-gray-800">
                                 <td className="px-4 py-3">{index + 1}</td>
+
                                 <td className="px-4 py-3 font-medium text-white">{upload.file_name}</td>
+
                                 <td className="px-4 py-3">{formatDate(upload.created_at)}</td>
-                                <td className="px-4 py-3">{formatFileSize(Number(upload.file_size))}</td>
+
+                                <td className="px-4 py-3">{formatFileSize(upload.file_size)}</td>
+
                                 <td className="px-4 py-3">
                                     {type === 'image' ? (
-                                        <a
-                                            href={`/storage/${upload.file_path}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
+                                        <a href={`/storage/${upload.file_path}`} target="_blank" rel="noopener noreferrer">
                                             <img
                                                 src={`/storage/${upload.file_path}`}
                                                 alt={upload.file_name}
-                                                className="h-12 w-12 object-cover rounded hover:scale-105 transition-transform"
+                                                className="h-12 w-12 rounded border border-gray-700 object-cover shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-lg"
                                             />
                                         </a>
                                     ) : (
@@ -69,7 +72,7 @@ export default function DocumentTable({ documents, type }: DocumentTableProps) {
                                             href={`/storage/${upload.file_path}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-blue-400 hover:text-blue-500"
+                                            className="text-blue-400 underline hover:text-blue-500"
                                         >
                                             Lihat
                                         </a>
