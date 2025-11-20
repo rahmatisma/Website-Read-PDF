@@ -8,23 +8,33 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Table: SPK_Kawasan_Umum
+     * Purpose: Informasi kawasan umum yang dilewati jalur kabel
+     * Depends on: spk
      */
     public function up(): void
     {
         Schema::create('spk_kawasan_umum', function (Blueprint $table) {
+            // Primary Key
             $table->id('id_kawasan_umum');
+
+            // Foreign Key (unique - one-to-one relationship)
             $table->unsignedBigInteger('id_spk')->unique();
+
+            // Public Area Information
             $table->text('nama_kawasan_umum_pu_yang_dilewati')->nullable();
             $table->string('panjang_jalur_outdoor_di_kawasan_umum', 100)->nullable();
 
-            // Foreign key constraint
+            // Index
+            $table->index('id_spk');
+
+            // Foreign Key Constraint
             $table->foreign('id_spk')
                 ->references('id_spk')
                 ->on('spk')
-                ->onDelete('cascade');
-
-            // Index
-            $table->index('id_spk');
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
         });
     }
 

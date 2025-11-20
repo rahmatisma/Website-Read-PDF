@@ -8,12 +8,22 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Table: FCWL_Waktu_Pelaksanaan
+     * Purpose: Timeline pelaksanaan wireless (8 timestamps)
+     * Depends on: form_checklist_wireless
+     * Relationship: ONE-TO-MANY (max 8 records per form)
      */
     public function up(): void
     {
         Schema::create('fcwl_waktu_pelaksanaan', function (Blueprint $table) {
+            // Primary Key
             $table->id('id_waktu');
+
+            // Foreign Key (NOT unique - one-to-many relationship)
             $table->unsignedBigInteger('id_fcwl');
+
+            // Time Type (8 types)
             $table->enum('jenis_waktu', [
                 'perintah',
                 'persiapan',
@@ -24,17 +34,20 @@ return new class extends Migration
                 'pulang',
                 'tiba_kantor'
             ]);
-            $table->timestamp('waktu');
 
-            // Foreign key constraint
-            $table->foreign('id_fcwl')
-                ->references('id_fcwl')
-                ->on('form_checklist_wireless')
-                ->onDelete('cascade');
+            // Timestamp
+            $table->timestamp('waktu');
 
             // Indexes
             $table->index('id_fcwl');
-            $table->unique(['id_fcwl', 'jenis_waktu']);
+            $table->unique(['id_fcwl', 'jenis_waktu']); // Prevent duplicate time type per form
+
+            // Foreign Key Constraint
+            $table->foreign('id_fcwl')
+                ->references('id_fcwl')
+                ->on('form_checklist_wireless')
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
         });
     }
 

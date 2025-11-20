@@ -15,22 +15,51 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
         $this->call([
-            PelangganSeeder::class,
-            JaringanSeeder::class,
-            VendorSeeder::class,
-            SpkSeeder::class,
-            PerangkatSeeder::class,
-            ItemPekerjaanSeeder::class,
-            PelaksanaanSeeder::class,
-            DokumentasiSeeder::class,
-            LogPekerjaanSeeder::class,
-            TandaTanganSeeder::class,
-            LineChecklistSeeder::class,
-            IndoorAreaChecklistSeeder::class,
-            DataRemoteSeeder::class,
-            DataLokasiSeeder::class,
-            ElectricalChecklistSeeder::class,
-            EnvironmentChecklistSeeder::class,
+            SPKSeeder::class,
+            SPKPelangganSeeder::class,
+            SPKJaringanSeeder::class,
+            SPKPelaksanaanSeeder::class,
+            SPKVendorSeeder::class,
+            SPKPekerjaCabutSeeder::class,
+            // SURVEY BLOCK
+            SPKInformasiGedungSeeder::class,
+            SPKSarpenRuangServerSeeder::class,
+            SPKSarpenTeganganSeeder::class,
+            SPKLokasiAntenaSeeder::class,
+            SPKPerizinanBiayaGedungSeeder::class,
+            SPKPenempatanPerangkatSeeder::class,
+            SPKPerizinanBiayaKawasanSeeder::class,
+            SPKKawasanUmumSeeder::class,
+            SPKDataSplitterSeeder::class,
+            SPKHHEksistingSeeder::class,
+            SPKHHBaruSeeder::class,
+
+            // COMMON
+            DokumentasiFotoSeeder::class,
+            BeritaAcaraSeeder::class,
+            ListItemSeeder::class,
+
+            // FORM CHECKLIST WIRELINE
+            FormChecklistWirelineSeeder::class,
+            FCWWaktuPelaksanaanSeeder::class,
+            FCWTeganganSeeder::class,
+            FCWVerifikasiSeeder::class,
+            FCWDataPerangkatSeeder::class,
+            FCWLineChecklistSeeder::class,
+            FCWGuidanceFotoSeeder::class,
+            FCWLogSeeder::class,
+
+            // FORM CHECKLIST WIRELESS
+            FormChecklistWirelessSeeder::class,
+            FCWLWaktuPelaksanaanSeeder::class,
+            FCWLIndoorAreaSeeder::class,
+            FCWLOutdoorAreaSeeder::class,
+            FCWLPerangkatAntenaSeeder::class,
+            FCWLCablingInstallationSeeder::class,
+            FCWLVerifikasiSeeder::class,
+            FCWLDataPerangkatSeeder::class,
+            FCWLGuidanceFotoSeeder::class,
+            FCWLLogSeeder::class,
         ]);
 
         User::factory()->create([

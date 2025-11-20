@@ -8,26 +8,40 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Table: Form_Checklist_Wireless
+     * Purpose: Form checklist untuk aktivasi wireless
+     * Depends on: spk
      */
     public function up(): void
     {
         Schema::create('form_checklist_wireless', function (Blueprint $table) {
+            // Primary Key
             $table->id('id_fcwl');
+
+            // Foreign Key (unique - one-to-one relationship)
             $table->unsignedBigInteger('id_spk')->unique();
-            $table->string('no_spk', 100)->nullable();
-            $table->date('tanggal')->nullable();
+
+            // Form Information
+            $table->string('no_spk', 100);
+            $table->date('tanggal');
+
+            // Location
             $table->string('kota', 100)->nullable();
             $table->string('propinsi', 100)->nullable();
-            $table->timestamps();
 
-            // Foreign key constraint
-            $table->foreign('id_spk')
-                ->references('id_spk')
-                ->on('spk')
-                ->onDelete('cascade');
+            // Timestamps
+            $table->timestamps();
 
             // Index
             $table->index('id_spk');
+
+            // Foreign Key Constraint
+            $table->foreign('id_spk')
+                ->references('id_spk')
+                ->on('spk')
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
         });
     }
 

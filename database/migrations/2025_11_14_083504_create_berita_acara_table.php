@@ -8,37 +8,35 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Table: Berita_Acara
+     * Purpose: Berita acara penyelesaian SPK
+     * Depends on: spk
      */
     public function up(): void
     {
         Schema::create('berita_acara', function (Blueprint $table) {
+            // Primary Key
             $table->id('id_berita_acara');
-            $table->unsignedBigInteger('id_spk')->unique();
-            $table->string('judul_spk', 255)->nullable();
-            $table->string('tipe_spk', 100)->nullable();
-            $table->string('nomor_spk', 100)->nullable();
-            $table->date('tanggal')->nullable();
-            $table->string('no_fps', 100)->nullable();
-            $table->string('jenis_aktivasi', 100)->nullable();
-            $table->string('jenis_instalasi', 100)->nullable();
-            $table->string('media_akses', 100)->nullable();
-            $table->text('pop')->nullable();
-            $table->string('kecepatan', 255)->nullable();
-            $table->string('kontak_person', 255)->nullable();
-            $table->string('telepon', 50)->nullable();
-            $table->timestamp('permintaan_pelanggan')->nullable();
-            $table->timestamp('datang')->nullable();
-            $table->timestamp('selesai')->nullable();
-            $table->timestamps();
 
-            // Foreign key constraint
-            $table->foreign('id_spk')
-                ->references('id_spk')
-                ->on('spk')
-                ->onDelete('cascade');
+            // Foreign Key (unique - one-to-one relationship)
+            $table->unsignedBigInteger('id_spk')->unique();
+
+            // BA Information
+            $table->string('judul_spk', 255)->default('BERITA ACARA');
+
+            // Timestamps
+            $table->timestamps();
 
             // Index
             $table->index('id_spk');
+
+            // Foreign Key Constraint
+            $table->foreign('id_spk')
+                ->references('id_spk')
+                ->on('spk')
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
         });
     }
 

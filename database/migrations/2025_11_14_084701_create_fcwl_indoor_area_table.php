@@ -8,37 +8,57 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Table: FCWL_Indoor_Area
+     * Purpose: Data area indoor untuk wireless
+     * Depends on: form_checklist_wireless
      */
     public function up(): void
     {
         Schema::create('fcwl_indoor_area', function (Blueprint $table) {
+            // Primary Key
             $table->id('id_indoor');
+
+            // Foreign Key (unique - one-to-one relationship)
             $table->unsignedBigInteger('id_fcwl')->unique();
+
+            // UPS Information
             $table->string('merk_ups', 100)->nullable();
             $table->string('kapasitas_ups', 100)->nullable();
             $table->string('jenis_ups', 100)->nullable();
-            $table->string('ruangan_bebas_debu', 100)->nullable();
-            $table->string('suhu_ruangan', 100)->nullable();
-            $table->string('terpasang_ground_bar', 100)->nullable();
+
+            // Room Conditions
+            $table->enum('ruangan_bebas_debu', ['ya', 'tidak'])->nullable();
+            $table->decimal('suhu_ruangan', 4, 1)->nullable();
+            $table->enum('terpasang_ground_bar', ['ya', 'tidak'])->nullable();
+
+            // Modem Power Input
             $table->string('catuan_input_modem', 100)->nullable();
-            $table->string('v_input_modem_p_n', 50)->nullable();
-            $table->string('v_input_modem_n_g', 50)->nullable();
-            $table->string('bertumpuk', 100)->nullable();
+            $table->decimal('v_input_modem_p_n', 6, 2)->nullable();
+            $table->decimal('v_input_modem_n_g', 6, 2)->nullable();
+
+            // Modem Placement
+            $table->enum('bertumpuk', ['ya', 'tidak'])->nullable();
             $table->string('lokasi_ruang', 255)->nullable();
-            $table->string('suhu_casing_modem', 100)->nullable();
-            $table->string('catuan_input_terbounding', 100)->nullable();
+            $table->decimal('suhu_casing_modem', 4, 1)->nullable();
+
+            // Cabling
+            $table->enum('catuan_input_terbounding', ['ya', 'tidak'])->nullable();
             $table->string('splicing_konektor_kabel', 100)->nullable();
+
+            // CPE Information
             $table->string('pemilik_perangkat_cpe', 100)->nullable();
             $table->string('jenis_perangkat_cpe', 100)->nullable();
 
-            // Foreign key constraint
+            // Index
+            $table->index('id_fcwl');
+
+            // Foreign Key Constraint
             $table->foreign('id_fcwl')
                 ->references('id_fcwl')
                 ->on('form_checklist_wireless')
-                ->onDelete('cascade');
-
-            // Index
-            $table->index('id_fcwl');
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
         });
     }
 

@@ -4,21 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use Illuminate\Http\Request;
-use App\Models\Upload;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class UploadController extends Controller
 {
-    public function index()
-    {
-        // ambil semua data upload untuk ditampilkan ke view
-        $uploads = Document::all();
-
-        return inertia('Documents/Index', [
-            'uploads' => $uploads
-        ]);
-    }
-
     public function storePDF(Request $request)
     {
         $request->validate([
@@ -29,11 +20,11 @@ class UploadController extends Controller
         $file = $request->file('file');
         $originalName = $file->getClientOriginalName();
 
-        // simpan file ke storage/app/public/uploads
+        // Simpan file ke storage/app/public/uploads
         $path = $file->storeAs('uploads', $originalName, 'public');
 
-        // simpan ke database
-        Document::create([
+        // Simpan ke database dengan status 'uploaded'
+        $document = Document::create([
             'source_type' => 'user',
             'id_user' => Auth::id(),
             'source_system' => null,
@@ -45,23 +36,53 @@ class UploadController extends Controller
             'tipe_dokumen' => 'uploaded',
         ]);
 
-        return redirect()->back()->with('success', 'Upload berhasil!');
+        // Kirim file ke Python Flask API
+        try {
+            // Ambil path lengkap file
+            $fullPath = storage_path('app/public/' . $path);
+
+            // Kirim ke Python
+            $response = Http::attach(
+                'file', 
+                file_get_contents($fullPath), 
+                $originalName
+            )->post('http://localhost:5000/process-pdf');
+
+            // Log response untuk debugging
+            Log::info('Python API Response', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+
+            // Update status jadi 'processing'
+            $document->update(['tipe_dokumen' => 'processing']);
+
+        } catch (\Exception $e) {
+            // Jika gagal kirim ke Python, log error
+            Log::error('Failed to send file to Python', [
+                'error' => $e->getMessage(),
+                'file' => $originalName
+            ]);
+
+            // Update status jadi 'failed'
+            $document->update(['tipe_dokumen' => 'failed']);
+        }
+
+        return redirect()->back()->with('success', 'Upload berhasil dan sedang diproses!');
     }
 
+    // Method lain tetap sama (storeImage, storeDoc)
     public function storeImage(Request $request)
     {
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:9048', 
-            // 'image' otomatis validasi mime untuk file gambar
         ]);
 
         $file = $request->file('image');
         $originalName = $file->getClientOriginalName();
 
-        // simpan file ke storage/app/public/images
         $path = $file->storeAs('images', $originalName, 'public');
 
-        // simpan ke database
         Document::create([
             'source_type' => 'user',
             'id_user' => Auth::id(),
@@ -80,17 +101,15 @@ class UploadController extends Controller
     public function storeDoc(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:doc,docx|max:10048', // max ~10MB
+            'file' => 'required|mimes:doc,docx|max:10048',
             'document_type' => 'required|string|max:50',
         ]);
 
         $file = $request->file('file');
         $originalName = $file->getClientOriginalName();
 
-        // simpan file ke storage/app/public/docs
         $path = $file->storeAs('docs', $originalName, 'public');
 
-        // simpan ke database
         Document::create([
             'source_type' => 'user',
             'id_user' => Auth::id(),
@@ -106,7 +125,3 @@ class UploadController extends Controller
         return redirect()->back()->with('success', 'Upload berhasil!');
     }
 }
-
-
-
-

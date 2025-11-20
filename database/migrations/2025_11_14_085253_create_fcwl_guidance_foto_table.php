@@ -8,24 +8,51 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Table: FCWL_Guidance_Foto
+     * Purpose: Foto panduan untuk form wireless (10 jenis foto)
+     * Depends on: form_checklist_wireless
+     * Relationship: ONE-TO-MANY
      */
     public function up(): void
     {
         Schema::create('fcwl_guidance_foto', function (Blueprint $table) {
+            // Primary Key
             $table->id('id_guidance');
+
+            // Foreign Key (NOT unique - one-to-many relationship)
             $table->unsignedBigInteger('id_fcwl');
-            $table->string('jenis_foto', 255)->nullable();
-            $table->text('patch_foto')->nullable();
+
+            // Photo Type (10 types for wireless - includes 2 additional for wireless)
+            $table->enum('jenis_foto', [
+                'teknisi_aktivasi',
+                'kondisi_sebelum_perbaikan',
+                'action_perbaikan',
+                'kondisi_setelah_perbaikan',
+                'test_ping',
+                'catuan_listrik',
+                'indikator_perangkat',
+                'kondisi_rak_penempatan',
+                'antenna_installation',
+                'outdoor_mounting'
+            ]);
+
+            // Photo Path
+            $table->string('path_foto', 1000);
+
+            // Timestamp
             $table->timestamp('created_at')->useCurrent();
 
-            // Foreign key constraint
+            // Indexes
+            $table->index('id_fcwl');
+            $table->index(['id_fcwl', 'jenis_foto']);
+
+            // Foreign Key Constraint
             $table->foreign('id_fcwl')
                 ->references('id_fcwl')
                 ->on('form_checklist_wireless')
-                ->onDelete('cascade');
-
-            // Index
-            $table->index('id_fcwl');
+                ->onDelete('cascade')
+                ->onUpdate('cascade');
         });
     }
 
