@@ -1,10 +1,12 @@
 <?php
-
+// Membaca document yang sudah ada untuk di tampilkan di dasboar
 namespace App\Http\Controllers;
 
 use App\Models\Document;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
+use GuzzleHttp\Client;
 
 class DocumentController extends Controller
 {
@@ -44,6 +46,41 @@ class DocumentController extends Controller
         ]);
     }
 
+    public function sendToPython(Request $request)
+    {
+        if (!$request->hasFile('file')) {
+            return response()->json(['error' => 'File tidak ditemukan'], 400);
+        }
+
+        $file = $request->file('file');
+
+        $client = new Client();
+
+        try {
+            $response = $client->post('http://127.0.0.1:5000/process-pdf', [
+                'multipart' => [
+                    [
+                        'name'     => 'file',
+                        'contents' => fopen($file->getPathname(), 'r'),
+                        'filename' => $file->getClientOriginalName(),
+                    ],
+                ]
+            ]);
+
+            $result = json_decode($response->getBody()->getContents(), true);
+
+            return response()->json([
+                'message' => 'Berhasil diproses oleh Python',
+                'output_file' => $result['output_file'],
+                'data' => $result['data'],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
     public function dashboard()
     {
         $userId = Auth::id();

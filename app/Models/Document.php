@@ -9,11 +9,9 @@ class Document extends Model
 {
     use HasFactory;
 
-    protected $table = 'uploads'; // tabel yang dipakai
-
-    protected $primaryKey = 'id_upload'; // primary key
-
-    public $timestamps = true; // created_at & updated_at otomatis
+    protected $table = 'uploads';
+    protected $primaryKey = 'id_upload';
+    public $timestamps = true;
 
     protected $fillable = [
         'source_type',
@@ -24,7 +22,17 @@ class Document extends Model
         'file_path',
         'file_type',
         'file_size',
-        'tipe_dokumen'
+        'status',
+        'extracted_data', // ⬅️ pastikan ada ini
     ];
-    
+
+    // ⬅️ TAMBAH BAGIAN INI
+    protected $casts = [
+        'extracted_data' => 'array',
+    ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'id_user');
+    }
 }

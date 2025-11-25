@@ -10,25 +10,31 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+
     // Dashboard
-    Route::get('dashboard', function () {
+    Route::get('/dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 
+
     // Documents
     Route::prefix('documents')->name('documents.')->group(function () {
-        // Upload berdasarkan tipe
-        Route::post('/pdf', [UploadController::class, 'storePDF'])->name('store.pdf');
-        Route::post('/image', [UploadController::class, 'storeImage'])->name('store.image');
-        Route::post('/doc', [UploadController::class, 'storeDoc'])->name('store.doc');
 
-        // Filter dokumen berdasarkan tipe
+        // Upload dokumen
+        Route::post('/pdf',    [UploadController::class, 'storePDF'])->name('store.pdf');
+        Route::post('/image',  [UploadController::class, 'storeImage'])->name('store.image');
+        Route::post('/doc',    [UploadController::class, 'storeDoc'])->name('store.doc');
+
+        // Filter berdasarkan tipe
         Route::get('/{type}', [DocumentController::class, 'filter'])
             ->where('type', 'pdf|gambar|doc')
             ->name('filter');
     });
 
-    Route::get('/dashboard', [DocumentController::class, 'dashboard'])->name('dashboard');
+
+    // 🔥 Tambahkan route untuk kirim file ke Python Flask
+    Route::post('/send-to-python', [DocumentController::class, 'sendToPython'])
+        ->name('send.to.python');
 
 });
 

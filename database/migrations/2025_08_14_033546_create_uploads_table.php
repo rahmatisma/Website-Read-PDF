@@ -21,7 +21,8 @@ return new class extends Migration
             $table->string('file_path', 255);
             $table->string('file_type', 50); // pdf, doc, jpg, dll
             $table->bigInteger('file_size')->nullable(); // dalam byte
-            $table->enum('tipe_dokumen', ['uploaded', 'processing', 'completed', 'failed']);
+            $table->enum('status', ['uploaded', 'processing', 'completed', 'failed']);
+            $table->json('extracted_data')->nullable(); // ⬅️ TAMBAH INI
             $table->timestamps();
 
             // Foreign key
