@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\ChatbotController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -32,6 +33,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->where('type', 'pdf|gambar|doc')
             ->name('filter');
     });
+
+    // Chatbot Test
+    Route::get('/test', function() {
+        return Inertia::render('chatbot');
+    })->name('chatbot');
+
+    // Endpoint untuk Chatbot
+    Route::post('/chatbot/message', [ChatbotController::class, 'sendMessage'])->name(
+        'chatbot.message'
+    );
 
 
     Route::post('/send-to-python', [DocumentController::class, 'sendToPython'])
