@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\UploadController;
 use App\Http\Controllers\DocumentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -21,10 +20,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('documents')->name('documents.')->group(function () {
 
         // Upload dokumen
-        Route::post('/pdf',    [UploadController::class, 'storePDF'])->name('store.pdf');
-        Route::post('/image',  [UploadController::class, 'storeImage'])->name('store.image');
-        Route::post('/doc',    [UploadController::class, 'storeDoc'])->name('store.doc');
-
+        Route::post('/pdf',    'App\Http\Controllers\UploadController@storePDF')->name('store.pdf');
+        Route::post('/image',  'App\Http\Controllers\UploadController@storeImage')->name('store.image');
+        Route::post('/doc',    'App\Http\Controllers\UploadController@storeDoc')->name('store.doc');
+        
+        // Delete dokumen - TAMBAHKAN INI
+        Route::delete('/{id}', 'App\Http\Controllers\DocumentController@destroy')->name('destroy');
+        
         // Filter berdasarkan tipe
         Route::get('/{type}', [DocumentController::class, 'filter'])
             ->where('type', 'pdf|gambar|doc')
@@ -32,7 +34,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
 
-    // 🔥 Tambahkan route untuk kirim file ke Python Flask
     Route::post('/send-to-python', [DocumentController::class, 'sendToPython'])
         ->name('send.to.python');
 

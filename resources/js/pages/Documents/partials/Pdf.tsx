@@ -1,7 +1,7 @@
 import DocumentTable from '@/components/DocumentTable';
 import SearchFilter from '@/components/SearchFilter';
 import UploadPDFBox from '@/components/UploadPDFBox';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 
 interface Document {
     id_upload: number;
@@ -16,6 +16,20 @@ interface PdfProps {
 }
 
 export default function Pdf({ documents }: PdfProps) {
+    
+    // Fungsi untuk handle delete
+    const handleDelete = (id: number) => {
+        router.delete(route('documents.destroy', id), {
+            onBefore: () => confirm('Apakah Anda yakin ingin menghapus dokumen ini?'),
+            onSuccess: () => {
+                alert('Dokumen berhasil dihapus!');
+            },
+            onError: () => {
+                alert('Gagal menghapus dokumen');
+            }
+        });
+    };
+
     return (
         <>
             <Head title="Daftar Dokumen PDF" />
@@ -32,8 +46,12 @@ export default function Pdf({ documents }: PdfProps) {
                     {/* Search */}
                     <SearchFilter />
 
-                    {/* Table */}
-                    <DocumentTable documents={documents} type="pdf" />
+                    {/* Table - KIRIM FUNGSI handleDelete */}
+                    <DocumentTable 
+                        documents={documents} 
+                        type="pdf"
+                        onDelete={handleDelete}
+                    />
                 </div>
             </div>
         </>

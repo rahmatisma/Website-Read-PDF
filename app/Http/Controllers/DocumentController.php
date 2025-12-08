@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\SPK;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
@@ -81,6 +83,7 @@ class DocumentController extends Controller
             ], 500);
         }
     }
+    
     public function dashboard()
     {
         $userId = Auth::id();
@@ -105,5 +108,35 @@ class DocumentController extends Controller
             'countIMG'  => $countIMG,
             'countAll'  => $countAll,
         ]);
+    }
+    
+    public function destroy($id)
+    {
+        try {
+            // Cari dokumen berdasarkan ID
+            $upload = Document::findOrFail($id);
+            
+            // Jika ada SPK terkait, hapus SPK-nya dulu (cascade akan handle semua relasi)
+            if ($upload->id_spk) {
+                $spk = SPK::find($upload->id_spk);
+                if ($spk) {
+                    // Soft delete atau hard delete sesuai kebutuhan
+                    $spk->delete(); // Ini akan CASCADE ke semua tabel relasi SPK
+                }
+            }
+            
+            // Hapus file fisik dari storage
+            if (Storage::exists('public/' . $upload->file_path)) {
+                Storage::delete('public/' . $upload->file_path);
+            }
+            
+            // Hapus data upload dari database
+            $upload->delete();
+            
+            return redirect()->back()->with('success', 'Dokumen dan semua data terkait berhasil dihapus');
+            
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menghapus dokumen: ' . $e->getMessage());
+        }
     }
 }

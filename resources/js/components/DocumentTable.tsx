@@ -1,3 +1,5 @@
+import { Eye, Trash2 } from 'lucide-react';
+
 interface Document {
     id_upload: number;
     file_name: string;
@@ -9,9 +11,10 @@ interface Document {
 interface DocumentTableProps {
     documents: Document[];
     type: 'pdf' | 'doc' | 'image';
+    onDelete: (id: number) => void;  // TAMBAHKAN INI
 }
 
-export default function DocumentTable({ documents, type }: DocumentTableProps) {
+export default function DocumentTable({ documents, type, onDelete }: DocumentTableProps) {
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '-';
@@ -31,6 +34,10 @@ export default function DocumentTable({ documents, type }: DocumentTableProps) {
             return (size / (1024 * 1024)).toFixed(2) + ' MB';
         }
         return (size / 1024).toFixed(2) + ' KB';
+    };
+
+    const handleView = (filePath: string) => {
+        window.open(`/storage/${filePath}`, '_blank');
     };
 
     return (
@@ -59,24 +66,25 @@ export default function DocumentTable({ documents, type }: DocumentTableProps) {
                                 <td className="px-4 py-3">{formatFileSize(upload.file_size)}</td>
 
                                 <td className="px-4 py-3">
-                                    {type === 'image' ? (
-                                        <a href={`/storage/${upload.file_path}`} target="_blank" rel="noopener noreferrer">
-                                            <img
-                                                src={`/storage/${upload.file_path}`}
-                                                alt={upload.file_name}
-                                                className="h-12 w-12 rounded border border-gray-700 object-cover shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-lg"
-                                            />
-                                        </a>
-                                    ) : (
-                                        <a
-                                            href={`/storage/${upload.file_path}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-400 underline hover:text-blue-500"
+                                    <div className="flex gap-2 items-center">
+                                        {/* Tombol Lihat */}
+                                        <button
+                                            onClick={() => handleView(upload.file_path)}
+                                            className="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors duration-200"
+                                            title="Lihat dokumen"
                                         >
-                                            Lihat
-                                        </a>
-                                    )}
+                                            <Eye size={18} />
+                                        </button>
+                                        
+                                        {/* Tombol Hapus */}
+                                        <button
+                                            onClick={() => onDelete(upload.id_upload)}
+                                            className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors duration-200"
+                                            title="Hapus dokumen"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))

@@ -11,7 +11,7 @@ return new class extends Migration
      * 
      * Table: SPK (Surat Perintah Kerja)
      * Purpose: Work order utama
-     * Depends on: jaringan
+     * Depends on: jaringan, uploads
      */
     public function up(): void
     {
@@ -43,10 +43,13 @@ return new class extends Migration
             $table->string('no_mr', 100)->nullable();
             $table->string('no_fps', 100)->nullable();
 
+            // ✅ TAMBAHAN: Link ke tabel uploads
+            $table->unsignedBigInteger('id_upload')->nullable();
+
             // Soft Delete Fields
             $table->boolean('is_deleted')->default(false);
             $table->timestamp('deleted_at')->nullable();
-            $table->unsignedInteger('deleted_by')->nullable();
+            $table->unsignedBigInteger('deleted_by')->nullable(); // ⬅️ UBAH dari unsignedInteger ke unsignedBigInteger
             $table->text('deletion_reason')->nullable();
 
             // Timestamps
@@ -57,13 +60,22 @@ return new class extends Migration
             $table->index('jenis_spk');
             $table->index('tanggal_spk');
             $table->index('is_deleted');
+            $table->index('id_upload'); // ✅ TAMBAHAN: Index untuk id_upload
             $table->index(['is_deleted', 'jenis_spk', 'tanggal_spk']);
 
-            // Foreign Key
+            // Foreign Keys
             $table->foreign('no_jaringan')
                 ->references('no_jaringan')
                 ->on('jaringan')
                 ->onDelete('restrict')
+                ->onUpdate('cascade');
+
+            // ✅ TAMBAHAN: Foreign key ke uploads dengan CASCADE DELETE
+            // Artinya: Kalau upload dihapus, SPK ini ikut terhapus
+            $table->foreign('id_upload')
+                ->references('id_upload')
+                ->on('uploads')
+                ->onDelete('cascade')
                 ->onUpdate('cascade');
         });
     }
