@@ -24,44 +24,47 @@ use Exception;
 
 class JsonToDatabase
 {
-    /**
-     * Main method untuk pecah JSON ke database
-     */
     public function process(array $jsonData, int $uploadId)
     {
         DB::beginTransaction();
         
         try {
-            // ✅ FIX: Support 2 format dari Flask
-            // Format 1 (Langsung): { "dokumentasi": [...], "parsed": { "data": {...} } }
-            // Format 2 (Nested):   { "data": { "dokumentasi": [...], "parsed": { "data": {...} } } }
-            
+            // ✅ FIX: Support struktur dari Python yang nested dalam "data"
             $parsedData = null;
             $dokumentasi = null;
             $jenisSpk = null;
             
-            // Cek apakah ada nested "data" di luar
+            // Cek struktur: {"data": {"dokumentasi": ..., "parsed": {"data": ...}}}
             if (isset($jsonData['data']['parsed']['data'])) {
-                // Format 2 (Nested) - dari Flask response wrapper
                 $parsedData = $jsonData['data']['parsed']['data'];
                 $dokumentasi = $jsonData['data']['dokumentasi'] ?? [];
                 $jenisSpk = $jsonData['data']['parsed']['jenis_spk'] ?? 'survey';
                 
-                Log::info('Using nested data format', ['upload_id' => $uploadId]);
-                
-            } elseif (isset($jsonData['parsed']['data'])) {
-                // Format 1 (Langsung) - dari Python langsung
+                Log::info('Using nested data structure', ['upload_id' => $uploadId]);
+            }
+            // Fallback: {"parsed": {"data": ...}, "dokumentasi": ...}
+            elseif (isset($jsonData['parsed']['data'])) {
                 $parsedData = $jsonData['parsed']['data'];
                 $dokumentasi = $jsonData['dokumentasi'] ?? [];
                 $jenisSpk = $jsonData['parsed']['jenis_spk'] ?? 'survey';
                 
-                Log::info('Using direct format', ['upload_id' => $uploadId]);
-                
-            } else {
+                Log::info('Using direct data structure', ['upload_id' => $uploadId]);
+            }
+            else {
+                // Log struktur JSON untuk debugging
+                Log::error('Invalid JSON structure', [
+                    'upload_id' => $uploadId,
+                    'json_keys' => array_keys($jsonData)
+                ]);
                 throw new Exception('Invalid JSON structure: parsed.data not found');
             }
             
-            // 1. Insert/Update JARINGAN (gabungkan data jaringan + pelanggan)
+            Log::info('Processing JSON to Database', [
+                'upload_id' => $uploadId,
+                'jenis_spk' => $jenisSpk
+            ]);
+            
+            // 1. Insert/Update JARINGAN
             $noJaringan = $this->processJaringan(
                 $parsedData['jaringan'] ?? [],
                 $parsedData['pelanggan'] ?? []
@@ -71,50 +74,66 @@ class JsonToDatabase
             $idSpk = $this->processSpk(
                 $parsedData['spk'] ?? [],
                 $noJaringan,
-                $jenisSpk
+                $jenisSpk,
+                $uploadId  // ← TAMBAHKAN PARAMETER INI!
             );
             
-            // 3. Insert data pelaksanaan
-            $this->processPelaksanaan($parsedData['pelaksanaan'] ?? [], $idSpk);
+            // 3. Insert data detail
+            $this->safeProcess('Pelaksanaan', function() use ($parsedData, $idSpk) {
+                $this->processPelaksanaan($parsedData['pelaksanaan'] ?? [], $idSpk);
+            });
             
-            // 4. Insert execution info (vendor)
-            $this->processExecutionInfo($parsedData['vendor'] ?? [], $idSpk);
+            $this->safeProcess('ExecutionInfo', function() use ($parsedData, $idSpk) {
+                $this->processExecutionInfo($parsedData['vendor'] ?? [], $idSpk);
+            });
             
-            // 5. Insert informasi gedung
-            $this->processInformasiGedung($parsedData['informasi_gedung'] ?? [], $idSpk);
+            $this->safeProcess('InformasiGedung', function() use ($parsedData, $idSpk) {
+                $this->processInformasiGedung($parsedData['informasi_gedung'] ?? [], $idSpk);
+            });
             
-            // 6. Insert sarpen ruang server
-            $this->processSarpenRuangServer($parsedData['sarpen_ruang_server'] ?? [], $idSpk);
+            $this->safeProcess('SarpenRuangServer', function() use ($parsedData, $idSpk) {
+                $this->processSarpenRuangServer($parsedData['sarpen_ruang_server'] ?? [], $idSpk);
+            });
             
-            // 7. Insert lokasi antena
-            $this->processLokasiAntena($parsedData['lokasi_antena'] ?? [], $idSpk);
+            $this->safeProcess('LokasiAntena', function() use ($parsedData, $idSpk) {
+                $this->processLokasiAntena($parsedData['lokasi_antena'] ?? [], $idSpk);
+            });
             
-            // 8. Insert perizinan biaya gedung
-            $this->processPerizinanBiayaGedung($parsedData['perizinan_biaya_gedung'] ?? [], $idSpk);
+            $this->safeProcess('PerizinanBiayaGedung', function() use ($parsedData, $idSpk) {
+                $this->processPerizinanBiayaGedung($parsedData['perizinan_biaya_gedung'] ?? [], $idSpk);
+            });
             
-            // 9. Insert penempatan perangkat
-            $this->processPenempatanPerangkat($parsedData['penempatan_perangkat'] ?? [], $idSpk);
+            $this->safeProcess('PenempatanPerangkat', function() use ($parsedData, $idSpk) {
+                $this->processPenempatanPerangkat($parsedData['penempatan_perangkat'] ?? [], $idSpk);
+            });
             
-            // 10. Insert perizinan biaya kawasan
-            $this->processPerizinanBiayaKawasan($parsedData['perizinan_biaya_kawasan'] ?? [], $idSpk);
+            $this->safeProcess('PerizinanBiayaKawasan', function() use ($parsedData, $idSpk) {
+                $this->processPerizinanBiayaKawasan($parsedData['perizinan_biaya_kawasan'] ?? [], $idSpk);
+            });
             
-            // 11. Insert kawasan umum
-            $this->processKawasanUmum($parsedData['kawasan_umum'] ?? [], $idSpk);
+            $this->safeProcess('KawasanUmum', function() use ($parsedData, $idSpk) {
+                $this->processKawasanUmum($parsedData['kawasan_umum'] ?? [], $idSpk);
+            });
             
-            // 12. Insert data splitter
-            $this->processDataSplitter($parsedData['data_splitter'] ?? [], $idSpk);
+            $this->safeProcess('DataSplitter', function() use ($parsedData, $idSpk) {
+                $this->processDataSplitter($parsedData['data_splitter'] ?? [], $idSpk);
+            });
             
-            // 13. Insert HH Eksisting (bisa banyak)
-            $this->processHhEksisting($parsedData['data_hh_eksisting'] ?? [], $idSpk);
+            $this->safeProcess('HhEksisting', function() use ($parsedData, $idSpk) {
+                $this->processHhEksisting($parsedData['data_hh_eksisting'] ?? [], $idSpk);
+            });
             
-            // 14. Insert HH Baru (bisa banyak)
-            $this->processHhBaru($parsedData['data_hh_baru'] ?? [], $idSpk);
+            $this->safeProcess('HhBaru', function() use ($parsedData, $idSpk) {
+                $this->processHhBaru($parsedData['data_hh_baru'] ?? [], $idSpk);
+            });
             
-            // 15. Insert dokumentasi foto (bisa banyak)
-            $this->processDokumentasiFoto($dokumentasi, $idSpk);
+            $this->safeProcess('DokumentasiFoto', function() use ($dokumentasi, $idSpk) {
+                $this->processDokumentasiFoto($dokumentasi, $idSpk);
+            });
             
-            // 16. Insert berita acara
-            $this->processBeritaAcara($parsedData['berita_acara'] ?? [], $idSpk);
+            $this->safeProcess('BeritaAcara', function() use ($parsedData, $idSpk) {
+                $this->processBeritaAcara($parsedData['berita_acara'] ?? [], $idSpk);
+            });
             
             DB::commit();
             
@@ -136,7 +155,8 @@ class JsonToDatabase
             Log::error('Failed to process JSON to database', [
                 'upload_id' => $uploadId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
             ]);
             
             throw $e;
@@ -144,17 +164,30 @@ class JsonToDatabase
     }
     
     /**
-     * Process JARINGAN table
-     * ✅ FIX: Gabungkan data jaringan + pelanggan
+     * Safe process wrapper - jika gagal hanya log warning, tidak stop proses
      */
+    private function safeProcess(string $name, callable $callback)
+    {
+        try {
+            $callback();
+        } catch (Exception $e) {
+            Log::warning("Failed to process {$name}", [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine()
+            ]);
+        }
+    }
+    
     private function processJaringan(array $jaringanData, array $pelangganData)
     {
-        if (empty($jaringanData['no_jaringan'])) {
+        $noJaringan = $jaringanData['no_jaringan'] ?? null;
+        
+        if (empty($noJaringan)) {
             throw new Exception('no_jaringan is required');
         }
         
         $jaringan = Jaringan::updateOrCreate(
-            ['no_jaringan' => $jaringanData['no_jaringan']],
+            ['no_jaringan' => $noJaringan],
             [
                 'nama_pelanggan' => $pelangganData['nama_pelanggan'] ?? null,
                 'lokasi_pelanggan' => $pelangganData['lokasi_pelanggan'] ?? null,
@@ -173,31 +206,27 @@ class JsonToDatabase
         return $jaringan->no_jaringan;
     }
     
-    /**
-     * Process SPK table
-     * ✅ FIX: Ambil jenis_spk dari parameter
-     */
-    private function processSpk(array $spkData, string $noJaringan, string $jenisSpk)
+    private function processSpk(array $spkData, string $noJaringan, string $jenisSpk, int $uploadId)
     {
-        if (empty($spkData['no_spk'])) {
+        $noSpk = $spkData['no_spk'] ?? null;
+        
+        if (empty($noSpk)) {
             throw new Exception('no_spk is required');
         }
         
         $spk = Spk::create([
-            'no_spk' => $spkData['no_spk'],
+            'no_spk' => $noSpk,
             'no_jaringan' => $noJaringan,
             'document_type' => 'spk',
             'jenis_spk' => $jenisSpk,
             'tanggal_spk' => $this->parseDate($spkData['tanggal_spk'] ?? null),
             'no_fps' => $spkData['no_fps'] ?? null,
+            'id_upload' => $uploadId, // ← TAMBAHKAN BARIS INI!
         ]);
         
         return $spk->id_spk;
     }
     
-    /**
-     * Process SPK_Pelaksanaan
-     */
     private function processPelaksanaan(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -210,9 +239,6 @@ class JsonToDatabase
         ]);
     }
     
-    /**
-     * Process SPK_Execution_Info
-     */
     private function processExecutionInfo(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -228,9 +254,6 @@ class JsonToDatabase
         ]);
     }
     
-    /**
-     * Process SPK_Informasi_Gedung
-     */
     private function processInformasiGedung(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -255,25 +278,17 @@ class JsonToDatabase
         ]);
     }
     
-    /**
-     * Process SPK_Sarpen_Ruang_Server
-     */
     private function processSarpenRuangServer(array $data, int $idSpk)
     {
         if (empty($data)) return;
-        
-        // Map nilai enum
-        $groundingListrik = $this->mapAdaTidakAda($data['grounding_listrik'] ?? null);
-        $ups = $this->mapTersediaTidak($data['ups'] ?? null);
-        $ruanganBerAc = $this->mapAdaTidakAda($data['ruangan_ber_ac'] ?? null);
         
         SpkSarpenRuangServer::create([
             'id_spk' => $idSpk,
             'power_line_listrik' => $data['power_line___listrik'] ?? null,
             'ketersediaan_power_outlet' => $data['ketersediaan_power_outlet_untuk_otb,_modem,_dan_router'] ?? null,
-            'grounding_listrik' => $groundingListrik,
-            'ups' => $ups,
-            'ruangan_ber_ac' => $ruanganBerAc,
+            'grounding_listrik' => $this->mapAdaTidakAda($data['grounding_listrik'] ?? null),
+            'ups' => $this->mapTersediaTidak($data['ups'] ?? null),
+            'ruangan_ber_ac' => $this->mapAdaTidakAda($data['ruangan_ber_ac'] ?? null),
             'suhu_ruangan_keterangan' => $data['suhu_ruangan'] ?? null,
             'lantai' => $data['1_lantai'] ?? null,
             'ruang' => $data['2_ruang'] ?? null,
@@ -281,15 +296,9 @@ class JsonToDatabase
         ]);
     }
     
-    /**
-     * Process SPK_Lokasi_Antena
-     */
     private function processLokasiAntena(array $data, int $idSpk)
     {
         if (empty($data)) return;
-        
-        $penangkalPetir = $this->mapAdaTidakAda($data['penangkal_petir'] ?? null);
-        $towerPole = $this->mapAdaTidakAda($data['tower___pole'] ?? null);
         
         SpkLokasiAntena::create([
             'id_spk' => $idSpk,
@@ -297,18 +306,15 @@ class JsonToDatabase
             'detail_lokasi_antena' => $data['detail_lokasi_antena'] ?? null,
             'space_tersedia' => $data['space_tersedia'] ?? null,
             'akses_di_lokasi_perlu_alat_bantu' => $data['akses_di_lokasi_perlu_alat_bantu'] ?? null,
-            'penangkal_petir' => $penangkalPetir,
+            'penangkal_petir' => $this->mapAdaTidakAda($data['penangkal_petir'] ?? null),
             'tinggi_penangkal_petir' => $data['tinggi_penangkal_petir'] ?? null,
             'jarak_ke_lokasi_antena' => $data['jarak_ke_lokasi_antena'] ?? null,
             'tindak_lanjut' => $data['tindak_lanjut'] ?? null,
-            'tower_pole' => $towerPole,
+            'tower_pole' => $this->mapAdaTidakAda($data['tower___pole'] ?? null),
             'pemilik_tower_pole' => $data['pemilik_tower___pole'] ?? null,
         ]);
     }
     
-    /**
-     * Process SPK_Perizinan_Biaya_Gedung
-     */
     private function processPerizinanBiayaGedung(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -330,40 +336,27 @@ class JsonToDatabase
         ]);
     }
     
-    /**
-     * Process SPK_Penempatan_Perangkat
-     */
     private function processPenempatanPerangkat(array $data, int $idSpk)
     {
         if (empty($data)) return;
         
-        $kesiapanRuang = $this->mapSiapTidakSiap($data['kesiapan_ruang_server'] ?? null);
-        $ketersediaanRak = $this->mapAdaTidakAda($data['ketersedian_rak_server'] ?? null);
-        $space = $this->mapAdaTidakAda($data['space_modem_dan_router'] ?? null);
-        $diizinkan = $this->mapYaTidak($data['diizinkan_foto_ruang_server_pelanggan'] ?? null);
-        
         SpkPenempatanPerangkat::create([
             'id_spk' => $idSpk,
             'lokasi_penempatan_modem_dan_router' => $data['lokasi_penempatan_modem_dan_router'] ?? null,
-            'kesiapan_ruang_server' => $kesiapanRuang,
-            'ketersedian_rak_server' => $ketersediaanRak,
-            'space_modem_dan_router' => $space,
-            'diizinkan_foto_ruang_server_pelanggan' => $diizinkan,
+            'kesiapan_ruang_server' => $this->mapSiapTidakSiap($data['kesiapan_ruang_server'] ?? null),
+            'ketersedian_rak_server' => $this->mapAdaTidakAda($data['ketersedian_rak_server'] ?? null),
+            'space_modem_dan_router' => $this->mapAdaTidakAda($data['space_modem_dan_router'] ?? null),
+            'diizinkan_foto_ruang_server_pelanggan' => $this->mapYaTidak($data['diizinkan_foto_ruang_server_pelanggan'] ?? null),
         ]);
     }
     
-    /**
-     * Process SPK_Perizinan_Biaya_Kawasan
-     */
     private function processPerizinanBiayaKawasan(array $data, int $idSpk)
     {
         if (empty($data)) return;
         
-        $melewati = $this->mapYaTidak($data['melewati_kawasan_private'] ?? null);
-        
         SpkPerizinanBiayaKawasan::create([
             'id_spk' => $idSpk,
-            'melewati_kawasan_private' => $melewati ?? 'tidak',
+            'melewati_kawasan_private' => $this->mapYaTidak($data['melewati_kawasan_private'] ?? null) ?? 'tidak',
             'nama_kawasan' => $data['nama_kawasan'] ?? null,
             'pic_kawasan' => $data['pic_kawasan'] ?? null,
             'kontak_pic_kawasan' => $data['kontak_pic_kawasan'] ?? null,
@@ -378,9 +371,6 @@ class JsonToDatabase
         ]);
     }
     
-    /**
-     * Process SPK_Kawasan_Umum
-     */
     private function processKawasanUmum(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -392,9 +382,6 @@ class JsonToDatabase
         ]);
     }
     
-    /**
-     * Process SPK_Data_Splitter
-     */
     private function processDataSplitter(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -412,14 +399,10 @@ class JsonToDatabase
         ]);
     }
     
-    /**
-     * Process SPK_HH_Eksisting (bisa banyak)
-     */
     private function processHhEksisting(array $data, int $idSpk)
     {
         if (empty($data)) return;
         
-        // Data HH bisa berupa hh_1, hh_2, dst
         foreach ($data as $key => $hh) {
             if (empty($hh) || !is_array($hh)) continue;
             
@@ -427,10 +410,16 @@ class JsonToDatabase
             preg_match('/hh_(\d+)/', $key, $matches);
             $nomorHh = $matches[1] ?? 1;
             
-            // Skip jika tidak ada data penting
-            if (empty($hh['lokasi_hh_' . $nomorHh]) && empty($hh['kondisi_hh_' . $nomorHh])) {
-                continue;
+            // Skip jika semua field kosong
+            $hasData = false;
+            foreach ($hh as $value) {
+                if (!empty($value) && $value !== null) {
+                    $hasData = true;
+                    break;
+                }
             }
+            
+            if (!$hasData) continue;
             
             SpkHhEksisting::create([
                 'id_spk' => $idSpk,
@@ -446,9 +435,6 @@ class JsonToDatabase
         }
     }
     
-    /**
-     * Process SPK_HH_Baru (bisa banyak)
-     */
     private function processHhBaru(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -459,9 +445,16 @@ class JsonToDatabase
             preg_match('/hh_(\d+)/', $key, $matches);
             $nomorHh = $matches[1] ?? 1;
             
-            if (empty($hh['lokasi_hh_' . $nomorHh])) {
-                continue;
+            // Skip jika semua field kosong
+            $hasData = false;
+            foreach ($hh as $value) {
+                if (!empty($value) && $value !== null) {
+                    $hasData = true;
+                    break;
+                }
             }
+            
+            if (!$hasData) continue;
             
             SpkHhBaru::create([
                 'id_spk' => $idSpk,
@@ -475,9 +468,6 @@ class JsonToDatabase
         }
     }
     
-    /**
-     * Process Dokumentasi_Foto (array)
-     */
     private function processDokumentasiFoto(array $dokumentasiArray, int $idSpk)
     {
         if (empty($dokumentasiArray)) return;
@@ -485,21 +475,21 @@ class JsonToDatabase
         foreach ($dokumentasiArray as $index => $foto) {
             if (empty($foto['patch_foto'])) continue;
             
+            // Normalize path (ganti backslash jadi forward slash)
+            $pathFoto = str_replace('\\', '/', $foto['patch_foto']);
+            
             $kategori = $this->mapKategoriFoto($foto['jenis'] ?? '');
             
             DokumentasiFoto::create([
                 'id_spk' => $idSpk,
                 'kategori_foto' => $kategori,
-                'path_foto' => $foto['patch_foto'],
+                'path_foto' => $pathFoto,
                 'urutan' => $index + 1,
                 'keterangan' => $foto['jenis'] ?? null,
             ]);
         }
     }
     
-    /**
-     * Process Berita_Acara
-     */
     private function processBeritaAcara(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -516,25 +506,26 @@ class JsonToDatabase
     
     private function parseDate($dateString)
     {
-        if (empty($dateString) || $dateString === '-') return null;
+        if (empty($dateString) || $dateString === '-' || $dateString === 'null') return null;
         
         try {
-            // Format dari Python: 09/Nov/2023 atau 01-Dec-2023
-            // Gunakan createFromFormat untuk handle format ini
+            $dateString = trim($dateString);
             
-            // Coba format 1: dd/MMM/yyyy
-            $date = \Carbon\Carbon::createFromFormat('d/M/Y', $dateString);
-            if ($date) {
-                return $date->format('Y-m-d');
+            // Format: dd/MMM/yyyy atau dd-MMM-yyyy
+            $formats = ['d/M/Y', 'd-M-Y', 'd/m/Y', 'd-m-Y', 'Y-m-d'];
+            
+            foreach ($formats as $format) {
+                try {
+                    $date = \Carbon\Carbon::createFromFormat($format, $dateString);
+                    if ($date) {
+                        return $date->format('Y-m-d');
+                    }
+                } catch (Exception $e) {
+                    continue;
+                }
             }
             
-            // Coba format 2: dd-MMM-yyyy
-            $date = \Carbon\Carbon::createFromFormat('d-M-Y', $dateString);
-            if ($date) {
-                return $date->format('Y-m-d');
-            }
-            
-            // Fallback: gunakan Carbon::parse
+            // Fallback
             $date = \Carbon\Carbon::parse($dateString);
             return $date->format('Y-m-d');
             
@@ -549,25 +540,26 @@ class JsonToDatabase
     
     private function parseDateTime($dateTimeString)
     {
-        if (empty($dateTimeString) || $dateTimeString === '-') return null;
+        if (empty($dateTimeString) || $dateTimeString === '-' || $dateTimeString === 'null') return null;
         
         try {
-            // Format dari Python: 09/Nov/2023   11:00 (ada multiple spaces)
+            // Normalize spaces
             $dateTimeString = preg_replace('/\s+/', ' ', trim($dateTimeString));
             
-            // Coba format 1: dd/MMM/yyyy HH:mm
-            $date = \Carbon\Carbon::createFromFormat('d/M/Y H:i', $dateTimeString);
-            if ($date) {
-                return $date->format('Y-m-d H:i:s');
+            $formats = ['d/M/Y H:i', 'd-M-Y H:i', 'd/m/Y H:i', 'd-m-Y H:i'];
+            
+            foreach ($formats as $format) {
+                try {
+                    $date = \Carbon\Carbon::createFromFormat($format, $dateTimeString);
+                    if ($date) {
+                        return $date->format('Y-m-d H:i:s');
+                    }
+                } catch (Exception $e) {
+                    continue;
+                }
             }
             
-            // Coba format 2: dd-MMM-yyyy HH:mm
-            $date = \Carbon\Carbon::createFromFormat('d-M-Y H:i', $dateTimeString);
-            if ($date) {
-                return $date->format('Y-m-d H:i:s');
-            }
-            
-            // Fallback: gunakan Carbon::parse
+            // Fallback
             $date = \Carbon\Carbon::parse($dateTimeString);
             return $date->format('Y-m-d H:i:s');
             
@@ -582,7 +574,7 @@ class JsonToDatabase
     
     private function mapAdaTidakAda($value)
     {
-        if (empty($value)) return null;
+        if (empty($value) || $value === 'null') return null;
         
         $lower = strtolower(trim($value));
         if (strpos($lower, 'ada') !== false || strpos($lower, 'tersedia') !== false) {
@@ -595,7 +587,7 @@ class JsonToDatabase
     
     private function mapTersediaTidak($value)
     {
-        if (empty($value)) return null;
+        if (empty($value) || $value === 'null') return null;
         
         $lower = strtolower(trim($value));
         if (strpos($lower, 'tersedia') !== false || strpos($lower, 'ada') !== false) {
@@ -608,7 +600,7 @@ class JsonToDatabase
     
     private function mapSiapTidakSiap($value)
     {
-        if (empty($value)) return null;
+        if (empty($value) || $value === 'null') return null;
         
         $lower = strtolower(trim($value));
         if (strpos($lower, 'siap') !== false) {
@@ -621,12 +613,12 @@ class JsonToDatabase
     
     private function mapYaTidak($value)
     {
-        if (empty($value)) return null;
+        if (empty($value) || $value === 'null') return null;
         
         $lower = strtolower(trim($value));
-        if (strpos($lower, 'ya') !== false) {
+        if (strpos($lower, 'ya') !== false || $lower === 'y') {
             return 'ya';
-        } elseif (strpos($lower, 'tidak') !== false) {
+        } elseif (strpos($lower, 'tidak') !== false || $lower === 'n') {
             return 'tidak';
         }
         return null;
@@ -659,16 +651,15 @@ class JsonToDatabase
     
     private function extractLatitude($latLongString)
     {
-        if (empty($latLongString)) return null;
+        if (empty($latLongString) || $latLongString === 'null') return null;
         
-        // Format bisa: "lat, long" atau berbagai format lain
         $parts = explode(',', $latLongString);
         return isset($parts[0]) ? trim($parts[0]) : null;
     }
     
     private function extractLongitude($latLongString)
     {
-        if (empty($latLongString)) return null;
+        if (empty($latLongString) || $latLongString === 'null') return null;
         
         $parts = explode(',', $latLongString);
         return isset($parts[1]) ? trim($parts[1]) : null;
