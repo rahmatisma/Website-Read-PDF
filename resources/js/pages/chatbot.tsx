@@ -36,7 +36,6 @@ const getInitialMessage = (): Message => ({
 });
 
 export default function Chatbot() {
-    // Load messages from localStorage or use initial message
     const [messages, setMessages] = useState<Message[]>(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -55,20 +54,11 @@ export default function Chatbot() {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Save messages to localStorage whenever they change
     useEffect(() => {
         if (typeof window !== 'undefined') {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
         }
-    }, [messages]);
-
-    // Auto scroll to bottom when messages change
-    const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
-    useEffect(() => {
-        scrollToBottom();
     }, [messages, isLoading]);
 
     const handleNewChat = () => {
@@ -76,6 +66,9 @@ export default function Chatbot() {
         if (confirmed) {
             setMessages([getInitialMessage()]);
             setInputMessage('');
+            setTimeout(() => {
+                (document.querySelector('.chat-input') as HTMLInputElement)?.focus();
+            }, 50);
         }
     };
 
@@ -94,6 +87,10 @@ export default function Chatbot() {
 
         setMessages((prev) => [...prev, userMessage]);
         setInputMessage('');
+
+        setTimeout(() => {
+            (document.querySelector('.chat-input') as HTMLInputElement)?.focus();
+        }, 50);
         setIsLoading(true);
 
         try {
@@ -139,85 +136,104 @@ export default function Chatbot() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Chatbot" />
             <div className="flex h-[calc(100vh-8rem)] flex-1 flex-col">
-                <Card className="m-2 flex h-full flex-col">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
+                <Card className="m-0 flex h-full flex-col overflow-hidden md:m-2">
+                    <CardHeader className="shrink-0 p-3 md:p-6">
+                        <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                                <Bot className="h-6 w-6" />
+                                <Bot className="h-5 w-5 md:h-6 md:w-6" />
                                 <div>
-                                    <CardTitle>Company Chatbot</CardTitle>
-                                    <CardDescription>Tanyakan apa saja tentang perusahaan, produk, dan layanan kami</CardDescription>
+                                    <CardTitle className="text-base md:text-lg">Company Chatbot</CardTitle>
+                                    <CardDescription className="hidden text-xs md:block md:text-sm">
+                                        Tanyakan apa saja tentang perusahaan, produk, dan layanan kami
+                                    </CardDescription>
                                 </div>
                             </div>
-                            <Button variant="outline" size="sm" onClick={handleNewChat} className="flex items-center gap-2 bg-white text-black cursor-pointer">
-                                <MessageSquarePlus className="h-4 w-4" />
-                                New Chat
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleNewChat}
+                                className="flex cursor-pointer items-center gap-1 bg-white text-black md:gap-2"
+                            >
+                                <MessageSquarePlus className="h-3 w-3 md:h-4 md:w-4" />
+                                <span className="hidden md:inline">New Chat</span>
                             </Button>
                         </div>
                     </CardHeader>
-                    <CardContent className="flex flex-1 flex-col gap-4 overflow-hidden">
-                        {/* Messages Area */}
-                        <ScrollArea className="flex-1 pr-4">
-                            <div className="space-y-4">
+
+                    {/* Messages Area */}
+                    <CardContent className="flex-1 overflow-hidden p-0">
+                        <ScrollArea className="h-full px-3 py-2 pb-32 md:px-6 md:py-4 md:pb-40">
+                            <div className="space-y-3 md:space-y-4">
                                 {messages.map((message) => (
-                                    <div key={message.id} className={`flex items-start gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : ''}`}>
+                                    <div
+                                        key={message.id}
+                                        className={`flex items-start gap-2 md:gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : ''}`}
+                                    >
                                         <div
-                                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full md:h-8 md:w-8 ${
                                                 message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                                             }`}
                                         >
-                                            {message.sender === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                                            {message.sender === 'user' ? <User className="h-3 w-3 md:h-4 md:w-4" /> : <Bot className="h-3 w-3 md:h-4 md:w-4" />}
                                         </div>
-                                        <div className={`flex flex-col gap-1 ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                                        <div className={`flex max-w-[75%] flex-col gap-1 md:max-w-[80%] ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
                                             <div
-                                                className={`rounded-lg px-4 py-2 ${message.sender === 'user' ? 'bg-blue-700 text-white' : 'bg-muted'}`}
+                                                className={`rounded-lg px-3 py-2 md:px-4 ${message.sender === 'user' ? 'bg-blue-700 text-white' : 'bg-muted'}`}
                                             >
-                                                <p className="text-sm">{message.text}</p>
+                                                <p className="text-xs md:text-sm">{message.text}</p>
                                             </div>
-                                            <span className="text-xs text-muted-foreground">{message.timestamp}</span>
+                                            <span className="text-[10px] text-muted-foreground md:text-xs">{message.timestamp}</span>
                                         </div>
                                     </div>
                                 ))}
                                 {isLoading && (
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                                            <Bot className="h-4 w-4" />
+                                    <div className="flex items-start gap-2 md:gap-3">
+                                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted md:h-8 md:w-8">
+                                            <Bot className="h-3 w-3 md:h-4 md:w-4" />
                                         </div>
-                                        <div className="rounded-lg bg-muted px-4 py-2">
+                                        <div className="rounded-lg bg-muted px-3 py-2 md:px-4">
                                             <div className="flex gap-1">
-                                                <div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]"></div>
-                                                <div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]"></div>
-                                                <div className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground"></div>
+                                                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s] md:h-2 md:w-2"></div>
+                                                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s] md:h-2 md:w-2"></div>
+                                                <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground md:h-2 md:w-2"></div>
                                             </div>
                                         </div>
                                     </div>
                                 )}
-                                {/* Invisible element for scrolling */}
                                 <div ref={messagesEndRef} />
                             </div>
                         </ScrollArea>
+                    </CardContent>
+                </Card>
 
-                        {/* Input Area */}
+                {/* Floating Input Area - Responsive untuk mobile dan desktop */}
+                <div className="fixed inset-x-0 bottom-0 z-50 md:bottom-4 md:left-72 md:right-8">
+                    <div className="mx-auto rounded-t-lg border-t bg-background p-3 shadow-xl md:rounded-lg md:border md:bg-background/95 md:p-4 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
                         <div className="flex items-center gap-2">
                             <Input
-                                placeholder="Ketik pesan Anda di sini..."
+                                placeholder="Ketik pesan..."
+                                autoFocus
                                 value={inputMessage}
                                 onChange={(e) => setInputMessage(e.target.value)}
                                 onKeyPress={handleKeyPress}
-                                disabled={isLoading}
-                                className="flex-1"
+                                className="chat-input flex-1 text-sm md:text-base"
                             />
-                            <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} size="icon" className='cursor-pointer'>
-                                <Send className="h-4 w-4" />
+                            <Button 
+                                onClick={handleSendMessage} 
+                                disabled={!inputMessage.trim() || isLoading} 
+                                size="icon" 
+                                className="h-9 w-9 cursor-pointer md:h-10 md:w-10"
+                            >
+                                <Send className="h-3.5 w-3.5 md:h-4 md:w-4" />
                             </Button>
                         </div>
 
-                        {/* Info Text */}
-                        <p className="text-xs text-muted-foreground">
+                        {/* Info Text - Hidden on mobile */}
+                        <p className="mt-2 hidden text-xs text-muted-foreground md:block">
                             💡 Tips: Tanyakan tentang produk, layanan, kontak, atau informasi perusahaan kami
                         </p>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </div>
         </AppLayout>
     );
