@@ -1,5 +1,5 @@
 <?php
-
+// servis untuk membagi data
 namespace App\Services;
 
 use App\Models\Jaringan;
