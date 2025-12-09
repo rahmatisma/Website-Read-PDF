@@ -660,7 +660,6 @@ class JsonToDatabase
     private function extractLongitude($latLongString)
     {
         if (empty($latLongString) || $latLongString === 'null') return null;
-        
         $parts = explode(',', $latLongString);
         return isset($parts[1]) ? trim($parts[1]) : null;
     }
