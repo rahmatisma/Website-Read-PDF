@@ -5,12 +5,16 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { type BreadcrumbItem } from '@/types';
 import { type PropsWithChildren } from 'react';
 
-export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[] }>) {
+export default function AppSidebarLayout({ 
+    children, 
+    breadcrumbs = [],
+    enableSticky = false 
+}: PropsWithChildren<{ breadcrumbs?: BreadcrumbItem[]; enableSticky?: boolean }>) {
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
-            <AppContent variant="sidebar" className="overflow-x-hidden">
-                <AppSidebarHeader breadcrumbs={breadcrumbs} />
+            <AppContent variant="sidebar" className={enableSticky ? "overflow-visible" : "overflow-x-hidden"}>
+                {!enableSticky && <AppSidebarHeader breadcrumbs={breadcrumbs} />}
                 {children}
             </AppContent>
         </AppShell>

@@ -1,6 +1,5 @@
 import TabSwitcher from '@/components/TabSwitcher';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
@@ -21,8 +20,6 @@ type PageProps = {
     documents?: Document[]; // ✅ Ganti any[] dengan Document[]
     activeTab?: 'pdf' | 'gambar' | 'doc';
 };
-
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Documents', href: '/documents' }];
 
 const toLabel = (v: string) => {
     switch (v.toLowerCase()) {
@@ -69,7 +66,7 @@ export default function Index() {
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout>
             <Head title="Documents" />
             <TabSwitcher
                 tabs={tabs}

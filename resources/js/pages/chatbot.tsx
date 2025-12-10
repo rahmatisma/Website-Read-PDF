@@ -1,20 +1,12 @@
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
 import { Bot, MessageSquarePlus, Send, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Chatbot',
-        href: '/test',
-    },
-];
 
 interface Message {
     id: number;
@@ -52,18 +44,64 @@ export default function Chatbot() {
 
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [typingText, setTypingText] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
         }
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isLoading]);
+    }, [messages, isLoading, typingText]);
+
+    useEffect(() => {
+        return () => {
+            if (typingIntervalRef.current) {
+                clearInterval(typingIntervalRef.current);
+            }
+        };
+    }, []);
+
+    const typeMessage = (fullText: string) => {
+        let index = 0;
+        setTypingText('');
+        setIsTyping(true);
+
+        typingIntervalRef.current = setInterval(() => {
+            if (index < fullText.length) {
+                setTypingText((prev) => prev + fullText.charAt(index));
+                index++;
+            } else {
+                if (typingIntervalRef.current) {
+                    clearInterval(typingIntervalRef.current);
+                }
+                setIsTyping(false);
+                
+                const botMessage: Message = {
+                    id: Date.now(),
+                    text: fullText,
+                    sender: 'bot',
+                    timestamp: new Date().toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    }),
+                };
+                setMessages((prev) => [...prev, botMessage]);
+                setTypingText('');
+            }
+        }, 20);
+    };
 
     const handleNewChat = () => {
         const confirmed = window.confirm('Apakah Anda yakin ingin memulai chat baru? Semua riwayat chat akan dihapus.');
         if (confirmed) {
+            if (typingIntervalRef.current) {
+                clearInterval(typingIntervalRef.current);
+            }
+            setIsTyping(false);
+            setTypingText('');
             setMessages([getInitialMessage()]);
             setInputMessage('');
             setTimeout(() => {
@@ -73,10 +111,10 @@ export default function Chatbot() {
     };
 
     const handleSendMessage = async () => {
-        if (!inputMessage.trim() || isLoading) return;
+        if (!inputMessage.trim() || isLoading || isTyping) return;
 
         const userMessage: Message = {
-            id: messages.length + 1,
+            id: Date.now(),
             text: inputMessage,
             sender: 'user',
             timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -85,6 +123,7 @@ export default function Chatbot() {
             }),
         };
 
+        const messageToSend = inputMessage;
         setMessages((prev) => [...prev, userMessage]);
         setInputMessage('');
 
@@ -95,33 +134,16 @@ export default function Chatbot() {
 
         try {
             const response = await axios.post('/chatbot/message', {
-                message: inputMessage,
+                message: messageToSend,
             });
 
-            const botMessage: Message = {
-                id: messages.length + 2,
-                text: response.data.message,
-                sender: 'bot',
-                timestamp: new Date().toLocaleTimeString('id-ID', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }),
-            };
-
-            setMessages((prev) => [...prev, botMessage]);
-        } catch (error: any) {
-            const errorMessage: Message = {
-                id: messages.length + 2,
-                text: error.response?.data?.message || 'Maaf, terjadi kesalahan. Silakan coba lagi.',
-                sender: 'bot',
-                timestamp: new Date().toLocaleTimeString('id-ID', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }),
-            };
-            setMessages((prev) => [...prev, errorMessage]);
-        } finally {
             setIsLoading(false);
+            typeMessage(response.data.message);
+
+        } catch (error: any) {
+            setIsLoading(false);
+            const errorText = error.response?.data?.message || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
+            typeMessage(errorText);
         }
     };
 
@@ -133,36 +155,39 @@ export default function Chatbot() {
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Chatbot" />
-            <div className="flex h-[calc(100vh-8rem)] flex-1 flex-col">
-                <Card className="m-0 flex h-full flex-col overflow-hidden md:m-2">
-                    <CardHeader className="shrink-0 p-3 md:p-6">
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                                <Bot className="h-5 w-5 md:h-6 md:w-6" />
-                                <div>
-                                    <CardTitle className="text-base md:text-lg">Company Chatbot</CardTitle>
-                                    <CardDescription className="hidden text-xs md:block md:text-sm">
-                                        Tanyakan apa saja tentang perusahaan, produk, dan layanan kami
-                                    </CardDescription>
-                                </div>
+    <AppLayout enableSticky={true}>
+        <Head title="Chatbot" />
+        <div className="flex h-full flex-1 flex-col">
+            {/* Floating Header - Top */}
+            <div className="sticky top-0 z-50 transition-all duration-300">
+                <div className="border-b bg-background/95 p-3 shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-background/90 md:mx-2 md:rounded-lg md:border md:p-6">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <Bot className="h-5 w-5 md:h-6 md:w-6" />
+                            <div>
+                                <CardTitle className="text-base md:text-lg">Company Chatbot</CardTitle>
+                                <CardDescription className="hidden text-xs md:block md:text-sm">
+                                    Tanyakan apa saja tentang perusahaan, produk, dan layanan kami
+                                </CardDescription>
                             </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleNewChat}
-                                className="flex cursor-pointer items-center gap-1 bg-white text-black md:gap-2"
-                            >
-                                <MessageSquarePlus className="h-3 w-3 md:h-4 md:w-4" />
-                                <span className="hidden md:inline">New Chat</span>
-                            </Button>
                         </div>
-                    </CardHeader>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleNewChat}
+                            className="flex cursor-pointer items-center gap-1 bg-white text-black md:gap-2"
+                        >
+                            <MessageSquarePlus className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="hidden md:inline">New Chat</span>
+                        </Button>
+                    </div>
+                </div>
+            </div>
 
-                    {/* Messages Area */}
-                    <CardContent className="flex-1 overflow-hidden p-0">
-                        <ScrollArea className="h-full px-3 py-2 pb-32 md:px-6 md:py-4 md:pb-40">
+                {/* Messages Card */}
+            <Card className="m-0 flex flex-1 flex-col overflow-hidden transition-all duration-300 md:m-2">
+                <CardContent className="flex-1 overflow-hidden p-0">
+                    <ScrollArea className="h-full px-3 py-2 pb-32 md:px-6 md:py-4 md:pb-40">
                             <div className="space-y-3 md:space-y-4">
                                 {messages.map((message) => (
                                     <div
@@ -180,12 +205,13 @@ export default function Chatbot() {
                                             <div
                                                 className={`rounded-lg px-3 py-2 md:px-4 ${message.sender === 'user' ? 'bg-blue-700 text-white' : 'bg-muted'}`}
                                             >
-                                                <p className="text-xs md:text-sm">{message.text}</p>
+                                                <p className="whitespace-pre-line text-xs md:text-sm">{message.text}</p>
                                             </div>
                                             <span className="text-[10px] text-muted-foreground md:text-xs">{message.timestamp}</span>
                                         </div>
                                     </div>
                                 ))}
+                                
                                 {isLoading && (
                                     <div className="flex items-start gap-2 md:gap-3">
                                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted md:h-8 md:w-8">
@@ -200,15 +226,32 @@ export default function Chatbot() {
                                         </div>
                                     </div>
                                 )}
+
+                                {isTyping && typingText && (
+                                    <div className="flex items-start gap-2 md:gap-3">
+                                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted md:h-8 md:w-8">
+                                            <Bot className="h-3 w-3 md:h-4 md:w-4" />
+                                        </div>
+                                        <div className="flex max-w-[75%] flex-col gap-1 md:max-w-[80%]">
+                                            <div className="rounded-lg bg-muted px-3 py-2 md:px-4">
+                                                <p className="whitespace-pre-line text-xs md:text-sm">
+                                                    {typingText}
+                                                    <span className="animate-pulse">▊</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div ref={messagesEndRef} />
                             </div>
                         </ScrollArea>
                     </CardContent>
                 </Card>
 
-                {/* Floating Input Area - Responsive untuk mobile dan desktop */}
-                <div className="fixed inset-x-0 bottom-0 z-50 md:bottom-4 md:left-72 md:right-8">
-                    <div className="mx-auto rounded-t-lg border-t bg-background p-3 shadow-xl md:rounded-lg md:border md:bg-background/95 md:p-4 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
+                 {/* Floating Input Area - Bottom */}
+            <div className="sticky bottom-0 z-50 transition-all px-24 duration-300 md:bottom-4">
+                <div className="rounded-t-lg border-t bg-background p-3 shadow-xl md:mx-2 md:rounded-lg md:border md:bg-background/95 md:p-4 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
                         <div className="flex items-center gap-2">
                             <Input
                                 placeholder="Ketik pesan..."
@@ -220,7 +263,7 @@ export default function Chatbot() {
                             />
                             <Button 
                                 onClick={handleSendMessage} 
-                                disabled={!inputMessage.trim() || isLoading} 
+                                disabled={!inputMessage.trim() || isLoading || isTyping} 
                                 size="icon" 
                                 className="h-9 w-9 cursor-pointer md:h-10 md:w-10"
                             >
@@ -228,7 +271,6 @@ export default function Chatbot() {
                             </Button>
                         </div>
 
-                        {/* Info Text - Hidden on mobile */}
                         <p className="mt-2 hidden text-xs text-muted-foreground md:block">
                             💡 Tips: Tanyakan tentang produk, layanan, kontak, atau informasi perusahaan kami
                         </p>
