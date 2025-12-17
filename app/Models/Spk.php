@@ -19,7 +19,7 @@ class SPK extends Model
         'tanggal_spk',
         'no_mr',
         'no_fps',
-        'id_upload', // ✅ TAMBAHAN
+        'id_upload',
         'is_deleted',
         'deleted_at',
         'deleted_by',
@@ -28,27 +28,76 @@ class SPK extends Model
 
     protected $casts = [
         'tanggal_spk' => 'date',
-        'is_deleted' => 'boolean', // ✅ TAMBAHAN
-        'deleted_at' => 'datetime', // ✅ TAMBAHAN
+        'is_deleted' => 'boolean',
+        'deleted_at' => 'datetime',
     ];
 
-    // ✅ TAMBAHAN: Relasi ke Upload
+    // ========== RELATIONSHIPS ==========
+
     public function upload()
     {
         return $this->belongsTo(Document::class, 'id_upload', 'id_upload');
     }
 
-    // ✅ TAMBAHAN: Relasi ke User (yang menghapus)
     public function deletedBy()
     {
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
-    // Relasi yang sudah ada
     public function jaringan()
     {
         return $this->belongsTo(Jaringan::class, 'no_jaringan', 'no_jaringan');
     }
+
+    // ========== TAMBAHKAN RELATIONSHIP KE EMBEDDING ==========
+    
+    /**
+     * Relasi ke SpkEmbedding (one-to-one)
+     */
+    public function embedding()
+    {
+        return $this->hasOne(SpkEmbedding::class, 'id_spk', 'id_spk');
+    }
+
+    /**
+     * Atau jika multiple embeddings (one-to-many)
+     */
+    public function embeddings()
+    {
+        return $this->hasMany(SpkEmbedding::class, 'id_spk', 'id_spk');
+    }
+
+    /**
+     * Method helper untuk generate text yang akan di-embed
+     */
+    public function getEmbeddableText(): string
+    {
+        $parts = [
+            'No SPK: ' . $this->no_spk,
+            'No Jaringan: ' . $this->no_jaringan,
+            'Jenis SPK: ' . $this->jenis_spk,
+            'Document Type: ' . $this->document_type,
+            'Tanggal SPK: ' . optional($this->tanggal_spk)->format('Y-m-d'),
+        ];
+
+        // Tambahkan info dari relasi jika ada
+        if ($this->jaringan) {
+            $parts[] = 'Nama Pelanggan: ' . $this->jaringan->nama_pelanggan;
+            $parts[] = 'Lokasi: ' . $this->jaringan->lokasi_pelanggan;
+        }
+
+        if ($this->no_mr) {
+            $parts[] = 'No MR: ' . $this->no_mr;
+        }
+
+        if ($this->no_fps) {
+            $parts[] = 'No FPS: ' . $this->no_fps;
+        }
+
+        return implode(' | ', array_filter($parts));
+    }
+
+    // ========== EXISTING RELATIONSHIPS ==========
 
     public function pelaksanaan()
     {
@@ -120,34 +169,20 @@ class SPK extends Model
         return $this->hasOne(BeritaAcara::class, 'id_spk');
     }
 
-    // public function listItem()
-    // {
-    //     return $this->hasMany(ListItem::class, 'id_spk');
-    // }
+    // ========== SCOPES ==========
 
-    // public function formChecklistWireline()
-    // {
-    //     return $this->hasOne(FormChecklistWireline::class, 'id_spk');
-    // }
-
-    // public function formChecklistWireless()
-    // {
-    //     return $this->hasOne(FormChecklistWireless::class, 'id_spk');
-    // }
-
-    // ✅ TAMBAHAN: Scope untuk filter data yang tidak dihapus
     public function scopeActive($query)
     {
         return $query->where('is_deleted', false);
     }
 
-    // ✅ TAMBAHAN: Scope untuk filter data yang dihapus
     public function scopeDeleted($query)
     {
         return $query->where('is_deleted', true);
     }
 
-    // ✅ TAMBAHAN: Method untuk soft delete
+    // ========== METHODS ==========
+
     public function softDelete($userId, $reason = null)
     {
         $this->update([
@@ -158,7 +193,6 @@ class SPK extends Model
         ]);
     }
 
-    // ✅ TAMBAHAN: Method untuk restore soft delete
     public function restore()
     {
         $this->update([

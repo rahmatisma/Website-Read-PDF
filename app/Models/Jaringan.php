@@ -37,4 +37,39 @@ class Jaringan extends Model
     {
         return $this->hasMany(Spk::class, 'no_jaringan', 'no_jaringan');
     }
+
+    // ========== TAMBAHKAN RELATIONSHIP KE EMBEDDING ==========
+    
+    /**
+     * Relasi ke JaringanEmbedding (one-to-one)
+     */
+    public function embedding()
+    {
+        return $this->hasOne(JaringanEmbedding::class, 'no_jaringan', 'no_jaringan');
+    }
+
+    /**
+     * Atau jika satu jaringan bisa punya multiple embeddings (one-to-many)
+     */
+    public function embeddings()
+    {
+        return $this->hasMany(JaringanEmbedding::class, 'no_jaringan', 'no_jaringan');
+    }
+
+    /**
+     * Method helper untuk generate text yang akan di-embed
+     */
+    public function getEmbeddableText(): string
+    {
+        return implode(' ', array_filter([
+            'No Jaringan: ' . $this->no_jaringan,
+            'Nama Pelanggan: ' . $this->nama_pelanggan,
+            'Lokasi: ' . $this->lokasi_pelanggan,
+            'Jasa: ' . $this->jasa,
+            'Media Akses: ' . $this->media_akses,
+            'Kecepatan: ' . $this->kecepatan,
+            'POP: ' . $this->pop,
+            'Kode Jaringan: ' . $this->kode_jaringan,
+        ]));
+    }
 }

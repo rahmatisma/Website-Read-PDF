@@ -135,6 +135,8 @@ class JsonToDatabase
                 $this->processBeritaAcara($parsedData['berita_acara'] ?? [], $idSpk);
             });
             
+            event(new \App\Events\SPKDataSaved($idSpk, $noJaringan));
+            
             DB::commit();
             
             Log::info('JSON successfully processed to database', [

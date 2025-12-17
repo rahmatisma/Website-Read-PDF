@@ -16,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // TAMBAHAN: Exclude CSRF untuk streaming endpoint
+        $middleware->validateCsrfTokens(except: [
+            'chatbot/stream',
+            'chatbot/chat',
+        ]);
+
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,

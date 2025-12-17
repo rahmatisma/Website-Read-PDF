@@ -37,9 +37,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('chatbot');
     })->name('chatbot');
 
-    // Chatbot API Endpoint - DIPINDAHKAN KE SINI
-    Route::post('/chatbot/message', [ChatbotController::class, 'sendMessage'])
-        ->name('chatbot.message');
+    // ✅ CHATBOT API ENDPOINTS (RAG System)
+    Route::prefix('chatbot')->name('chatbot.')->group(function () {
+        // Main chat endpoint dengan RAG
+        Route::post('/chat', [ChatbotController::class, 'chat'])->name('chat');
+        
+        // Generate embedding (untuk testing)
+        Route::post('/generate-embedding', [ChatbotController::class, 'generateEmbedding'])
+            ->name('generate.embedding');
+        
+        // Health check
+        Route::get('/health', [ChatbotController::class, 'health'])->name('health');
+        
+        // Statistics
+        Route::get('/stats', [ChatbotController::class, 'stats'])->name('stats');
+        
+        // Legacy endpoints (jika masih dipakai)
+        Route::post('/message', [ChatbotController::class, 'sendMessage'])->name('message');
+        Route::post('/stream', [ChatbotController::class, 'sendMessageStream'])->name('stream');
+    });
 
     // Send to Python
     Route::post('/send-to-python', [DocumentController::class, 'sendToPython'])
@@ -48,7 +64,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Test Ollama
     Route::get('/test-ollama', function() {
         try {
-            $response = \Illuminate\Support\Facades\Http::timeout(30)
+            $response = \Illuminate\Support\Facades\Http::timeout(300)
                 ->post('http://localhost:11434/api/generate', [
                     'model' => 'phi3:mini',
                     'prompt' => 'Hello',
@@ -70,3 +86,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';
+
+/*
+|--------------------------------------------------------------------------
+| Cara Pakai Chatbot API:
+|--------------------------------------------------------------------------
+|
+| 1. Chat dengan RAG:
+|    POST /chatbot/chat
+|    Body: {
+|      "query": "Cek nojar 12345 untuk pelanggan siapa?",
+|      "search_type": "both",  // optional: jaringan, spk, both
+|      "top_k": 3              // optional: jumlah data relevan
+|    }
+|
+| 2. Health Check:
+|    GET /chatbot/health
+|
+| 3. Statistics:
+|    GET /chatbot/stats
+|
+| 4. Generate Embedding (Testing):
+|    POST /chatbot/generate-embedding
+|    Body: {"text": "Test text"}
+|
+*/
