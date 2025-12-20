@@ -2,6 +2,7 @@ import { CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import { PhotoIcon } from '@heroicons/react/24/solid';
 import { useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 
 export default function UploadImageBox() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -17,7 +18,7 @@ export default function UploadImageBox() {
         if (file.type.startsWith("image/")) {
             setSelectedFile(file);
         } else {
-            alert("Hanya file gambar (JPG, PNG) yang diperbolehkan!");
+            toast.error("Hanya file gambar (JPG, PNG) yang diperbolehkan!");
         }
     };
 
@@ -51,18 +52,18 @@ export default function UploadImageBox() {
 
         const formData = new FormData();
         formData.append("image", selectedFile);
-        formData.append("document_type", "gambar"); // ubah ke gambar
+        formData.append("document_type", "gambar");
 
         setLoading(true);
 
         router.post("/documents/image", formData, {
             forceFormData: true,
             onSuccess: () => {
-                alert("Upload gambar berhasil!");
+                toast.success("Upload gambar berhasil!");
                 setSelectedFile(null);
             },
             onError: () => {
-                alert("Upload gagal, coba lagi.");
+                toast.error("Upload gagal, coba lagi.");
             },
             onFinish: () => setLoading(false),
         });

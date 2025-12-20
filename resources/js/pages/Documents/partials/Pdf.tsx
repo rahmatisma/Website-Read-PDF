@@ -2,6 +2,7 @@ import DocumentTable from '@/components/DocumentTable';
 import SearchFilter from '@/components/SearchFilter';
 import UploadPDFBox from '@/components/UploadPDFBox';
 import { Head, router } from '@inertiajs/react';
+import { toast } from 'sonner';
 
 interface Document {
     id_upload: number;
@@ -16,17 +17,34 @@ interface PdfProps {
 }
 
 export default function Pdf({ documents }: PdfProps) {
-    
-    // Fungsi untuk handle delete
     const handleDelete = (id: number) => {
-        router.delete(route('documents.destroy', id), {
-            onBefore: () => confirm('Apakah Anda yakin ingin menghapus dokumen ini?'),
-            onSuccess: () => {
-                alert('Dokumen berhasil dihapus!');
+        toast.warning('Hapus dokumen?', {
+            description: 'Dokumen yang dihapus tidak dapat dikembalikan.',
+            classNames: {
+                toast: '!bg-gray-900 !border-2 !border-purple-400',
+                title: '!text-white',
+                description: '!text-white',
+                icon: '!text-yellow-500',
+                actionButton: '!bg-gradient-to-r !from-red-500 !to-pink-500 hover:!brightness-110 !text-white !font-bold',
+                cancelButton: '!bg-gray-700 hover:!bg-gray-600 !text-white',
             },
-            onError: () => {
-                alert('Gagal menghapus dokumen');
-            }
+            action: {
+                label: 'Hapus',
+                onClick: () => {
+                    router.delete(route('documents.destroy', id), {
+                        onSuccess: () => {
+                            toast.success('Dokumen berhasil dihapus!');
+                        },
+                        onError: () => {
+                            toast.error('Gagal menghapus dokumen');
+                        },
+                    });
+                },
+            },
+            cancel: {
+                label: 'Batal',
+                onClick: () => {},
+            },
         });
     };
 
@@ -35,7 +53,6 @@ export default function Pdf({ documents }: PdfProps) {
             <Head title="Daftar Dokumen PDF" />
 
             <div className="space-y-6 p-6">
-                
                 {/* Upload Box */}
                 <UploadPDFBox />
 
@@ -47,11 +64,7 @@ export default function Pdf({ documents }: PdfProps) {
                     <SearchFilter />
 
                     {/* Table - KIRIM FUNGSI handleDelete */}
-                    <DocumentTable 
-                        documents={documents} 
-                        type="pdf"
-                        onDelete={handleDelete}
-                    />
+                    <DocumentTable documents={documents} type="pdf" onDelete={handleDelete} />
                 </div>
             </div>
         </>

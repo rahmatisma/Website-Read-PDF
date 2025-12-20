@@ -2,6 +2,7 @@ import { CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import { DocumentIcon } from '@heroicons/react/24/solid';
 import { useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 
 export default function UploadDocBox() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -22,7 +23,7 @@ export default function UploadDocBox() {
         if (allowedTypes.includes(file.type)) {
             setSelectedFile(file);
         } else {
-            alert("Hanya file DOC atau DOCX yang diperbolehkan!");
+            toast.error("Hanya file DOC atau DOCX yang diperbolehkan!");
         }
     };
 
@@ -63,11 +64,11 @@ export default function UploadDocBox() {
         router.post("/documents/doc", formData, {
             forceFormData: true,
             onSuccess: () => {
-                alert("Upload dokumen berhasil!");
+                toast.success("Upload dokumen berhasil!");
                 setSelectedFile(null);
             },
             onError: () => {
-                alert("Upload gagal, coba lagi.");
+                toast.error("Upload gagal, coba lagi.");
             },
             onFinish: () => setLoading(false),
         });

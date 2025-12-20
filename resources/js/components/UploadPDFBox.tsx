@@ -2,6 +2,7 @@ import { CloudArrowUpIcon } from '@heroicons/react/24/outline';
 import { DocumentIcon } from '@heroicons/react/24/solid';
 import { router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 export default function UploadPDFBox() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -17,7 +18,7 @@ export default function UploadPDFBox() {
         if (file.type === 'application/pdf') {
             setSelectedFile(file);
         } else {
-            alert('Hanya file PDF yang diperbolehkan!');
+            toast.error('Hanya file PDF yang diperbolehkan!');
         }
     };
 
@@ -58,11 +59,11 @@ export default function UploadPDFBox() {
         router.post('/documents/pdf', formData, {
             forceFormData: true,
             onSuccess: () => {
-                alert('Upload berhasil!');
+                toast.success('Upload PDF berhasil!');
                 setSelectedFile(null);
             },
             onError: () => {
-                alert('Upload gagal, coba lagi.');
+                toast.error('Upload gagal, coba lagi.');
             },
             onFinish: () => setLoading(false),
         });
