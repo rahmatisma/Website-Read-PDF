@@ -24,24 +24,17 @@ class GenerateEmbedding
                 'no_jaringan' => $event->noJaringan
             ]);
 
-            // Generate embedding untuk JARINGAN
-            $this->embeddingService->generateJaringanEmbedding($event->noJaringan);
-            
-            // Generate embedding untuk SPK
+            // GENERATE SPK EMBEDDING SAJA (sudah include semua info jaringan)
             $this->embeddingService->generateSpkEmbedding($event->idSpk);
 
             Log::info('Embedding generation completed', [
-                'id_spk' => $event->idSpk,
-                'no_jaringan' => $event->noJaringan
+                'id_spk' => $event->idSpk
             ]);
 
         } catch (Exception $e) {
             Log::error('Failed to generate embedding', [
                 'id_spk' => $event->idSpk,
-                'no_jaringan' => $event->noJaringan,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'error' => $e->getMessage()
             ]);
         }
     }

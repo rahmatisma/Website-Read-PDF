@@ -64,7 +64,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Test Ollama
     Route::get('/test-ollama', function() {
         try {
-            $response = \Illuminate\Support\Facades\Http::timeout(300)
+            $response = \Illuminate\Support\Facades\Http::timeout(600)
                 ->post('http://localhost:11434/api/generate', [
                     'model' => 'phi3:mini',
                     'prompt' => 'Hello',

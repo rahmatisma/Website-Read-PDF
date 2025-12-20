@@ -7,6 +7,7 @@ use App\Services\EmbeddingService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class ChatbotController extends Controller
@@ -25,7 +26,7 @@ class ChatbotController extends Controller
     /**
      * Chat dengan chatbot
      * 
-     * POST /api/chatbot/chat
+     * POST /chatbot/chat
      * Body: {
      *   "query": "Cek nojar 12345 untuk pelanggan siapa?",
      *   "search_type": "both",  // optional: "jaringan", "spk", "both"
@@ -41,11 +42,13 @@ class ChatbotController extends Controller
         ]);
 
         if ($validator->fails()) {
+            Log::warning('Validation failed', ['errors' => $validator->errors()]);
+            
+            // ✅ Return 200 dengan success: false
             return response()->json([
                 'success' => false,
-                'message' => 'Validasi gagal',
-                'errors' => $validator->errors(),
-            ], 422);
+                'error' => 'Validasi gagal: ' . $validator->errors()->first(),
+            ], 200); // ✅ Ubah dari 422 ke 200
         }
 
         try {
@@ -53,41 +56,60 @@ class ChatbotController extends Controller
             $options = [
                 'search_type' => $request->input('search_type', 'both'),
                 'top_k' => $request->input('top_k', 3),
+                'min_similarity' => $request->input('min_similarity', 0.5),
             ];
 
+            Log::info('Chat request', ['query' => $query, 'options' => $options]);
+
+            // Call service
             $result = $this->chatbotService->chat($query, $options);
 
+            Log::info('Chat result', [
+                'success' => $result['success'],
+                'source' => $result['source'] ?? 'unknown',
+                'has_answer' => isset($result['answer']),
+            ]);
+
+            // ✅ Service gagal - tetap return 200
             if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal generate jawaban',
-                    'error' => $result['error'] ?? 'Unknown error',
-                ], 500);
+                    'error' => $result['error'] ?? 'Gagal generate jawaban',
+                ], 200); // ✅ Ubah dari 500 ke 200
             }
 
+            // ✅ Success - format sesuai ekspektasi frontend
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'query' => $result['query'],
-                    'answer' => $result['answer'],
-                    'relevant_data_count' => count($result['relevant_data']),
-                    'relevant_data' => $result['relevant_data'],
+                    'query' => $result['query'] ?? $query,
+                    'answer' => $result['answer'] ?? 'Tidak ada jawaban.',
+                    'source' => $result['source'] ?? 'unknown',
+                    'relevant_data_count' => isset($result['relevant_data']) 
+                        ? count($result['relevant_data']) 
+                        : 0,
+                    'relevant_data' => $result['relevant_data'] ?? [],
                 ],
-            ]);
+            ], 200);
 
         } catch (Exception $e) {
+            Log::error('Chat controller error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // ✅ Exception - tetap return 200
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan pada chatbot',
-                'error' => $e->getMessage(),
-            ], 500);
+                'error' => 'Terjadi kesalahan: ' . $e->getMessage(),
+            ], 200); // ✅ Ubah dari 500 ke 200
         }
     }
 
     /**
      * Generate embedding untuk teks tertentu (untuk testing)
      * 
-     * POST /api/chatbot/generate-embedding
+     * POST /chatbot/generate-embedding
      * Body: {
      *   "text": "Teks yang ingin di-embed"
      * }
@@ -101,9 +123,8 @@ class ChatbotController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validasi gagal',
-                'errors' => $validator->errors(),
-            ], 422);
+                'error' => 'Validasi gagal: ' . $validator->errors()->first(),
+            ], 200);
         }
 
         try {
@@ -117,21 +138,22 @@ class ChatbotController extends Controller
                     'embedding_dimension' => count($embedding),
                     'embedding' => $embedding,
                 ],
-            ]);
+            ], 200);
 
         } catch (Exception $e) {
+            Log::error('Generate embedding error', ['error' => $e->getMessage()]);
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal generate embedding',
-                'error' => $e->getMessage(),
-            ], 500);
+                'error' => 'Gagal generate embedding: ' . $e->getMessage(),
+            ], 200);
         }
     }
 
     /**
      * Health check untuk chatbot
      * 
-     * GET /api/chatbot/health
+     * GET /chatbot/health
      */
     public function health(): JsonResponse
     {
@@ -142,9 +164,11 @@ class ChatbotController extends Controller
                 ->get("{$flaskUrl}/health");
 
             $flaskStatus = $response->successful() ? 'online' : 'offline';
+            $flaskData = $response->successful() ? $response->json() : null;
 
         } catch (Exception $e) {
             $flaskStatus = 'offline';
+            $flaskData = null;
         }
 
         return response()->json([
@@ -152,45 +176,63 @@ class ChatbotController extends Controller
             'service' => 'Chatbot Service',
             'status' => 'online',
             'flask_api' => [
-                'url' => env('FLASK_API_URL', 'http://localhost:5000'),
+                'url' => $flaskUrl,
                 'status' => $flaskStatus,
+                'data' => $flaskData,
             ],
             'embedding' => [
                 'model' => env('EMBEDDING_MODEL', 'nomic-embed-text'),
                 'dimension' => env('EMBEDDING_DIMENSION', 384),
             ],
-        ]);
+        ], 200);
     }
 
     /**
      * Get statistik embeddings
      * 
-     * GET /api/chatbot/stats
+     * GET /chatbot/stats
      */
     public function stats(): JsonResponse
     {
         try {
-            $jaringanCount = \App\Models\JaringanEmbedding::count();
             $spkCount = \App\Models\SpkEmbedding::count();
-            $totalCount = $jaringanCount + $spkCount;
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'total_embeddings' => $totalCount,
-                    'jaringan_embeddings' => $jaringanCount,
+                    'total_embeddings' => $spkCount,
                     'spk_embeddings' => $spkCount,
                     'embedding_model' => env('EMBEDDING_MODEL', 'nomic-embed-text'),
                     'embedding_dimension' => env('EMBEDDING_DIMENSION', 384),
                 ],
-            ]);
+            ], 200);
 
         } catch (Exception $e) {
+            Log::error('Stats error', ['error' => $e->getMessage()]);
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal get stats',
-                'error' => $e->getMessage(),
-            ], 500);
+                'error' => 'Gagal get stats: ' . $e->getMessage(),
+            ], 200);
         }
+    }
+
+    /**
+     * Legacy: Send message (redirect ke chat)
+     */
+    public function sendMessage(Request $request): JsonResponse
+    {
+        return $this->chat($request);
+    }
+
+    /**
+     * Legacy: Streaming endpoint (deprecated)
+     */
+    public function sendMessageStream(Request $request): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'error' => 'Streaming endpoint deprecated. Use /chatbot/chat instead.',
+        ], 200);
     }
 }

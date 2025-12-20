@@ -134,6 +134,11 @@ class SPK extends Model
         return $this->hasOne(SpkPenempatanPerangkat::class, 'id_spk');
     }
 
+    public function listItems()
+    {
+        return $this->hasMany(ListItem::class, 'id_spk', 'id_spk');
+    }
+
     public function perizinanBiayaKawasan()
     {
         return $this->hasOne(SpkPerizinanBiayaKawasan::class, 'id_spk');

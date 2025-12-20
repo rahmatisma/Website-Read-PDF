@@ -133,9 +133,18 @@ class DocumentController extends Controller
      * 3. SPK terkait (via database CASCADE)
      * 4. Semua tabel child SPK (via database CASCADE)
      */
+    /**
+ * ✅ HAPUS DOKUMEN - AUTO CASCADE DELETE dengan PENGECEKAN JARINGAN
+ * 
+ * Method ini akan menghapus:
+ * 1. File fisik dari storage
+ * 2. Record upload dari database
+ * 3. SPK terkait (via database CASCADE)
+ * 4. Semua tabel child SPK (via database CASCADE)
+ * 5. JARINGAN (HANYA jika tidak ada SPK lain yang menggunakan)
+ */
     public function destroy($id)
     {
-        // Gunakan DB Transaction untuk safety
         DB::beginTransaction();
         
         try {
@@ -157,14 +166,23 @@ class DocumentController extends Controller
                 'timestamp' => now()
             ]);
             
-            // Cek apakah ada SPK terkait (untuk logging saja)
-            $spk = SPK::where('id_upload', $upload->id_upload)->first();
-            if ($spk) {
-                Log::info('Ditemukan SPK terkait yang akan ikut terhapus', [
+            // Ambil semua SPK terkait dengan dokumen ini
+            $spks = SPK::where('id_upload', $upload->id_upload)->get();
+            
+            // Kumpulkan semua no_jaringan yang terkait
+            $noJaringanList = [];
+            
+            foreach ($spks as $spk) {
+                Log::info('Ditemukan SPK terkait', [
                     'id_spk' => $spk->id_spk,
                     'no_spk' => $spk->no_spk,
                     'no_jaringan' => $spk->no_jaringan
                 ]);
+                
+                // Simpan no_jaringan untuk dihapus nanti (hindari duplikat)
+                if (!in_array($spk->no_jaringan, $noJaringanList)) {
+                    $noJaringanList[] = $spk->no_jaringan;
+                }
             }
             
             // Hapus file fisik dari storage
@@ -179,49 +197,52 @@ class DocumentController extends Controller
                 ]);
             }
             
-            // ✅ KUNCI UTAMA: Hapus upload dari database
-            // Database CASCADE akan otomatis menghapus:
-            // 1. SPK (karena FK id_upload ON DELETE CASCADE)
-            // 2. SPK_Pelaksanaan (karena FK id_spk ON DELETE CASCADE)
-            // 3. SPK_Execution_Info (karena FK id_spk ON DELETE CASCADE)
-            // 4. SPK_Informasi_Gedung (karena FK id_spk ON DELETE CASCADE)
-            // 5. SPK_Sarpen_Ruang_Server (karena FK id_spk ON DELETE CASCADE)
-            //    └─> SPK_Sarpen_Tegangan (karena FK id_sarpen ON DELETE CASCADE)
-            // 6. SPK_Lokasi_Antena (karena FK id_spk ON DELETE CASCADE)
-            // 7. SPK_Perizinan_Biaya_Gedung (karena FK id_spk ON DELETE CASCADE)
-            // 8. SPK_Penempatan_Perangkat (karena FK id_spk ON DELETE CASCADE)
-            // 9. SPK_Perizinan_Biaya_Kawasan (karena FK id_spk ON DELETE CASCADE)
-            // 10. SPK_Kawasan_Umum (karena FK id_spk ON DELETE CASCADE)
-            // 11. SPK_Data_Splitter (karena FK id_spk ON DELETE CASCADE)
-            // 12. SPK_HH_Eksisting (karena FK id_spk ON DELETE CASCADE)
-            // 13. SPK_HH_Baru (karena FK id_spk ON DELETE CASCADE)
-            // 14. Dokumentasi_Foto (karena FK id_spk ON DELETE CASCADE)
-            // 15. Berita_Acara (karena FK id_spk ON DELETE CASCADE)
-            // 16. List_Item (karena FK id_spk ON DELETE CASCADE)
-            // 17. Form_Checklist_Wireline (karena FK id_spk ON DELETE CASCADE)
-            //     └─> FCW_Waktu_Pelaksanaan (karena FK id_fcw ON DELETE CASCADE)
-            //     └─> FCW_Tegangan (karena FK id_fcw ON DELETE CASCADE)
-            //     └─> FCW_Data_Perangkat (karena FK id_fcw ON DELETE CASCADE)
-            //     └─> FCW_Line_Checklist (karena FK id_fcw ON DELETE CASCADE)
-            //     └─> FCW_Guidance_Foto (karena FK id_fcw ON DELETE CASCADE)
-            //     └─> FCW_Log (karena FK id_fcw ON DELETE CASCADE)
-            // 18. Form_Checklist_Wireless (karena FK id_spk ON DELETE CASCADE)
-            //     └─> FCWL_Waktu_Pelaksanaan (karena FK id_fcwl ON DELETE CASCADE)
-            //     └─> FCWL_Indoor_Area (karena FK id_fcwl ON DELETE CASCADE)
-            //     └─> FCWL_Outdoor_Area (karena FK id_fcwl ON DELETE CASCADE)
-            //     └─> FCWL_Perangkat_Antenna (karena FK id_fcwl ON DELETE CASCADE)
-            //     └─> FCWL_Cabling_Installation (karena FK id_fcwl ON DELETE CASCADE)
-            //     └─> FCWL_Data_Perangkat (karena FK id_fcwl ON DELETE CASCADE)
-            //     └─> FCWL_Guidance_Foto (karena FK id_fcwl ON DELETE CASCADE)
-            //     └─> FCWL_Log (karena FK id_fcwl ON DELETE CASCADE)
-            
+            // Hapus dokumen (ini akan trigger cascade delete ke SPK dan child tables)
             $upload->delete();
+            
+            // Setelah SPK terhapus, cek dulu sebelum hapus JARINGAN
+            if (!empty($noJaringanList)) {
+                $deletedJaringanCount = 0;
+                $skippedJaringanCount = 0;
+                
+                foreach ($noJaringanList as $noJaringan) {
+                    // CEK: Apakah masih ada SPK lain yang pakai no_jaringan ini?
+                    $masihAdaSPK = SPK::where('no_jaringan', $noJaringan)->exists();
+                    
+                    // HANYA hapus JARINGAN jika tidak ada SPK yang pakai lagi
+                    if (!$masihAdaSPK) {
+                        DB::table('JARINGAN')
+                            ->where('no_jaringan', $noJaringan)
+                            ->delete();
+                        
+                        $deletedJaringanCount++;
+                        
+                        Log::info('JARINGAN berhasil dihapus (tidak ada SPK lagi)', [
+                            'no_jaringan' => $noJaringan
+                        ]);
+                    } else {
+                        $skippedJaringanCount++;
+                        
+                        Log::info('JARINGAN TIDAK dihapus (masih ada SPK lain)', [
+                            'no_jaringan' => $noJaringan
+                        ]);
+                    }
+                }
+                
+                Log::info('Ringkasan penghapusan JARINGAN', [
+                    'total_jaringan_ditemukan' => count($noJaringanList),
+                    'jaringan_terhapus' => $deletedJaringanCount,
+                    'jaringan_dilewati' => $skippedJaringanCount
+                ]);
+            }
             
             // Commit transaction
             DB::commit();
             
-            Log::info('Dokumen dan semua data terkait berhasil dihapus via CASCADE', [
+            Log::info('Dokumen, SPK, dan JARINGAN berhasil dihapus', [
                 'id_upload' => $id,
+                'jumlah_spk' => count($spks),
+                'jumlah_jaringan_dicek' => count($noJaringanList),
                 'success' => true
             ]);
             

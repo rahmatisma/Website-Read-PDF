@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
-use App\Services\JsonToDatabase; // ⬅️ Ganti ke JsonToDatabase
+use App\Services\JsonToDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -78,7 +78,7 @@ class UploadController extends Controller
                     'extracted_data' => $result,
                 ]);
 
-                // ✅ Proses dan pecah data ke tabel-tabel
+                // Proses dan pecah data ke tabel-tabel
                 try {
                     $this->jsonToDatabase->process($result, $upload->id_upload);
                     

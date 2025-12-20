@@ -18,6 +18,7 @@ use App\Models\SpkHhEksisting;
 use App\Models\SpkHhBaru;
 use App\Models\DokumentasiFoto;
 use App\Models\BeritaAcara;
+use App\Models\ListItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -29,29 +30,20 @@ class JsonToDatabase
         DB::beginTransaction();
         
         try {
-            // ✅ FIX: Support struktur dari Python yang nested dalam "data"
             $parsedData = null;
             $dokumentasi = null;
             $jenisSpk = null;
             
-            // Cek struktur: {"data": {"dokumentasi": ..., "parsed": {"data": ...}}}
+            // Cek struktur JSON
             if (isset($jsonData['data']['parsed']['data'])) {
                 $parsedData = $jsonData['data']['parsed']['data'];
                 $dokumentasi = $jsonData['data']['dokumentasi'] ?? [];
                 $jenisSpk = $jsonData['data']['parsed']['jenis_spk'] ?? 'survey';
-                
-                Log::info('Using nested data structure', ['upload_id' => $uploadId]);
-            }
-            // Fallback: {"parsed": {"data": ...}, "dokumentasi": ...}
-            elseif (isset($jsonData['parsed']['data'])) {
+            } elseif (isset($jsonData['parsed']['data'])) {
                 $parsedData = $jsonData['parsed']['data'];
                 $dokumentasi = $jsonData['dokumentasi'] ?? [];
                 $jenisSpk = $jsonData['parsed']['jenis_spk'] ?? 'survey';
-                
-                Log::info('Using direct data structure', ['upload_id' => $uploadId]);
-            }
-            else {
-                // Log struktur JSON untuk debugging
+            } else {
                 Log::error('Invalid JSON structure', [
                     'upload_id' => $uploadId,
                     'json_keys' => array_keys($jsonData)
@@ -75,7 +67,7 @@ class JsonToDatabase
                 $parsedData['spk'] ?? [],
                 $noJaringan,
                 $jenisSpk,
-                $uploadId  // ← TAMBAHKAN PARAMETER INI!
+                $uploadId
             );
             
             // 3. Insert data detail
@@ -83,8 +75,10 @@ class JsonToDatabase
                 $this->processPelaksanaan($parsedData['pelaksanaan'] ?? [], $idSpk);
             });
             
+            // ✅ FIX: Support untuk instalasi (vendor) dan dismantle (pekerja_cabut)
             $this->safeProcess('ExecutionInfo', function() use ($parsedData, $idSpk) {
-                $this->processExecutionInfo($parsedData['vendor'] ?? [], $idSpk);
+                $vendorData = $parsedData['vendor'] ?? $parsedData['pekerja_cabut'] ?? [];
+                $this->processExecutionInfo($vendorData, $idSpk);
             });
             
             $this->safeProcess('InformasiGedung', function() use ($parsedData, $idSpk) {
@@ -127,6 +121,11 @@ class JsonToDatabase
                 $this->processHhBaru($parsedData['data_hh_baru'] ?? [], $idSpk);
             });
             
+            // ✅ FIX: Tambahkan proses List Item
+            $this->safeProcess('ListItem', function() use ($parsedData, $idSpk) {
+                $this->processListItem($parsedData['list_item'] ?? [], $idSpk);
+            });
+            
             $this->safeProcess('DokumentasiFoto', function() use ($dokumentasi, $idSpk) {
                 $this->processDokumentasiFoto($dokumentasi, $idSpk);
             });
@@ -165,9 +164,6 @@ class JsonToDatabase
         }
     }
     
-    /**
-     * Safe process wrapper - jika gagal hanya log warning, tidak stop proses
-     */
     private function safeProcess(string $name, callable $callback)
     {
         try {
@@ -222,8 +218,9 @@ class JsonToDatabase
             'document_type' => 'spk',
             'jenis_spk' => $jenisSpk,
             'tanggal_spk' => $this->parseDate($spkData['tanggal_spk'] ?? null),
+            'no_mr' => $spkData['no_mr'] ?? null,
             'no_fps' => $spkData['no_fps'] ?? null,
-            'id_upload' => $uploadId, // ← TAMBAHKAN BARIS INI!
+            'id_upload' => $uploadId,
         ]);
         
         return $spk->id_spk;
@@ -254,6 +251,45 @@ class JsonToDatabase
             'teknisi' => $data['teknisi'] ?? null,
             'nama_vendor' => $data['nama_vendor'] ?? null,
         ]);
+    }
+    
+    // ✅ NEW: Process List Item
+    private function processListItem(array $items, int $idSpk)
+    {
+        if (empty($items)) {
+            Log::info('No list_item data to process', ['id_spk' => $idSpk]);
+            return;
+        }
+        
+        Log::info('Processing list items', [
+            'id_spk' => $idSpk,
+            'count' => count($items)
+        ]);
+        
+        foreach ($items as $item) {
+            // Skip jika array kosong atau tidak valid
+            if (empty($item) || !is_array($item)) {
+                continue;
+            }
+            
+            // Skip jika tidak ada kode dan deskripsi
+            if (empty($item['kode']) && empty($item['deskripsi'])) {
+                continue;
+            }
+            
+            ListItem::create([
+                'id_spk' => $idSpk,
+                'kode' => $item['kode'] ?? null,
+                'deskripsi' => $item['deskripsi'] ?? null,
+                'serial_number' => $item['serial_number'] ?? $item['serial'] ?? null,
+            ]);
+            
+            Log::debug('List item created', [
+                'id_spk' => $idSpk,
+                'kode' => $item['kode'] ?? 'null',
+                'deskripsi' => substr($item['deskripsi'] ?? '', 0, 50)
+            ]);
+        }
     }
     
     private function processInformasiGedung(array $data, int $idSpk)
@@ -408,11 +444,9 @@ class JsonToDatabase
         foreach ($data as $key => $hh) {
             if (empty($hh) || !is_array($hh)) continue;
             
-            // Extract nomor dari key (hh_1 → 1)
             preg_match('/hh_(\d+)/', $key, $matches);
             $nomorHh = $matches[1] ?? 1;
             
-            // Skip jika semua field kosong
             $hasData = false;
             foreach ($hh as $value) {
                 if (!empty($value) && $value !== null) {
@@ -447,7 +481,6 @@ class JsonToDatabase
             preg_match('/hh_(\d+)/', $key, $matches);
             $nomorHh = $matches[1] ?? 1;
             
-            // Skip jika semua field kosong
             $hasData = false;
             foreach ($hh as $value) {
                 if (!empty($value) && $value !== null) {
@@ -477,9 +510,7 @@ class JsonToDatabase
         foreach ($dokumentasiArray as $index => $foto) {
             if (empty($foto['patch_foto'])) continue;
             
-            // Normalize path (ganti backslash jadi forward slash)
             $pathFoto = str_replace('\\', '/', $foto['patch_foto']);
-            
             $kategori = $this->mapKategoriFoto($foto['jenis'] ?? '');
             
             DokumentasiFoto::create([

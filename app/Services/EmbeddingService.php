@@ -2,13 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Jaringan;
 use App\Models\Spk;
-use App\Models\JaringanEmbedding;
 use App\Models\SpkEmbedding;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Exception;
 
 class EmbeddingService
@@ -20,7 +17,6 @@ class EmbeddingService
 
     public function __construct()
     {
-        // Config Flask API URL (bisa diatur di .env)
         $this->flaskApiUrl = env('FLASK_API_URL', 'http://localhost:5000');
         $this->embeddingModel = env('EMBEDDING_MODEL', 'nomic-embed-text');
         $this->embeddingDimension = env('EMBEDDING_DIMENSION', 384);
@@ -28,59 +24,13 @@ class EmbeddingService
     }
 
     /**
-     * Generate embedding untuk data JARINGAN
-     */
-    public function generateJaringanEmbedding(string $noJaringan): ?JaringanEmbedding
-    {
-        try {
-            // 1. Ambil data JARINGAN dari database
-            $jaringan = Jaringan::where('no_jaringan', $noJaringan)->first();
-            
-            if (!$jaringan) {
-                throw new Exception("Jaringan with no_jaringan {$noJaringan} not found");
-            }
-
-            // 2. Build content text
-            $contentText = $this->buildJaringanContentText($jaringan);
-
-            // 3. Generate embedding via Flask API
-            $embedding = $this->callFlaskEmbedding($contentText);
-
-            // 4. Save to database
-            $jaringanEmbedding = JaringanEmbedding::updateOrCreate(
-                ['no_jaringan' => $noJaringan],
-                [
-                    'content_text' => $contentText,
-                    'embedding' => json_encode($embedding),
-                    'embedding_model' => $this->embeddingModel,
-                    'embedding_dimension' => $this->embeddingDimension,
-                ]
-            );
-
-            Log::info('Jaringan embedding generated', [
-                'no_jaringan' => $noJaringan,
-                'content_length' => strlen($contentText),
-                'embedding_dimension' => count($embedding)
-            ]);
-
-            return $jaringanEmbedding;
-
-        } catch (Exception $e) {
-            Log::error('Failed to generate jaringan embedding', [
-                'no_jaringan' => $noJaringan,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Generate embedding untuk data SPK (dengan semua child data)
+     * Generate COMPREHENSIVE embedding untuk SPK
+     * Includes: Jaringan, Pelanggan, Teknisi, Vendor, Lokasi, Equipment, dll
      */
     public function generateSpkEmbedding(int $idSpk): ?SpkEmbedding
     {
         try {
-            // 1. Ambil data SPK dengan semua relasi
+            // 1. Ambil data SPK dengan SEMUA relasi
             $spk = Spk::with([
                 'jaringan',
                 'pelaksanaan',
@@ -102,8 +52,8 @@ class EmbeddingService
                 throw new Exception("SPK with id_spk {$idSpk} not found");
             }
 
-            // 2. Build content text
-            $contentText = $this->buildSpkContentText($spk);
+            // 2. Build COMPREHENSIVE content text
+            $contentText = $this->buildComprehensiveSpkContent($spk);
 
             // 3. Generate embedding via Flask API
             $embedding = $this->callFlaskEmbedding($contentText);
@@ -139,140 +89,330 @@ class EmbeddingService
     }
 
     /**
-     * Build content text untuk JARINGAN
+     * Build COMPREHENSIVE content text - SEMUA field penting untuk semantic search
      */
-    private function buildJaringanContentText(Jaringan $jaringan): string
+    private function buildComprehensiveSpkContent(Spk $spk): string
     {
         $parts = [];
 
-        $parts[] = "Nomor Jaringan: {$jaringan->no_jaringan}";
-        
-        if ($jaringan->nama_pelanggan) {
-            $parts[] = "Pelanggan: {$jaringan->nama_pelanggan}";
-        }
-        
-        if ($jaringan->lokasi_pelanggan) {
-            $parts[] = "Lokasi: {$jaringan->lokasi_pelanggan}";
-        }
-        
-        if ($jaringan->jasa) {
-            $parts[] = "Jasa: {$jaringan->jasa}";
-        }
-        
-        if ($jaringan->media_akses) {
-            $parts[] = "Media Akses: {$jaringan->media_akses}";
-        }
-        
-        if ($jaringan->kecepatan) {
-            $parts[] = "Kecepatan: {$jaringan->kecepatan}";
-        }
-        
-        if ($jaringan->pop) {
-            $parts[] = "POP: {$jaringan->pop}";
-        }
-        
-        if ($jaringan->tgl_rfs_plg) {
-            $parts[] = "Tanggal RFS Pelanggan: {$jaringan->tgl_rfs_plg}";
-        }
-
-        return implode("\n", $parts);
-    }
-
-    /**
-     * Build content text untuk SPK (dengan semua detail)
-     */
-    private function buildSpkContentText(Spk $spk): string
-    {
-        $parts = [];
-
-        // SPK Header
+        // ========================================
+        // SECTION 1: SPK HEADER (Primary Info)
+        // ========================================
         $parts[] = "=== INFORMASI SPK ===";
-        $parts[] = "No SPK: {$spk->no_spk}";
+        $parts[] = "Nomor SPK: {$spk->no_spk}";
         $parts[] = "Jenis SPK: {$spk->jenis_spk}";
-        $parts[] = "Tanggal SPK: {$spk->tanggal_spk}";
+        $parts[] = "Tipe Dokumen: {$spk->document_type}";
+        $parts[] = "Tanggal SPK: " . ($spk->tanggal_spk ?? '-');
         
-        // Jaringan & Pelanggan
+        if ($spk->no_fps) {
+            $parts[] = "Nomor FPS: {$spk->no_fps}";
+        }
+        if ($spk->no_mr) {
+            $parts[] = "Nomor MR: {$spk->no_mr}";
+        }
+
+        // ========================================
+        // SECTION 2: JARINGAN & PELANGGAN
+        // ========================================
         if ($spk->jaringan) {
-            $parts[] = "\n=== INFORMASI PELANGGAN ===";
-            $parts[] = "Nomor Jaringan: {$spk->jaringan->no_jaringan}";
-            $parts[] = "Nama Pelanggan: {$spk->jaringan->nama_pelanggan}";
-            $parts[] = "Lokasi: {$spk->jaringan->lokasi_pelanggan}";
-            $parts[] = "Jasa: {$spk->jaringan->jasa}";
+            $j = $spk->jaringan;
+            $parts[] = "\n=== INFORMASI JARINGAN & PELANGGAN ===";
+            $parts[] = "Nomor Jaringan: {$j->no_jaringan}";
+            $parts[] = "Nama Pelanggan: {$j->nama_pelanggan}";
+            $parts[] = "Lokasi Pelanggan: {$j->lokasi_pelanggan}";
+            $parts[] = "Jasa: {$j->jasa}";
+            
+            if ($j->media_akses) {
+                $parts[] = "Media Akses: {$j->media_akses}";
+            }
+            if ($j->kecepatan) {
+                $parts[] = "Kecepatan: {$j->kecepatan}";
+            }
+            if ($j->manage_router) {
+                $parts[] = "Managed Router: {$j->manage_router}";
+            }
+            if ($j->opsi_router) {
+                $parts[] = "Opsi Router: {$j->opsi_router}";
+            }
+            if ($j->ip_lan) {
+                $parts[] = "IP LAN: {$j->ip_lan}";
+            }
+            if ($j->kode_jaringan) {
+                $parts[] = "Kode Jaringan: {$j->kode_jaringan}";
+            }
+            if ($j->no_fmb) {
+                $parts[] = "Nomor FMB: {$j->no_fmb}";
+            }
+            if ($j->pop) {
+                $parts[] = "POP: {$j->pop}";
+            }
+            if ($j->tgl_rfs_la) {
+                $parts[] = "Tanggal RFS LA: {$j->tgl_rfs_la}";
+            }
+            if ($j->tgl_rfs_plg) {
+                $parts[] = "Tanggal RFS Pelanggan: {$j->tgl_rfs_plg}";
+            }
         }
 
-        // Pelaksanaan
+        // ========================================
+        // SECTION 3: PELAKSANAAN (Timeline)
+        // ========================================
         if ($spk->pelaksanaan) {
-            $parts[] = "\n=== PELAKSANAAN ===";
-            $parts[] = "Permintaan: {$spk->pelaksanaan->permintaan_pelanggan}";
-            if ($spk->pelaksanaan->datang) {
-                $parts[] = "Datang: {$spk->pelaksanaan->datang}";
+            $p = $spk->pelaksanaan;
+            $parts[] = "\n=== WAKTU PELAKSANAAN ===";
+            $parts[] = "Permintaan Pelanggan: " . ($p->permintaan_pelanggan ?? '-');
+            if ($p->datang) {
+                $parts[] = "Waktu Datang: {$p->datang}";
             }
-            if ($spk->pelaksanaan->selesai) {
-                $parts[] = "Selesai: {$spk->pelaksanaan->selesai}";
+            if ($p->selesai) {
+                $parts[] = "Waktu Selesai: {$p->selesai}";
             }
         }
 
-        // Execution Info
+        // ========================================
+        // SECTION 4: EKSEKUSI (Teknisi & Vendor)
+        // ========================================
         if ($spk->executionInfo) {
-            $parts[] = "\n=== EKSEKUSI ===";
-            $parts[] = "Teknisi: {$spk->executionInfo->teknisi}";
-            $parts[] = "Vendor: {$spk->executionInfo->nama_vendor}";
-            if ($spk->executionInfo->pic_pelanggan) {
-                $parts[] = "PIC Pelanggan: {$spk->executionInfo->pic_pelanggan}";
+            $e = $spk->executionInfo;
+            $parts[] = "\n=== INFORMASI EKSEKUSI ===";
+            $parts[] = "Teknisi: {$e->teknisi}";
+            $parts[] = "Nama Vendor: {$e->nama_vendor}";
+            
+            if ($e->pic_pelanggan) {
+                $parts[] = "PIC Pelanggan: {$e->pic_pelanggan}";
+            }
+            if ($e->kontak_pic_pelanggan) {
+                $parts[] = "Kontak PIC: {$e->kontak_pic_pelanggan}";
+            }
+            if ($e->latitude && $e->longitude) {
+                $parts[] = "Koordinat: {$e->latitude}, {$e->longitude}";
             }
         }
 
-        // Informasi Gedung
+        // ========================================
+        // SECTION 5: INFORMASI GEDUNG (Detail Lokasi)
+        // ========================================
         if ($spk->informasiGedung) {
+            $g = $spk->informasiGedung;
             $parts[] = "\n=== INFORMASI GEDUNG ===";
-            $parts[] = "Alamat: {$spk->informasiGedung->alamat}";
-            if ($spk->informasiGedung->status_gedung) {
-                $parts[] = "Status Gedung: {$spk->informasiGedung->status_gedung}";
+            $parts[] = "Alamat Lengkap: {$g->alamat}";
+            
+            if ($g->status_gedung) {
+                $parts[] = "Status Gedung: {$g->status_gedung}";
             }
-            if ($spk->informasiGedung->pemilik_bangunan) {
-                $parts[] = "Pemilik: {$spk->informasiGedung->pemilik_bangunan}";
+            if ($g->kondisi_gedung) {
+                $parts[] = "Kondisi Gedung: {$g->kondisi_gedung}";
+            }
+            if ($g->pemilik_bangunan) {
+                $parts[] = "Pemilik Bangunan: {$g->pemilik_bangunan}";
+            }
+            if ($g->kontak_person) {
+                $parts[] = "Contact Person: {$g->kontak_person}";
+            }
+            if ($g->bagian_jabatan) {
+                $parts[] = "Bagian/Jabatan: {$g->bagian_jabatan}";
+            }
+            if ($g->telpon_fax) {
+                $parts[] = "Telpon/Fax: {$g->telpon_fax}";
+            }
+            if ($g->email) {
+                $parts[] = "Email: {$g->email}";
+            }
+            if ($g->jumlah_lantai_gedung) {
+                $parts[] = "Jumlah Lantai: {$g->jumlah_lantai_gedung}";
+            }
+            if ($g->pelanggan_fo) {
+                $parts[] = "Pelanggan FO: {$g->pelanggan_fo}";
             }
         }
 
-        // Sarpen Ruang Server
+        // ========================================
+        // SECTION 6: RUANG SERVER & POWER
+        // ========================================
         if ($spk->sarpenRuangServer) {
-            $parts[] = "\n=== RUANG SERVER ===";
-            if ($spk->sarpenRuangServer->ruangan_ber_ac) {
-                $parts[] = "AC: {$spk->sarpenRuangServer->ruangan_ber_ac}";
+            $s = $spk->sarpenRuangServer;
+            $parts[] = "\n=== SARPEN RUANG SERVER ===";
+            
+            if ($s->power_line_listrik) {
+                $parts[] = "Power Line: {$s->power_line_listrik}";
             }
-            if ($spk->sarpenRuangServer->suhu_ruangan_value) {
-                $parts[] = "Suhu: {$spk->sarpenRuangServer->suhu_ruangan_value}°C";
+            if ($s->ketersediaan_power_outlet) {
+                $parts[] = "Power Outlet: {$s->ketersediaan_power_outlet}";
+            }
+            if ($s->grounding_listrik) {
+                $parts[] = "Grounding: {$s->grounding_listrik}";
+            }
+            if ($s->ups) {
+                $parts[] = "UPS: {$s->ups}";
+            }
+            if ($s->ruangan_ber_ac) {
+                $parts[] = "AC: {$s->ruangan_ber_ac}";
+            }
+            if ($s->suhu_ruangan_value) {
+                $parts[] = "Suhu Ruangan: {$s->suhu_ruangan_value}°C";
+            }
+            if ($s->lantai) {
+                $parts[] = "Lantai: {$s->lantai}";
+            }
+            if ($s->ruang) {
+                $parts[] = "Ruang: {$s->ruang}";
+            }
+            if ($s->perangkat_pelanggan) {
+                $parts[] = "Perangkat Pelanggan: {$s->perangkat_pelanggan}";
             }
         }
 
-        // Data Splitter
+        // ========================================
+        // SECTION 7: LOKASI ANTENA (Wireless)
+        // ========================================
+        if ($spk->lokasiAntena) {
+            $a = $spk->lokasiAntena;
+            $parts[] = "\n=== LOKASI ANTENA ===";
+            
+            if ($a->lokasi_antena) {
+                $parts[] = "Lokasi Antena: {$a->lokasi_antena}";
+            }
+            if ($a->detail_lokasi_antena) {
+                $parts[] = "Detail Lokasi: {$a->detail_lokasi_antena}";
+            }
+            if ($a->space_tersedia) {
+                $parts[] = "Space Tersedia: {$a->space_tersedia}";
+            }
+            if ($a->akses_di_lokasi_perlu_alat_bantu) {
+                $parts[] = "Akses Lokasi: {$a->akses_di_lokasi_perlu_alat_bantu}";
+            }
+            if ($a->penangkal_petir) {
+                $parts[] = "Penangkal Petir: {$a->penangkal_petir}";
+            }
+            if ($a->tower_pole) {
+                $parts[] = "Tower/Pole: {$a->tower_pole}";
+            }
+            if ($a->pemilik_tower_pole) {
+                $parts[] = "Pemilik Tower: {$a->pemilik_tower_pole}";
+            }
+        }
+
+        // ========================================
+        // SECTION 8: PERIZINAN & BIAYA GEDUNG
+        // ========================================
+        if ($spk->perizinanBiayaGedung) {
+            $pb = $spk->perizinanBiayaGedung;
+            $parts[] = "\n=== PERIZINAN & BIAYA GEDUNG ===";
+            
+            if ($pb->pic_bm) {
+                $parts[] = "PIC Building Management: {$pb->pic_bm}";
+            }
+            if ($pb->material_dan_infrastruktur) {
+                $parts[] = "Material & Infrastruktur: {$pb->material_dan_infrastruktur}";
+            }
+            if ($pb->panjang_kabel_dalam_gedung) {
+                $parts[] = "Panjang Kabel: {$pb->panjang_kabel_dalam_gedung}";
+            }
+            if ($pb->pelaksana_penarikan_kabel_dalam_gedung) {
+                $parts[] = "Pelaksana: {$pb->pelaksana_penarikan_kabel_dalam_gedung}";
+            }
+        }
+
+        // ========================================
+        // SECTION 9: PENEMPATAN PERANGKAT
+        // ========================================
+        if ($spk->penempatanPerangkat) {
+            $pp = $spk->penempatanPerangkat;
+            $parts[] = "\n=== PENEMPATAN PERANGKAT ===";
+            
+            if ($pp->lokasi_penempatan_modem_dan_router) {
+                $parts[] = "Lokasi Modem & Router: {$pp->lokasi_penempatan_modem_dan_router}";
+            }
+            if ($pp->kesiapan_ruang_server) {
+                $parts[] = "Kesiapan Ruang Server: {$pp->kesiapan_ruang_server}";
+            }
+            if ($pp->ketersedian_rak_server) {
+                $parts[] = "Rak Server: {$pp->ketersedian_rak_server}";
+            }
+        }
+
+        // ========================================
+        // SECTION 10: KAWASAN (Private & Umum)
+        // ========================================
+        if ($spk->perizinanBiayaKawasan) {
+            $pk = $spk->perizinanBiayaKawasan;
+            $parts[] = "\n=== PERIZINAN KAWASAN PRIVATE ===";
+            $parts[] = "Melewati Kawasan Private: {$pk->melewati_kawasan_private}";
+            
+            if ($pk->nama_kawasan) {
+                $parts[] = "Nama Kawasan: {$pk->nama_kawasan}";
+            }
+            if ($pk->pic_kawasan) {
+                $parts[] = "PIC Kawasan: {$pk->pic_kawasan}";
+            }
+        }
+
+        if ($spk->kawasanUmum) {
+            $ku = $spk->kawasanUmum;
+            $parts[] = "\n=== KAWASAN UMUM ===";
+            
+            if ($ku->nama_kawasan_umum_pu_yang_dilewati) {
+                $parts[] = "Kawasan Umum: {$ku->nama_kawasan_umum_pu_yang_dilewati}";
+            }
+            if ($ku->panjang_jalur_outdoor_di_kawasan_umum) {
+                $parts[] = "Panjang Jalur: {$ku->panjang_jalur_outdoor_di_kawasan_umum}";
+            }
+        }
+
+        // ========================================
+        // SECTION 11: DATA SPLITTER
+        // ========================================
         if ($spk->dataSplitter) {
+            $ds = $spk->dataSplitter;
             $parts[] = "\n=== DATA SPLITTER ===";
-            if ($spk->dataSplitter->lokasi_splitter) {
-                $parts[] = "Lokasi: {$spk->dataSplitter->lokasi_splitter}";
+            
+            if ($ds->lokasi_splitter) {
+                $parts[] = "Lokasi Splitter: {$ds->lokasi_splitter}";
             }
-            if ($spk->dataSplitter->kapasitas_splitter) {
-                $parts[] = "Kapasitas: {$spk->dataSplitter->kapasitas_splitter}";
+            if ($ds->id_splitter_text) {
+                $parts[] = "ID Splitter: {$ds->id_splitter_text}";
+            }
+            if ($ds->kapasitas_splitter) {
+                $parts[] = "Kapasitas: {$ds->kapasitas_splitter}";
+            }
+            if ($ds->jumlah_port_kosong) {
+                $parts[] = "Port Kosong: {$ds->jumlah_port_kosong}";
+            }
+            if ($ds->nama_node_jika_tidak_ada_splitter) {
+                $parts[] = "Node: {$ds->nama_node_jika_tidak_ada_splitter}";
             }
         }
 
-        // HH Eksisting
+        // ========================================
+        // SECTION 12: HANDHOLE EKSISTING
+        // ========================================
         if ($spk->hhEksisting && $spk->hhEksisting->count() > 0) {
             $parts[] = "\n=== HANDHOLE EKSISTING ===";
             foreach ($spk->hhEksisting as $hh) {
-                $parts[] = "HH #{$hh->nomor_hh}: {$hh->kondisi_hh} - {$hh->lokasi_hh}";
+                $parts[] = "HH-{$hh->nomor_hh}: Kondisi {$hh->kondisi_hh}, Lokasi: {$hh->lokasi_hh}";
+                if ($hh->ketersediaan_closure) {
+                    $parts[] = "  Closure: {$hh->ketersediaan_closure}";
+                }
+                if ($hh->kapasitas_closure) {
+                    $parts[] = "  Kapasitas: {$hh->kapasitas_closure}";
+                }
             }
         }
 
-        // HH Baru
+        // ========================================
+        // SECTION 13: HANDHOLE BARU
+        // ========================================
         if ($spk->hhBaru && $spk->hhBaru->count() > 0) {
             $parts[] = "\n=== HANDHOLE BARU ===";
             foreach ($spk->hhBaru as $hh) {
-                $parts[] = "HH Baru #{$hh->nomor_hh}: {$hh->lokasi_hh}";
+                $parts[] = "HH Baru-{$hh->nomor_hh}: Lokasi {$hh->lokasi_hh}";
+                if ($hh->kebutuhan_penambahan_closure) {
+                    $parts[] = "  Kebutuhan Closure: {$hh->kebutuhan_penambahan_closure}";
+                }
             }
         }
 
-        return implode("\n", $parts);
+        return implode("\n", array_filter($parts));
     }
 
     /**

@@ -1,0 +1,28 @@
+2025-12-17 - merancang database dan backend untuk generate embendding untuk chatbot, serta memperbarui service json untuk SPK
+2025-12-10 - Refactor sidebar and chatbot components for improved structure and functionality; add sticky support to layout
+2025-12-09 - Merge pull request #2 from rahmatisma/feat-chatbot-frontend
+2025-12-09 - tes
+2025-12-09 - perbaikan
+2025-12-09 - memperbaiki controler document upload dan chatbot, agar dapat membagi semua data dan menghapus semua data yang terkait
+2025-12-08 - Refactor Chatbot component for improved message handling and UI responsiveness
+2025-12-08 - Merge remote-tracking branch 'origin/main' into main
+2025-12-08 - memperbaiki routes agar lebih efektif
+2025-12-08 - Merge pull request #1 from rahmatisma/feat-chatbot-frontend
+2025-12-08 - Implement chatbot functionality with message handling and UI components
+2025-11-25 - Membuat model dari spk survey dan memperbaiki API agar dapat menerima masukan dari flask python
+2025-11-20 - memperbarui index
+2025-11-20 - memperbarui index
+2025-11-20 - Memperbaiki const yang tidak terpakai
+2025-11-20 - Memperbaiki dipedency pada  pages document
+2025-11-20 - memperbaiki depedency
+2025-11-20 - Memperbaiki dipedency
+2025-11-20 - Memperbaiki dipedency NPM
+2025-11-20 - menghapus file yang aneh
+2025-11-20 - Membuat seeder untuk mengetes rancangan database baru
+2025-11-20 - Merancang database ulang dan menjadikan tabel jaringan menjadi master table dan membuat beberapa seeder
+2025-11-14 - Membuat migrasionn untuk 40 tabel baru untuk penunjang web read pdf
+2025-11-13 - membuat controler upload
+2025-08-29 - memperbarui tampilan website
+2025-08-20 - Membuat database untuk upload dan mekanisme MVC nya
+2025-08-13 - Membuat migration dan seeder, serta memperbarui tampilan dasboard
+2025-08-11 - First Commit Upload Laravel Project

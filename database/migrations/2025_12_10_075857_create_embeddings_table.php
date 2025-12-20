@@ -16,7 +16,7 @@ return new class extends Migration
         // ============================================
         Schema::create('jaringan_embeddings', function (Blueprint $table) {
             $table->id('id_embedding');
-            $table->string('no_jaringan', 100)->unique();
+            $table->string('no_jaringan', 100); // ✅ HAPUS ->unique()
             
             // Content text yang di-embed (untuk reference)
             $table->text('content_text');
@@ -40,7 +40,7 @@ return new class extends Migration
                 ->onDelete('cascade')
                 ->onUpdate('cascade');
             
-            // Index untuk performance
+            // Index untuk performance (BUKAN unique)
             $table->index('no_jaringan');
             $table->index('created_at');
         });
@@ -50,7 +50,7 @@ return new class extends Migration
         // ============================================
         Schema::create('spk_embeddings', function (Blueprint $table) {
             $table->id('id_embedding');
-            $table->unsignedBigInteger('id_spk')->unique();
+            $table->unsignedBigInteger('id_spk');
             $table->string('no_spk', 100);
             
             // Content text yang di-embed (untuk reference)
@@ -74,7 +74,7 @@ return new class extends Migration
                 ->onDelete('cascade')
                 ->onUpdate('cascade');
             
-            // Index untuk performance
+            // Index untuk performance (BUKAN unique)
             $table->index('id_spk');
             $table->index('no_spk');
             $table->index('created_at');
