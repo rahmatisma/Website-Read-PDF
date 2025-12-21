@@ -26,7 +26,7 @@ export function AppShell({ children, variant = 'header' }: AppShellProps) {
     }
 
     return (
-        <SidebarProvider defaultOpen={isOpen}>
+        <SidebarProvider>
             {children}
             <Toaster 
                 position="top-center" 
