@@ -6,39 +6,38 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     * 
-     * Table: FCW_Line_Checklist
-     * Purpose: Checklist poin pemeriksaan line (multiple checkpoints)
-     * Depends on: form_checklist_wireline
-     * Relationship: ONE-TO-MANY
-     */
     public function up(): void
     {
-        Schema::create('fcw_line_checklist', function (Blueprint $table) {
-            // Primary Key
-            $table->id('id_line_check');
-
-            // Foreign Key (NOT unique - one-to-many relationship)
+        Schema::create('fcw_checklist_item', function (Blueprint $table) {
+            $table->id('id_checklist');
             $table->unsignedBigInteger('id_fcw');
-
-            // Checkpoint Information
+            $table->enum('kategori', [
+                'indikator_modem',
+                'merek',
+                'modem_fo',
+                'lc_signal_kop',
+                'lc_signal_avo',
+                'site_area',
+                'hrb_r_lintas',
+                'line_fo',
+                'tes_konektivitas'
+            ]);
             $table->string('check_point', 255);
-
-            // Checklist Stages
             $table->text('standard')->nullable();
+            $table->text('nms_engineer')->nullable();
+            $table->text('on_site_teknisi')->nullable();
             $table->text('existing')->nullable();
             $table->text('perbaikan')->nullable();
             $table->text('hasil_akhir')->nullable();
-
-            // Timestamp
+            $table->integer('urutan')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
-            // Index
+            // Indexes
             $table->index('id_fcw');
+            $table->index(['id_fcw', 'kategori']);
+            $table->index('kategori');
 
-            // Foreign Key Constraint
+            // Foreign Key
             $table->foreign('id_fcw')
                 ->references('id_fcw')
                 ->on('form_checklist_wireline')
@@ -47,11 +46,8 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('fcw_line_checklist');
+        Schema::dropIfExists('fcw_checklist_item');
     }
 };
