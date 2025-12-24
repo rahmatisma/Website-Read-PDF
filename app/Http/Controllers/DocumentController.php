@@ -270,4 +270,84 @@ class DocumentController extends Controller
             return redirect()->back()->with('error', 'Gagal menghapus dokumen: ' . $e->getMessage() . ' ❌');
         }
     }
+
+    public function detail($id)
+    {
+        try {
+            // Ambil dokumen berdasarkan ID
+            $upload = Document::findOrFail($id);
+            
+            // Validasi: User hanya bisa lihat dokumen miliknya sendiri
+            if ($upload->id_user !== Auth::id()) {
+                abort(403, 'Anda tidak memiliki akses ke dokumen ini');
+            }
+            
+            Log::info('Mengakses detail dokumen', [
+                'id_upload' => $upload->id_upload,
+                'file_name' => $upload->file_name,
+                'status' => $upload->status,
+                'user_id' => Auth::id()
+            ]);
+            
+            // Decode extracted_data dari JSON ke array
+            $extractedData = null;
+            if ($upload->extracted_data) {
+                $extractedData = is_string($upload->extracted_data) 
+                    ? json_decode($upload->extracted_data, true) 
+                    : $upload->extracted_data;
+            }
+            
+            // Return ke halaman detail dengan Inertia
+            return Inertia::render('Documents/Detail', [
+                'upload' => [
+                    'id_upload' => $upload->id_upload,
+                    'file_name' => $upload->file_name,
+                    'file_path' => $upload->file_path,
+                    'file_size' => $upload->file_size,
+                    'document_type' => $upload->document_type,
+                    'status' => $upload->status,
+                    'created_at' => $upload->created_at,
+                    'updated_at' => $upload->updated_at,
+                ],
+                'extractedData' => $extractedData,
+            ]);
+            
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Dokumen tidak ditemukan', [
+                'id_upload' => $id,
+                'error' => $e->getMessage()
+            ]);
+            
+            abort(404, 'Dokumen tidak ditemukan');
+            
+        } catch (\Exception $e) {
+            Log::error('Gagal memuat detail dokumen', [
+                'id_upload' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            abort(500, 'Terjadi kesalahan saat memuat detail dokumen');
+        }
+    }
+    
+    public function getStatus($id)
+    {
+        $document = Document::where('id_upload', $id)
+            ->where('id_user', Auth::id())
+            ->first();
+
+        if (!$document) {
+            return response()->json([
+                'error' => 'Document not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => $document->status,
+            'file_name' => $document->file_name,
+            'created_at' => $document->created_at->format('Y-m-d H:i:s'),
+            'updated_at' => $document->updated_at->format('Y-m-d H:i:s'),
+        ]);
+    }
 }

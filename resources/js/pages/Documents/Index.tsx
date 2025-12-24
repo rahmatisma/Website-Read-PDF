@@ -1,19 +1,12 @@
 import TabSwitcher from '@/components/TabSwitcher';
 import AppLayout from '@/layouts/app-layout';
+import { Document } from '@/types/document';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 import Doc from './partials/Doc';
 import Gambar from './partials/Gambar';
 import Pdf from './partials/Pdf';
-
-interface Document {
-    id_upload: number;
-    file_name: string;
-    file_path: string;
-    created_at: string;
-    file_size: string;
-}
 
 
 type PageProps = {

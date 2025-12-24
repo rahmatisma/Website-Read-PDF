@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\UploadController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\FormChecklistController;
 use Illuminate\Support\Facades\Route;
@@ -13,21 +14,42 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
 
     // Dashboard
-    Route::get('/dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DocumentController::class, 'dashboard'])->name('dashboard');
 
-    // Documents
+    // ========================================
+    // DOCUMENTS ROUTES (Struktur Lama Anda)
+    // ========================================
     Route::prefix('documents')->name('documents.')->group(function () {
         // Upload dokumen
-        Route::post('/pdf', 'App\Http\Controllers\UploadController@storePDF')->name('store.pdf');
-        Route::post('/image', 'App\Http\Controllers\UploadController@storeImage')->name('store.image');
-        Route::post('/doc', 'App\Http\Controllers\UploadController@storeDoc')->name('store.doc');
+        Route::post('/pdf', [UploadController::class, 'storePDF'])->name('store.pdf');
+        Route::post('/image', [UploadController::class, 'storeImage'])->name('store.image');
+        Route::post('/doc', [UploadController::class, 'storeDoc'])->name('store.doc');
+        
+        // ⬇️ ROUTE SPESIFIK HARUS DI ATAS (sebelum {type} atau {id})
+        
+        // ✅ API untuk polling status (HARUS DI ATAS {type})
+        Route::get('/{id}/status', [DocumentController::class, 'getStatus'])
+            ->where('id', '[0-9]+')  // ⬅️ Hanya accept angka
+            ->name('getStatus');
+        
+        // ✅ Detail dokumen (HARUS DI ATAS {type})
+        Route::get('/{id}/detail', [DocumentController::class, 'detail'])
+            ->where('id', '[0-9]+')  // ⬅️ Hanya accept angka
+            ->name('detail');
+        
+        // ✅ Retry dokumen yang failed
+        Route::post('/{id}/retry', [UploadController::class, 'retry'])
+            ->where('id', '[0-9]+')
+            ->name('retry');
         
         // Delete dokumen
-        Route::delete('/{id}', [DocumentController::class, 'destroy'])->name('destroy');
+        Route::delete('/{id}', [DocumentController::class, 'destroy'])
+            ->where('id', '[0-9]+')
+            ->name('destroy');
         
-        // Filter berdasarkan tipe
+        // ⬇️ ROUTE GENERAL DI BAWAH
+        
+        // Filter berdasarkan tipe (DI PALING BAWAH karena paling general)
         Route::get('/{type}', [DocumentController::class, 'filter'])
             ->where('type', 'pdf|gambar|doc')
             ->name('filter');
@@ -92,7 +114,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Users Page
-     Route::get('/users', function () {
+    Route::get('/users', function () {
         return Inertia::render('users');
     })->name('users'); 
 });
@@ -102,25 +124,27 @@ require __DIR__ . '/auth.php';
 
 /*
 |--------------------------------------------------------------------------
-| Cara Pakai Chatbot API:
+| 📚 ROUTING GUIDE
 |--------------------------------------------------------------------------
 |
-| 1. Chat dengan RAG:
-|    POST /chatbot/chat
-|    Body: {
-|      "query": "Cek nojar 12345 untuk pelanggan siapa?",
-|      "search_type": "both",  // optional: jaringan, spk, both
-|      "top_k": 3              // optional: jumlah data relevan
-|    }
+| ========================================
+| DOCUMENTS
+| ========================================
+| POST /documents/pdf                → Upload PDF (background job)
+| POST /documents/image              → Upload gambar
+| POST /documents/doc                → Upload DOC/DOCX
+| GET  /documents/{type}             → Filter (pdf/doc/gambar)
+| GET  /documents/{id}/detail        → Detail dokumen
+| GET  /documents/{id}/status        → API polling status (NEW!)
+| POST /documents/{id}/retry         → Retry dokumen failed (NEW!)
+| DELETE /documents/{id}             → Hapus dokumen
 |
-| 2. Health Check:
-|    GET /chatbot/health
-|
-| 3. Statistics:
-|    GET /chatbot/stats
-|
-| 4. Generate Embedding (Testing):
-|    POST /chatbot/generate-embedding
-|    Body: {"text": "Test text"}
+| ========================================
+| CHATBOT API (RAG System)
+| ========================================
+| POST /chatbot/chat                 → Chat dengan RAG
+| GET  /chatbot/health               → Health check
+| GET  /chatbot/stats                → Statistics
+| POST /chatbot/generate-embedding   → Generate embedding (testing)
 |
 */
