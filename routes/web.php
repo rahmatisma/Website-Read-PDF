@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\FormChecklistController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -30,6 +31,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{type}', [DocumentController::class, 'filter'])
             ->where('type', 'pdf|gambar|doc')
             ->name('filter');
+    });
+
+    // Form Checklist
+    Route::prefix('form-checklist')->group(function () {
+        Route::post('/process/{uploadId}', [FormChecklistController::class, 'processUpload']);
+        Route::get('/wireline/{idFcw}', [FormChecklistController::class, 'getWireline']);
+        Route::get('/wireless/{idFcwl}', [FormChecklistController::class, 'getWireless']);
     });
 
     // Chatbot Page

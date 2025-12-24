@@ -6,37 +6,29 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     * 
-     * Table: Form_Checklist_Wireless
-     * Purpose: Form checklist untuk aktivasi wireless
-     * Depends on: spk
-     */
     public function up(): void
     {
         Schema::create('form_checklist_wireless', function (Blueprint $table) {
-            // Primary Key
             $table->id('id_fcwl');
-
-            // Foreign Key (unique - one-to-one relationship)
             $table->unsignedBigInteger('id_spk')->unique();
-
-            // Form Information
             $table->string('no_spk', 100);
             $table->date('tanggal');
 
-            // Location
+            // Data Remote
+            $table->string('nama_pelanggan', 255)->nullable();
+            $table->string('contact_person', 255)->nullable();
+            $table->string('nomor_telepon', 20)->nullable();
+            $table->text('alamat')->nullable();
             $table->string('kota', 100)->nullable();
             $table->string('propinsi', 100)->nullable();
 
-            // Timestamps
             $table->timestamps();
 
-            // Index
+            // Indexes
             $table->index('id_spk');
+            $table->index('no_spk');
 
-            // Foreign Key Constraint
+            // Foreign Key
             $table->foreign('id_spk')
                 ->references('id_spk')
                 ->on('spk')
@@ -45,9 +37,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('form_checklist_wireless');

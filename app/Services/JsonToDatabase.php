@@ -19,6 +19,8 @@ use App\Models\SpkHhBaru;
 use App\Models\DokumentasiFoto;
 use App\Models\BeritaAcara;
 use App\Models\ListItem;
+use App\Services\FormChecklistWirelineService;
+use App\Services\FormChecklistWirelessService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -32,16 +34,19 @@ class JsonToDatabase
         try {
             $parsedData = null;
             $dokumentasi = null;
+            $documentType = null;
             $jenisSpk = null;
             
             // Cek struktur JSON
             if (isset($jsonData['data']['parsed']['data'])) {
                 $parsedData = $jsonData['data']['parsed']['data'];
                 $dokumentasi = $jsonData['data']['dokumentasi'] ?? [];
+                $documentType = $jsonData['data']['parsed']['document_type'] ?? 'unknown';
                 $jenisSpk = $jsonData['data']['parsed']['jenis_spk'] ?? 'survey';
             } elseif (isset($jsonData['parsed']['data'])) {
                 $parsedData = $jsonData['parsed']['data'];
                 $dokumentasi = $jsonData['dokumentasi'] ?? [];
+                $documentType = $jsonData['parsed']['document_type'] ?? 'unknown';
                 $jenisSpk = $jsonData['parsed']['jenis_spk'] ?? 'survey';
             } else {
                 Log::error('Invalid JSON structure', [
@@ -53,102 +58,42 @@ class JsonToDatabase
             
             Log::info('Processing JSON to Database', [
                 'upload_id' => $uploadId,
+                'document_type' => $documentType,
                 'jenis_spk' => $jenisSpk
             ]);
             
-            // 1. Insert/Update JARINGAN
-            $noJaringan = $this->processJaringan(
-                $parsedData['jaringan'] ?? [],
-                $parsedData['pelanggan'] ?? []
-            );
-            
-            // 2. Insert SPK (parent)
-            $idSpk = $this->processSpk(
-                $parsedData['spk'] ?? [],
-                $noJaringan,
-                $jenisSpk,
-                $uploadId
-            );
-            
-            // 3. Insert data detail
-            $this->safeProcess('Pelaksanaan', function() use ($parsedData, $idSpk) {
-                $this->processPelaksanaan($parsedData['pelaksanaan'] ?? [], $idSpk);
-            });
-            
-            // ✅ FIX: Support untuk instalasi (vendor) dan dismantle (pekerja_cabut)
-            $this->safeProcess('ExecutionInfo', function() use ($parsedData, $idSpk) {
-                $vendorData = $parsedData['vendor'] ?? $parsedData['pekerja_cabut'] ?? [];
-                $this->processExecutionInfo($vendorData, $idSpk);
-            });
-            
-            $this->safeProcess('InformasiGedung', function() use ($parsedData, $idSpk) {
-                $this->processInformasiGedung($parsedData['informasi_gedung'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('SarpenRuangServer', function() use ($parsedData, $idSpk) {
-                $this->processSarpenRuangServer($parsedData['sarpen_ruang_server'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('LokasiAntena', function() use ($parsedData, $idSpk) {
-                $this->processLokasiAntena($parsedData['lokasi_antena'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('PerizinanBiayaGedung', function() use ($parsedData, $idSpk) {
-                $this->processPerizinanBiayaGedung($parsedData['perizinan_biaya_gedung'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('PenempatanPerangkat', function() use ($parsedData, $idSpk) {
-                $this->processPenempatanPerangkat($parsedData['penempatan_perangkat'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('PerizinanBiayaKawasan', function() use ($parsedData, $idSpk) {
-                $this->processPerizinanBiayaKawasan($parsedData['perizinan_biaya_kawasan'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('KawasanUmum', function() use ($parsedData, $idSpk) {
-                $this->processKawasanUmum($parsedData['kawasan_umum'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('DataSplitter', function() use ($parsedData, $idSpk) {
-                $this->processDataSplitter($parsedData['data_splitter'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('HhEksisting', function() use ($parsedData, $idSpk) {
-                $this->processHhEksisting($parsedData['data_hh_eksisting'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('HhBaru', function() use ($parsedData, $idSpk) {
-                $this->processHhBaru($parsedData['data_hh_baru'] ?? [], $idSpk);
-            });
-            
-            // ✅ FIX: Tambahkan proses List Item
-            $this->safeProcess('ListItem', function() use ($parsedData, $idSpk) {
-                $this->processListItem($parsedData['list_item'] ?? [], $idSpk);
-            });
-            
-            $this->safeProcess('DokumentasiFoto', function() use ($dokumentasi, $idSpk) {
-                $this->processDokumentasiFoto($dokumentasi, $idSpk);
-            });
-            
-            $this->safeProcess('BeritaAcara', function() use ($parsedData, $idSpk) {
-                $this->processBeritaAcara($parsedData['berita_acara'] ?? [], $idSpk);
-            });
-            
-            event(new \App\Events\SPKDataSaved($idSpk, $noJaringan));
-            
-            DB::commit();
-            
-            Log::info('JSON successfully processed to database', [
-                'upload_id' => $uploadId,
-                'id_spk' => $idSpk,
-                'no_jaringan' => $noJaringan
-            ]);
-            
-            return [
-                'success' => true,
-                'id_spk' => $idSpk,
-                'no_jaringan' => $noJaringan
-            ];
+            // ✅ ROUTE BERDASARKAN DOCUMENT TYPE
+            switch ($documentType) {
+                case 'spk_survey':
+                case 'spk_instalasi':
+                case 'spk_dismantle':
+                case 'spk_aktivasi':
+                    // Process SPK
+                    $result = $this->processSPK($jsonData, $uploadId);
+                    DB::commit();
+                    return $result;
+                
+                case 'checklist_wireline':
+                    // Process Form Checklist Wireline
+                    $result = $this->processFormChecklistWireline($jsonData, $uploadId);
+                    DB::commit();
+                    return $result;
+                
+                case 'checklist_wireless':
+                    // Process Form Checklist Wireless
+                    $result = $this->processFormChecklistWireless($jsonData, $uploadId);
+                    DB::commit();
+                    return $result;
+                
+                default:
+                    // Fallback ke SPK processing untuk backward compatibility
+                    Log::warning('Unknown document type, fallback to SPK processing', [
+                        'document_type' => $documentType
+                    ]);
+                    $result = $this->processSPK($jsonData, $uploadId);
+                    DB::commit();
+                    return $result;
+            }
             
         } catch (Exception $e) {
             DB::rollBack();
@@ -164,6 +109,271 @@ class JsonToDatabase
         }
     }
     
+    // ============================================
+    // PROCESS SPK (existing logic)
+    // ============================================
+    private function processSPK(array $jsonData, int $uploadId)
+    {
+        $parsedData = $jsonData['data']['parsed']['data'] ?? $jsonData['parsed']['data'];
+        $dokumentasi = $jsonData['data']['dokumentasi'] ?? $jsonData['dokumentasi'] ?? [];
+        $jenisSpk = $jsonData['data']['parsed']['jenis_spk'] ?? $jsonData['parsed']['jenis_spk'] ?? 'survey';
+        
+        Log::info('Processing SPK document', [
+            'upload_id' => $uploadId,
+            'jenis_spk' => $jenisSpk
+        ]);
+        
+        // 1. Insert/Update JARINGAN
+        $noJaringan = $this->processJaringan(
+            $parsedData['jaringan'] ?? [],
+            $parsedData['pelanggan'] ?? []
+        );
+        
+        // 2. Insert SPK (parent)
+        $idSpk = $this->createSpk(
+            $parsedData['spk'] ?? [],
+            $noJaringan,
+            $jenisSpk,
+            $uploadId
+        );
+        
+        // 3. Insert data detail
+        $this->safeProcess('Pelaksanaan', function() use ($parsedData, $idSpk) {
+            $this->processPelaksanaan($parsedData['pelaksanaan'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('ExecutionInfo', function() use ($parsedData, $idSpk) {
+            $vendorData = $parsedData['vendor'] ?? $parsedData['pekerja_cabut'] ?? [];
+            $this->processExecutionInfo($vendorData, $idSpk);
+        });
+        
+        $this->safeProcess('InformasiGedung', function() use ($parsedData, $idSpk) {
+            $this->processInformasiGedung($parsedData['informasi_gedung'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('SarpenRuangServer', function() use ($parsedData, $idSpk) {
+            $this->processSarpenRuangServer($parsedData['sarpen_ruang_server'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('LokasiAntena', function() use ($parsedData, $idSpk) {
+            $this->processLokasiAntena($parsedData['lokasi_antena'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('PerizinanBiayaGedung', function() use ($parsedData, $idSpk) {
+            $this->processPerizinanBiayaGedung($parsedData['perizinan_biaya_gedung'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('PenempatanPerangkat', function() use ($parsedData, $idSpk) {
+            $this->processPenempatanPerangkat($parsedData['penempatan_perangkat'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('PerizinanBiayaKawasan', function() use ($parsedData, $idSpk) {
+            $this->processPerizinanBiayaKawasan($parsedData['perizinan_biaya_kawasan'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('KawasanUmum', function() use ($parsedData, $idSpk) {
+            $this->processKawasanUmum($parsedData['kawasan_umum'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('DataSplitter', function() use ($parsedData, $idSpk) {
+            $this->processDataSplitter($parsedData['data_splitter'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('HhEksisting', function() use ($parsedData, $idSpk) {
+            $this->processHhEksisting($parsedData['data_hh_eksisting'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('HhBaru', function() use ($parsedData, $idSpk) {
+            $this->processHhBaru($parsedData['data_hh_baru'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('ListItem', function() use ($parsedData, $idSpk) {
+            $this->processListItem($parsedData['list_item'] ?? [], $idSpk);
+        });
+        
+        $this->safeProcess('DokumentasiFoto', function() use ($dokumentasi, $idSpk) {
+            $this->processDokumentasiFoto($dokumentasi, $idSpk);
+        });
+        
+        $this->safeProcess('BeritaAcara', function() use ($parsedData, $idSpk) {
+            $this->processBeritaAcara($parsedData['berita_acara'] ?? [], $idSpk);
+        });
+        
+        event(new \App\Events\SPKDataSaved($idSpk, $noJaringan));
+        
+        Log::info('SPK successfully processed to database', [
+            'upload_id' => $uploadId,
+            'id_spk' => $idSpk,
+            'no_jaringan' => $noJaringan
+        ]);
+        
+        return [
+            'success' => true,
+            'id_spk' => $idSpk,
+            'no_jaringan' => $noJaringan
+        ];
+    }
+    
+    // ============================================
+    // PROCESS FORM CHECKLIST WIRELINE
+    // ============================================
+    private function processFormChecklistWireline(array $jsonData, int $uploadId)
+    {
+        $parsedData = $jsonData['data']['parsed']['data'] ?? $jsonData['parsed']['data'];
+        
+        Log::info('Processing Form Checklist Wireline', [
+            'upload_id' => $uploadId
+        ]);
+        
+        // ✅ Ambil no_jaringan dari data_remote (support both field names)
+        $noJaringan = $parsedData['data_remote']['no_jaringan'] 
+            ?? $parsedData['data_remote']['nomor_jaringan']
+            ?? null;
+        
+        if (!$noJaringan) {
+            throw new Exception('no_jaringan or nomor_jaringan is required for Form Checklist Wireline');
+        }
+        
+        // ✅ Ambil no_spk
+        $noSpk = $parsedData['data_remote']['no_spk'] ?? null;
+        if (!$noSpk) {
+            throw new Exception('no_spk is required for Form Checklist Wireline');
+        }
+        
+        // ✅ Cek apakah SPK sudah ada, jika belum create
+        $spk = Spk::where('no_spk', $noSpk)->first();
+        
+        if (!$spk) {
+            Log::info('SPK not found, creating new SPK for FCW', [
+                'no_spk' => $noSpk,
+                'no_jaringan' => $noJaringan
+            ]);
+            
+            // Create JARINGAN dulu jika belum ada
+            $this->ensureJaringanExists($noJaringan, $parsedData['data_remote'] ?? []);
+            
+            // Create SPK
+            $spk = Spk::create([
+                'no_spk' => $noSpk,
+                'no_jaringan' => $noJaringan,
+                'document_type' => 'form_checklist_wireline',
+                'jenis_spk' => 'maintenance',
+                'tanggal_spk' => $this->parseDate($parsedData['data_remote']['tanggal'] ?? null) ?? now(),
+                'id_upload' => $uploadId,
+            ]);
+        }
+        
+        // ✅ Call FormChecklistWirelineService
+        $fcwService = new FormChecklistWirelineService();
+        $result = $fcwService->process($jsonData, $spk->id_spk, $uploadId);
+        
+        Log::info('Form Checklist Wireline successfully processed', [
+            'upload_id' => $uploadId,
+            'id_spk' => $spk->id_spk,
+            'id_fcw' => $result['id_fcw']
+        ]);
+        
+        return [
+            'success' => true,
+            'id_spk' => $spk->id_spk,
+            'id_fcw' => $result['id_fcw'],
+            'no_jaringan' => $noJaringan
+        ];
+    }
+    
+    // ============================================
+    // PROCESS FORM CHECKLIST WIRELESS
+    // ============================================
+    private function processFormChecklistWireless(array $jsonData, int $uploadId)
+    {
+        $parsedData = $jsonData['data']['parsed']['data'] ?? $jsonData['parsed']['data'];
+        
+        Log::info('Processing Form Checklist Wireless', [
+            'upload_id' => $uploadId
+        ]);
+        
+        // ✅ Ambil no_jaringan dari data_remote (support both field names)
+        $noJaringan = $parsedData['data_remote']['no_jaringan'] 
+            ?? $parsedData['data_remote']['nomor_jaringan']
+            ?? null;
+        
+        if (!$noJaringan) {
+            throw new Exception('no_jaringan or nomor_jaringan is required for Form Checklist Wireless');
+        }
+        
+        // ✅ Ambil no_spk
+        $noSpk = $parsedData['data_remote']['no_spk'] ?? null;
+        if (!$noSpk) {
+            throw new Exception('no_spk is required for Form Checklist Wireless');
+        }
+        
+        // ✅ Cek apakah SPK sudah ada, jika belum create
+        $spk = Spk::where('no_spk', $noSpk)->first();
+        
+        if (!$spk) {
+            Log::info('SPK not found, creating new SPK for FCWL', [
+                'no_spk' => $noSpk,
+                'no_jaringan' => $noJaringan
+            ]);
+            
+            // Create JARINGAN dulu jika belum ada
+            $this->ensureJaringanExists($noJaringan, $parsedData['data_remote'] ?? []);
+            
+            // Create SPK
+            $spk = Spk::create([
+                'no_spk' => $noSpk,
+                'no_jaringan' => $noJaringan,
+                'document_type' => 'form_checklist_wireless',
+                'jenis_spk' => 'maintenance',
+                'tanggal_spk' => $this->parseDate($parsedData['data_remote']['tanggal'] ?? null) ?? now(),
+                'id_upload' => $uploadId,
+            ]);
+        }
+        
+        // ✅ Call FormChecklistWirelessService
+        $fcwlService = new FormChecklistWirelessService();
+        $result = $fcwlService->process($jsonData, $spk->id_spk, $uploadId);
+        
+        Log::info('Form Checklist Wireless successfully processed', [
+            'upload_id' => $uploadId,
+            'id_spk' => $spk->id_spk,
+            'id_fcwl' => $result['id_fcwl']
+        ]);
+        
+        return [
+            'success' => true,
+            'id_spk' => $spk->id_spk,
+            'id_fcwl' => $result['id_fcwl'],
+            'no_jaringan' => $noJaringan
+        ];
+    }
+    
+    // ============================================
+    // HELPER: Ensure JARINGAN exists
+    // ============================================
+    private function ensureJaringanExists(string $noJaringan, array $dataRemote)
+    {
+        $jaringan = Jaringan::where('no_jaringan', $noJaringan)->first();
+        
+        if (!$jaringan) {
+            Log::info('Creating JARINGAN for FCW/FCWL', [
+                'no_jaringan' => $noJaringan
+            ]);
+            
+            Jaringan::create([
+                'no_jaringan' => $noJaringan,
+                'nama_pelanggan' => $dataRemote['nama_pelanggan'] ?? null,
+                'lokasi_pelanggan' => $dataRemote['alamat'] ?? null,
+                'jasa' => 'Unknown', // Default value
+                'media_akses' => null,
+            ]);
+        }
+    }
+    
+    // ============================================
+    // EXISTING METHODS (unchanged)
+    // ============================================
+    
     private function safeProcess(string $name, callable $callback)
     {
         try {
@@ -178,10 +388,13 @@ class JsonToDatabase
     
     private function processJaringan(array $jaringanData, array $pelangganData)
     {
-        $noJaringan = $jaringanData['no_jaringan'] ?? null;
+        // ✅ FIX: Support both no_jaringan and nomor_jaringan
+        $noJaringan = $jaringanData['no_jaringan'] 
+            ?? $jaringanData['nomor_jaringan']
+            ?? null;
         
         if (empty($noJaringan)) {
-            throw new Exception('no_jaringan is required');
+            throw new Exception('no_jaringan or nomor_jaringan is required');
         }
         
         $jaringan = Jaringan::updateOrCreate(
@@ -204,7 +417,7 @@ class JsonToDatabase
         return $jaringan->no_jaringan;
     }
     
-    private function processSpk(array $spkData, string $noJaringan, string $jenisSpk, int $uploadId)
+    private function createSpk(array $spkData, string $noJaringan, string $jenisSpk, int $uploadId)
     {
         $noSpk = $spkData['no_spk'] ?? null;
         
@@ -253,7 +466,6 @@ class JsonToDatabase
         ]);
     }
     
-    // ✅ NEW: Process List Item
     private function processListItem(array $items, int $idSpk)
     {
         if (empty($items)) {
@@ -267,12 +479,10 @@ class JsonToDatabase
         ]);
         
         foreach ($items as $item) {
-            // Skip jika array kosong atau tidak valid
             if (empty($item) || !is_array($item)) {
                 continue;
             }
             
-            // Skip jika tidak ada kode dan deskripsi
             if (empty($item['kode']) && empty($item['deskripsi'])) {
                 continue;
             }
@@ -408,7 +618,6 @@ class JsonToDatabase
             'info_lain_lain_jika_ada' => $data['info_lain___lain_jika_ada'] ?? null,
         ]);
     }
-    
     private function processKawasanUmum(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -419,7 +628,7 @@ class JsonToDatabase
             'panjang_jalur_outdoor_di_kawasan_umum' => $data['panjang_jalur_outdoor_di_kawasan_umum'] ?? null,
         ]);
     }
-    
+
     private function processDataSplitter(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -436,7 +645,7 @@ class JsonToDatabase
             'arah_akses' => $data['arah_akses'] ?? null,
         ]);
     }
-    
+
     private function processHhEksisting(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -470,7 +679,7 @@ class JsonToDatabase
             ]);
         }
     }
-    
+
     private function processHhBaru(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -502,7 +711,7 @@ class JsonToDatabase
             ]);
         }
     }
-    
+
     private function processDokumentasiFoto(array $dokumentasiArray, int $idSpk)
     {
         if (empty($dokumentasiArray)) return;
@@ -522,7 +731,7 @@ class JsonToDatabase
             ]);
         }
     }
-    
+
     private function processBeritaAcara(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -532,11 +741,11 @@ class JsonToDatabase
             'judul_spk' => $data['judul_spk'] ?? 'BERITA ACARA',
         ]);
     }
-    
+
     // ============================================
     // HELPER METHODS
     // ============================================
-    
+
     private function parseDate($dateString)
     {
         if (empty($dateString) || $dateString === '-' || $dateString === 'null') return null;
@@ -544,8 +753,7 @@ class JsonToDatabase
         try {
             $dateString = trim($dateString);
             
-            // Format: dd/MMM/yyyy atau dd-MMM-yyyy
-            $formats = ['d/M/Y', 'd-M-Y', 'd/m/Y', 'd-m-Y', 'Y-m-d'];
+            $formats = ['d/M/Y', 'd-M-Y', 'd/m/Y', 'd-m-Y', 'Y-m-d', 'd/M/Y H:i', 'd-M-Y H:i'];
             
             foreach ($formats as $format) {
                 try {
@@ -558,7 +766,6 @@ class JsonToDatabase
                 }
             }
             
-            // Fallback
             $date = \Carbon\Carbon::parse($dateString);
             return $date->format('Y-m-d');
             
@@ -570,13 +777,12 @@ class JsonToDatabase
             return null;
         }
     }
-    
+
     private function parseDateTime($dateTimeString)
     {
         if (empty($dateTimeString) || $dateTimeString === '-' || $dateTimeString === 'null') return null;
         
         try {
-            // Normalize spaces
             $dateTimeString = preg_replace('/\s+/', ' ', trim($dateTimeString));
             
             $formats = ['d/M/Y H:i', 'd-M-Y H:i', 'd/m/Y H:i', 'd-m-Y H:i'];
@@ -592,7 +798,6 @@ class JsonToDatabase
                 }
             }
             
-            // Fallback
             $date = \Carbon\Carbon::parse($dateTimeString);
             return $date->format('Y-m-d H:i:s');
             
@@ -604,7 +809,7 @@ class JsonToDatabase
             return null;
         }
     }
-    
+
     private function mapAdaTidakAda($value)
     {
         if (empty($value) || $value === 'null') return null;
@@ -617,7 +822,7 @@ class JsonToDatabase
         }
         return null;
     }
-    
+
     private function mapTersediaTidak($value)
     {
         if (empty($value) || $value === 'null') return null;
@@ -630,7 +835,7 @@ class JsonToDatabase
         }
         return null;
     }
-    
+
     private function mapSiapTidakSiap($value)
     {
         if (empty($value) || $value === 'null') return null;
@@ -643,7 +848,7 @@ class JsonToDatabase
         }
         return null;
     }
-    
+
     private function mapYaTidak($value)
     {
         if (empty($value) || $value === 'null') return null;
@@ -656,7 +861,7 @@ class JsonToDatabase
         }
         return null;
     }
-    
+
     private function mapKategoriFoto($jenis)
     {
         $jenis = strtolower($jenis);
@@ -681,7 +886,7 @@ class JsonToDatabase
         
         return 'foto_dokumentasi_umum';
     }
-    
+
     private function extractLatitude($latLongString)
     {
         if (empty($latLongString) || $latLongString === 'null') return null;
@@ -689,7 +894,7 @@ class JsonToDatabase
         $parts = explode(',', $latLongString);
         return isset($parts[0]) ? trim($parts[0]) : null;
     }
-    
+
     private function extractLongitude($latLongString)
     {
         if (empty($latLongString) || $latLongString === 'null') return null;
