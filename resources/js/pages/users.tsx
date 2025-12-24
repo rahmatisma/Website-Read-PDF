@@ -2,23 +2,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
@@ -242,10 +229,10 @@ export default function Users() {
                           name: formData.name,
                           email: formData.email,
                           role: formData.role,
-                          email_verified_at: formData.emailVerified ? (user.email_verified_at || new Date().toISOString()) : null,
+                          email_verified_at: formData.emailVerified ? user.email_verified_at || new Date().toISOString() : null,
                           updated_at: new Date().toISOString(),
                       }
-                    : user
+                    : user,
             );
 
             setUsers(updatedUsers);
@@ -302,7 +289,7 @@ export default function Users() {
                             <CardTitle className="text-2xl font-bold">Users Management</CardTitle>
                             <CardDescription>Manage system users and their roles</CardDescription>
                         </div>
-                        <Button className="gap-2 cursor-pointer" onClick={openAddDialog}>
+                        <Button className="cursor-pointer gap-2" onClick={openAddDialog}>
                             <UserPlus className="h-4 w-4" />
                             Add User
                         </Button>
@@ -329,7 +316,7 @@ export default function Users() {
                                 </CardHeader>
                             </Card>
                         </div>
-                        <div className="rounded-lg border mt-8">
+                        <div className="mt-8 rounded-lg border">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -373,26 +360,21 @@ export default function Users() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <button
-                                                    onClick={() => toggleVerification(user.id, user.email_verified_at)}
-                                                    className="flex items-center gap-2 transition-opacity hover:opacity-70"
-                                                >
-                                                    {user.email_verified_at ? (
-                                                        <>
-                                                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                                            <Badge variant="outline" className="border-green-500 text-green-600">
-                                                                Verified
-                                                            </Badge>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <XCircle className="h-4 w-4 text-yellow-600" />
-                                                            <Badge variant="outline" className="border-yellow-500 text-yellow-600">
-                                                                Unverified
-                                                            </Badge>
-                                                        </>
-                                                    )}
-                                                </button>
+                                                {user.email_verified_at ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                                        <Badge variant="outline" className="border-green-500 text-green-600">
+                                                            Verified
+                                                        </Badge>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2">
+                                                        <XCircle className="h-4 w-4 text-yellow-600" />
+                                                        <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+                                                            Unverified
+                                                        </Badge>
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -404,7 +386,7 @@ export default function Users() {
                                                 <div className="relative">
                                                     <Button
                                                         variant="ghost"
-                                                        className="h-8 w-8 p-0 cursor-pointer"
+                                                        className="h-8 w-8 cursor-pointer p-0"
                                                         onClick={() => setOpenDropdown(openDropdown === user.id ? null : user.id)}
                                                     >
                                                         <span className="sr-only">Open menu</span>
@@ -414,11 +396,13 @@ export default function Users() {
                                                     {openDropdown === user.id && (
                                                         <>
                                                             <div className="fixed inset-0 z-40" onClick={() => setOpenDropdown(null)} />
-                                                            <div className="relative right-0 top-full mt-1 z-50 min-w-[160px] rounded-md border bg-popover text-popover-foreground p-1 shadow-lg">
-                                                                <div className="py-2 text-sm font-semibold text-center border-b border-border">Actions</div>
+                                                            <div className="relative top-full right-0 z-50 mt-1 min-w-[160px] rounded-md border bg-popover p-1 text-popover-foreground shadow-lg">
+                                                                <div className="border-b border-border py-2 text-center text-sm font-semibold">
+                                                                    Actions
+                                                                </div>
 
                                                                 <button
-                                                                    className="flex w-full items-center rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors mt-1"
+                                                                    className="mt-1 flex w-full cursor-pointer items-center rounded-sm px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                                                                     onClick={() => {
                                                                         setOpenDropdown(null);
                                                                         openEditDialog(user);
@@ -429,7 +413,7 @@ export default function Users() {
                                                                 </button>
 
                                                                 <button
-                                                                    className="flex w-full items-center rounded-sm px-3 py-2 text-sm text-red-600 hover:bg-destructive/10 cursor-pointer transition-colors"
+                                                                    className="flex w-full cursor-pointer items-center rounded-sm px-3 py-2 text-sm text-red-600 transition-colors hover:bg-destructive/10"
                                                                     onClick={() => {
                                                                         setOpenDropdown(null);
                                                                         handleDeleteConfirm(user);
@@ -491,7 +475,7 @@ export default function Users() {
                             <Label htmlFor="password">
                                 Password {dialogState.mode === 'add' && <span className="text-red-500">*</span>}
                                 {dialogState.mode === 'edit' && (
-                                    <span className="text-xs text-muted-foreground ml-1">(Leave empty to keep current)</span>
+                                    <span className="ml-1 text-xs text-muted-foreground">(Leave empty to keep current)</span>
                                 )}
                             </Label>
                             <Input
@@ -520,7 +504,11 @@ export default function Users() {
                                 <Label htmlFor="emailVerified">Email Verification Status</Label>
                                 <p className="text-sm text-muted-foreground">Mark this email as verified</p>
                             </div>
-                            <Switch id="emailVerified" checked={formData.emailVerified} onCheckedChange={(checked) => setFormData({ ...formData, emailVerified: checked })} />
+                            <Switch
+                                id="emailVerified"
+                                checked={formData.emailVerified}
+                                onCheckedChange={(checked) => setFormData({ ...formData, emailVerified: checked })}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
