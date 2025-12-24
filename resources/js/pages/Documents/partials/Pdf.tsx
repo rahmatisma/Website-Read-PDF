@@ -1,16 +1,9 @@
 import DocumentTable from '@/components/DocumentTable';
 import SearchFilter from '@/components/SearchFilter';
 import UploadPDFBox from '@/components/UploadPDFBox';
+import { Document } from '@/types/document';
 import { Head, router } from '@inertiajs/react';
 import { toast } from 'sonner';
-
-interface Document {
-    id_upload: number;
-    file_name: string;
-    file_path: string;
-    created_at: string;
-    file_size: string;
-}
 
 interface PdfProps {
     documents: Document[];
