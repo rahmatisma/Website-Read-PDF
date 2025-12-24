@@ -90,6 +90,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ]);
         }
     });
+
+    // Users Page
+     Route::get('/users', function () {
+        return Inertia::render('users');
+    })->name('users'); 
 });
 
 require __DIR__ . '/settings.php';

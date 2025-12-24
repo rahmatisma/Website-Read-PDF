@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/c
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
 import { Bot, MessageSquarePlus, Send, User, Database, Zap } from 'lucide-react';
@@ -297,6 +298,7 @@ export default function Chatbot() {
                     <div className="border-b bg-background/95 p-3 shadow-md backdrop-blur-md supports-[backdrop-filter]:bg-background/90 md:mx-2 md:rounded-lg md:border md:p-6">
                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
+                                <SidebarTrigger className="md:hidden" />
                                 <Bot className="h-5 w-5 md:h-6 md:w-6" />
                                 <div>
                                     <div className="flex items-center gap-2">
@@ -422,7 +424,7 @@ export default function Chatbot() {
                     </CardContent>
                 </Card>
 
-                <div className="sticky bottom-0 z-50 px-24 transition-all duration-300 md:bottom-4">
+                <div className="sticky bottom-0 z-50 md:px-2 transition-all duration-300 md:bottom-4">
                     <div className="rounded-t-lg border-t bg-background p-3 shadow-xl md:mx-2 md:rounded-lg md:border md:bg-background/95 md:p-4 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
                         <div className="flex items-center gap-2">
                             <Input
@@ -438,7 +440,7 @@ export default function Chatbot() {
                                 onClick={handleSendMessage} 
                                 disabled={!inputMessage.trim() || isLoading || isStreaming} 
                                 size="icon" 
-                                className="h-9 w-9 cursor-pointer md:h-10 md:w-10"
+                                className="h-9 w-9 shrink-0 cursor-pointer md:h-10 md:w-10"
                             >
                                 <Send className="h-3.5 w-3.5 md:h-4 md:w-4" />
                             </Button>
