@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
-import { Calendar, CheckCircle2, File, FileText, HardDrive, Mail, Shield, Upload } from 'lucide-react';
+import { Calendar, CheckCircle2, File, FileText, HardDrive, Mail, Shield, Upload, FileCheck, ClipboardCheck, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -13,6 +13,7 @@ interface Document {
     fileName: string;
     uploadedDate: string;
     fileSize: string;
+    status?: 'uploaded' | 'processing' | 'completed' | 'failed';
 }
 
 interface User {
@@ -27,13 +28,12 @@ interface User {
 }
 
 interface DashboardProps {
-    countPDF: number;
     countDOC: number;
     countIMG: number;
     countAll: number;
-    countThisMonth?: number;
-    storageUsed?: string;
     countUsersVerified?: number;
+    countSPKTypes?: number;
+    countFormChecklist?: number;
     uploadTrend?: { date: string; uploads: number }[];
     recentDocuments?: Document[];
     [key: string]: unknown;
@@ -41,10 +41,9 @@ interface DashboardProps {
 
 export default function Dashboard() {
     const {
-        countPDF,
-        countThisMonth = 0,
-        storageUsed = '0 MB',
         countUsersVerified = 0,
+        countSPKTypes = 0,
+        countFormChecklist = 0,
         uploadTrend = [],
         recentDocuments = [],
     } = usePage<DashboardProps>().props;
@@ -67,30 +66,35 @@ export default function Dashboard() {
             fileName: 'SPK_Masket_2025.pdf',
             uploadedDate: '2025-12-23 10:30',
             fileSize: '2.4 MB',
+            status: 'processing',
         },
         {
             id: 2,
             fileName: 'Proposal_Jaringan_Lintasarta.pdf',
             uploadedDate: '2025-12-23 09:15',
             fileSize: '1.8 MB',
+            status: 'completed',
         },
         {
             id: 3,
             fileName: 'Berita_Acara_Lintasarta.pdf',
             uploadedDate: '2025-12-22 16:45',
             fileSize: '3.2 MB',
+            status: 'processing',
         },
         {
             id: 4,
             fileName: 'SPK_Smartfren_Q4.pdf',
             uploadedDate: '2025-12-22 14:20',
             fileSize: '1.5 MB',
+            status: 'failed',
         },
         {
             id: 5,
             fileName: 'Dokumentasi_Site_Survey.pdf',
             uploadedDate: '2025-12-22 11:00',
             fileSize: '4.1 MB',
+            status: 'processing',
         },
     ];
 
@@ -184,49 +188,30 @@ export default function Dashboard() {
         }).format(date);
     };
 
+    const getStatusBadge = (status?: string) => {
+        if (!status) return null;
+
+        switch (status) {
+            case 'completed':
+                return <span className="px-2 py-1 text-xs rounded-full bg-green-500/20 text-green-400">✅ Selesai</span>;
+            case 'processing':
+                return <span className="px-2 py-1 text-xs rounded-full bg-yellow-500/20 text-yellow-400 animate-pulse">🔄 Proses</span>;
+            case 'failed':
+                return <span className="px-2 py-1 text-xs rounded-full bg-red-500/20 text-red-400">❌ Gagal</span>;
+            case 'uploaded':
+                return <span className="px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-400">📤 Upload</span>;
+            default:
+                return null;
+        }
+    }
+
     return (
         <AppLayout>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
                 {/* Statistics Cards */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {/* Total PDF Documents */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{countPDF}</div>
-                            <p className="text-xs text-muted-foreground">Total SPK Documents</p>
-                        </CardContent>
-                    </Card>
-
-                    {/* Documents This Month */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">This Month</CardTitle>
-                            <Upload className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{countThisMonth}</div>
-                            <p className="text-xs text-muted-foreground">Documents uploaded</p>
-                        </CardContent>
-                    </Card>
-
-                    {/* Storage Used */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
-                            <HardDrive className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{storageUsed}</div>
-                            <p className="text-xs text-muted-foreground">Total file size</p>
-                        </CardContent>
-                    </Card>
-
-                    {/* Verified Documents */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {/* Verified Users */}
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Verified</CardTitle>
@@ -235,6 +220,30 @@ export default function Dashboard() {
                         <CardContent>
                             <div className="text-2xl font-bold">{countUsersVerified}</div>
                             <p className="text-xs text-muted-foreground">Users has been verified</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Total Jenis SPK */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Jenis SPK</CardTitle>
+                            <FileCheck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{countSPKTypes || 8}</div>
+                            <p className="text-xs text-muted-foreground">Different SPK types</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Total Form Checklist */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Form Checklist</CardTitle>
+                            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{countFormChecklist || 12}</div>
+                            <p className="text-xs text-muted-foreground">Total form templates</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -286,28 +295,31 @@ export default function Dashboard() {
                                         <TableHead>File Name</TableHead>
                                         <TableHead>Uploaded Date</TableHead>
                                         <TableHead>File Size</TableHead>
+                                        <TableHead>Document Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {documents
-                                        .map((doc) => (
-                                            <TableRow key={doc.id}>
-                                                <TableCell className="font-medium">{doc.id}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <File className="h-4 w-4 text-muted-foreground" />
-                                                        <span className="font-medium">{doc.fileName}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                        <Calendar className="h-4 w-4" />
-                                                        {formatDate(doc.uploadedDate)}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">{doc.fileSize}</TableCell>
-                                            </TableRow>
-                                        ))}
+                                    .map((doc) => (
+                                        <TableRow key={doc.id}>
+                                            <TableCell className="font-medium">{doc.id}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <File className="h-4 w-4 text-muted-foreground" />
+                                                    <span className="font-medium">{doc.fileName}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                    <Calendar className="h-4 w-4" />
+                                                    {formatDate(doc.uploadedDate)}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">{doc.fileSize}</TableCell>
+                                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                                        </TableRow>
+                                        
+                                    ))}
                                 </TableBody>
                             </Table>
                         </div>
