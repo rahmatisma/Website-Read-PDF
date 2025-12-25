@@ -23,7 +23,7 @@ class DocumentController extends Controller
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
-            'activeTab' => 'index', // tanda khusus utk "semua dokumen"
+            'activeTab' => 'index',
         ]);
     }
 
@@ -125,39 +125,20 @@ class DocumentController extends Controller
     }
     
     /**
-     * ✅ HAPUS DOKUMEN - AUTO CASCADE DELETE
-     * 
-     * Method ini akan menghapus:
-     * 1. File fisik dari storage
-     * 2. Record upload dari database
-     * 3. SPK terkait (via database CASCADE)
-     * 4. Semua tabel child SPK (via database CASCADE)
+     * ✅ HAPUS DOKUMEN - AUTO CASCADE DELETE dengan PENGECEKAN JARINGAN
      */
-    /**
- * ✅ HAPUS DOKUMEN - AUTO CASCADE DELETE dengan PENGECEKAN JARINGAN
- * 
- * Method ini akan menghapus:
- * 1. File fisik dari storage
- * 2. Record upload dari database
- * 3. SPK terkait (via database CASCADE)
- * 4. Semua tabel child SPK (via database CASCADE)
- * 5. JARINGAN (HANYA jika tidak ada SPK lain yang menggunakan)
- */
     public function destroy($id)
     {
         DB::beginTransaction();
         
         try {
-            // Cari dokumen berdasarkan ID
             $upload = Document::findOrFail($id);
             
-            // Validasi: Pastikan user hanya bisa hapus dokumen miliknya sendiri
             if ($upload->id_user !== Auth::id()) {
                 DB::rollBack();
                 return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk menghapus dokumen ini! ❌');
             }
             
-            // Log untuk debugging
             Log::info('Memulai proses penghapusan dokumen', [
                 'id_upload' => $upload->id_upload,
                 'file_name' => $upload->file_name,
@@ -166,10 +147,7 @@ class DocumentController extends Controller
                 'timestamp' => now()
             ]);
             
-            // Ambil semua SPK terkait dengan dokumen ini
             $spks = SPK::where('id_upload', $upload->id_upload)->get();
-            
-            // Kumpulkan semua no_jaringan yang terkait
             $noJaringanList = [];
             
             foreach ($spks as $spk) {
@@ -179,13 +157,11 @@ class DocumentController extends Controller
                     'no_jaringan' => $spk->no_jaringan
                 ]);
                 
-                // Simpan no_jaringan untuk dihapus nanti (hindari duplikat)
                 if (!in_array($spk->no_jaringan, $noJaringanList)) {
                     $noJaringanList[] = $spk->no_jaringan;
                 }
             }
             
-            // Hapus file fisik dari storage
             if (Storage::exists('public/' . $upload->file_path)) {
                 Storage::delete('public/' . $upload->file_path);
                 Log::info('File fisik berhasil dihapus dari storage', [
@@ -197,19 +173,15 @@ class DocumentController extends Controller
                 ]);
             }
             
-            // Hapus dokumen (ini akan trigger cascade delete ke SPK dan child tables)
             $upload->delete();
             
-            // Setelah SPK terhapus, cek dulu sebelum hapus JARINGAN
             if (!empty($noJaringanList)) {
                 $deletedJaringanCount = 0;
                 $skippedJaringanCount = 0;
                 
                 foreach ($noJaringanList as $noJaringan) {
-                    // CEK: Apakah masih ada SPK lain yang pakai no_jaringan ini?
                     $masihAdaSPK = SPK::where('no_jaringan', $noJaringan)->exists();
                     
-                    // HANYA hapus JARINGAN jika tidak ada SPK yang pakai lagi
                     if (!$masihAdaSPK) {
                         DB::table('JARINGAN')
                             ->where('no_jaringan', $noJaringan)
@@ -236,7 +208,6 @@ class DocumentController extends Controller
                 ]);
             }
             
-            // Commit transaction
             DB::commit();
             
             Log::info('Dokumen, SPK, dan JARINGAN berhasil dihapus', [
@@ -271,13 +242,14 @@ class DocumentController extends Controller
         }
     }
 
+    /**
+     * ✅ DETAIL DOKUMEN
+     */
     public function detail($id)
     {
         try {
-            // Ambil dokumen berdasarkan ID
             $upload = Document::findOrFail($id);
             
-            // Validasi: User hanya bisa lihat dokumen miliknya sendiri
             if ($upload->id_user !== Auth::id()) {
                 abort(403, 'Anda tidak memiliki akses ke dokumen ini');
             }
@@ -289,7 +261,6 @@ class DocumentController extends Controller
                 'user_id' => Auth::id()
             ]);
             
-            // Decode extracted_data dari JSON ke array
             $extractedData = null;
             if ($upload->extracted_data) {
                 $extractedData = is_string($upload->extracted_data) 
@@ -297,7 +268,6 @@ class DocumentController extends Controller
                     : $upload->extracted_data;
             }
             
-            // Return ke halaman detail dengan Inertia
             return Inertia::render('Documents/Detail', [
                 'upload' => [
                     'id_upload' => $upload->id_upload,
@@ -331,6 +301,10 @@ class DocumentController extends Controller
         }
     }
     
+    /**
+     * ✅ GET STATUS SINGLE DOCUMENT (untuk polling individual)
+     * GET /api/documents/{id}/status
+     */
     public function getStatus($id)
     {
         $document = Document::where('id_upload', $id)
@@ -344,10 +318,50 @@ class DocumentController extends Controller
         }
 
         return response()->json([
+            'id_upload' => $document->id_upload,
             'status' => $document->status,
             'file_name' => $document->file_name,
             'created_at' => $document->created_at->format('Y-m-d H:i:s'),
             'updated_at' => $document->updated_at->format('Y-m-d H:i:s'),
         ]);
+    }
+
+    /**
+     * ✅ CHECK STATUS MULTIPLE DOCUMENTS (untuk polling batch)
+     * POST /api/documents/check-status
+     * Body: { "ids": [1, 2, 3] }
+     */
+    public function checkStatus(Request $request)
+    {
+        $ids = $request->input('ids', []);
+        
+        // Validasi input
+        if (empty($ids) || !is_array($ids)) {
+            return response()->json([
+                'error' => 'IDs harus berupa array dan tidak boleh kosong'
+            ], 400);
+        }
+        
+        // Ambil dokumen milik user yang sedang login saja
+        $documents = Document::whereIn('id_upload', $ids)
+            ->where('id_user', Auth::id())
+            ->select('id_upload', 'status', 'file_name', 'updated_at')
+            ->get()
+            ->map(function ($doc) {
+                return [
+                    'id_upload' => $doc->id_upload,
+                    'status' => $doc->status,
+                    'file_name' => $doc->file_name,
+                    'updated_at' => $doc->updated_at->format('Y-m-d H:i:s'),
+                ];
+            });
+        
+        Log::info('Check status multiple documents', [
+            'requested_ids' => $ids,
+            'found_count' => $documents->count(),
+            'user_id' => Auth::id()
+        ]);
+        
+        return response()->json($documents);
     }
 }

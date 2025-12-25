@@ -3,13 +3,10 @@ import SearchFilter from '@/components/SearchFilter';
 import UploadGambarBox from '@/components/UploadGambarBox';
 import { Head, router } from '@inertiajs/react';
 import { toast } from 'sonner';
+import { Document } from '@/types/document';
 
-interface Document {
-    id_upload: number;
-    file_name: string;
-    file_path: string;
-    created_at: string;
-    file_size: string;
+interface PdfProps {
+    documents: Document[];
 }
 
 interface GambarProps {
