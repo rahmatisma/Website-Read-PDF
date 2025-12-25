@@ -25,16 +25,12 @@ return new class extends Migration
 
             // Photo Type (10 types for wireless - includes 2 additional for wireless)
             $table->enum('jenis_foto', [
-                'teknisi_aktivasi',
-                'kondisi_sebelum_perbaikan',
-                'action_perbaikan',
-                'kondisi_setelah_perbaikan',
                 'test_ping',
                 'catuan_listrik',
                 'indikator_perangkat',
                 'kondisi_rak_penempatan',
                 'antenna_installation',
-                'outdoor_mounting'
+                'Guidance'
             ]);
 
             // Photo Path

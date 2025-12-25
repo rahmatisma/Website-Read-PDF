@@ -24,22 +24,28 @@ class FormChecklistWirelineService
         
         try {
             $parsedData = null;
-            $dokumentasi = null;
+            $dokumentasi = [];
             
-            // Cek struktur JSON
+            // Ambil dokumentasi dari data.dokumentasi
+            if (isset($jsonData['data']['dokumentasi'])) {
+                $dokumentasi = $jsonData['data']['dokumentasi'];
+            } elseif (isset($jsonData['dokumentasi'])) {
+                $dokumentasi = $jsonData['dokumentasi'];
+            }
+            
+            // Ambil parsed data
             if (isset($jsonData['data']['parsed']['data'])) {
                 $parsedData = $jsonData['data']['parsed']['data'];
-                $dokumentasi = $jsonData['data']['dokumentasi'] ?? [];
             } elseif (isset($jsonData['parsed']['data'])) {
                 $parsedData = $jsonData['parsed']['data'];
-                $dokumentasi = $jsonData['dokumentasi'] ?? [];
             } else {
                 throw new Exception('Invalid JSON structure: parsed.data not found');
             }
             
             Log::info('Processing Form Checklist Wireline', [
                 'upload_id' => $uploadId,
-                'id_spk' => $idSpk
+                'id_spk' => $idSpk,
+                'dokumentasi_count' => count($dokumentasi)
             ]);
             
             // 1. Insert Form Checklist Wireline (Parent)
@@ -70,12 +76,14 @@ class FormChecklistWirelineService
                 $this->processDataPerangkat($parsedData['data_perangkat'] ?? [], $idFcw);
             });
             
+            // Proses Guidance Foto (hanya yang jenis "Guidance")
             $this->safeProcess('GuidanceFoto', function() use ($dokumentasi, $idFcw) {
                 $this->processGuidanceFoto($dokumentasi, $idFcw);
             });
             
-            $this->safeProcess('Log', function() use ($parsedData, $idFcw) {
-                $this->processLog($parsedData['log'] ?? [], $idFcw);
+            // Proses Log dari foto yang jenis "Log"
+            $this->safeProcess('Log', function() use ($dokumentasi, $parsedData, $idFcw) {
+                $this->processLogFromDokumentasi($dokumentasi, $parsedData, $idFcw);
             });
             
             DB::commit();
@@ -373,8 +381,15 @@ class FormChecklistWirelineService
     {
         if (empty($dokumentasiArray)) return;
         
-        foreach ($dokumentasiArray as $index => $foto) {
+        $urutan = 1;
+        foreach ($dokumentasiArray as $foto) {
             if (empty($foto['patch_foto'])) continue;
+            
+            // Hanya proses foto yang jenis "Guidance", skip yang "Log"
+            $jenis = strtolower(trim($foto['jenis'] ?? ''));
+            if ($jenis === 'log') {
+                continue; // Skip foto log
+            }
             
             $pathFoto = str_replace('\\', '/', $foto['patch_foto']);
             $jenisFoto = $this->mapJenisFoto($foto['jenis'] ?? '');
@@ -383,30 +398,75 @@ class FormChecklistWirelineService
                 'id_fcw' => $idFcw,
                 'jenis_foto' => $jenisFoto,
                 'path_foto' => $pathFoto,
-                'urutan' => $index + 1,
+                'urutan' => $urutan++,
             ]);
         }
+        
+        Log::info('Guidance foto processed', ['id_fcw' => $idFcw, 'count' => $urutan - 1]);
     }
     
-    private function processLog(array $logArray, int $idFcw)
+    private function processLogFromDokumentasi(array $dokumentasiArray, array $parsedData, int $idFcw)
     {
-        if (empty($logArray)) return;
+        if (empty($dokumentasiArray)) return;
         
-        foreach ($logArray as $log) {
-            if (empty($log['date_time']) && empty($log['info'])) continue;
+        // Filter hanya foto yang jenis "Log"
+        $logFotos = array_filter($dokumentasiArray, function($foto) {
+            $jenis = strtolower($foto['jenis'] ?? '');
+            return $jenis === 'log';
+        });
+        
+        if (empty($logFotos)) {
+            Log::info('No log photos found in dokumentasi', ['id_fcw' => $idFcw]);
+            return;
+        }
+        
+        // Ambil tanggal dari data_remote sebagai referensi
+        $tanggalReferensi = $parsedData['data_remote']['tanggal'] ?? null;
+        $baseDateTime = $this->parseDate($tanggalReferensi);
+        
+        $logCount = 0;
+        foreach ($logFotos as $foto) {
+            if (empty($foto['patch_foto'])) continue;
+            
+            $pathFoto = str_replace('\\', '/', $foto['patch_foto']);
+            
+            // Extract info dari nama file jika memungkinkan
+            $fileName = basename($pathFoto);
+            $info = $this->extractInfoFromFileName($fileName);
+            
+            // Generate datetime (gunakan tanggal referensi + increment waktu)
+            $dateTime = $baseDateTime ? $baseDateTime . ' 12:00:00' : now()->format('Y-m-d H:i:s');
             
             FcwLog::create([
                 'id_fcw' => $idFcw,
-                'date_time' => $this->parseDateTime($log['date_time'] ?? null),
-                'info' => $log['info'] ?? null,
-                'photo' => isset($log['photo']) ? str_replace('\\', '/', $log['photo']) : null,
+                'date_time' => $dateTime,
+                'info' => $info,
+                'photo' => $pathFoto,
             ]);
+            
+            $logCount++;
         }
+        
+        Log::info('Log entries created from dokumentasi', ['id_fcw' => $idFcw, 'count' => $logCount]);
     }
     
     // ============================================
     // HELPER METHODS
     // ============================================
+    
+    private function extractInfoFromFileName($fileName)
+    {
+        // Remove extension
+        $name = pathinfo($fileName, PATHINFO_FILENAME);
+        
+        // Extract info dari pattern seperti "log_hal7" -> "Log Halaman 7"
+        if (preg_match('/log.*hal(\d+)/i', $name, $matches)) {
+            return 'Log Halaman ' . $matches[1];
+        }
+        
+        // Default
+        return 'Log dari dokumentasi';
+    }
     
     private function parseDate($dateString)
     {

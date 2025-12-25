@@ -25,12 +25,33 @@ class UploadController extends Controller
      * User langsung redirect tanpa tunggu processing selesai.
      * Semua proses berat (Python API, ekstraksi, parsing) dilakukan di background.
      */
+    private function findDokumentasiLocation($data, $path = '')
+    {
+        $locations = [];
+        foreach ($data as $key => $value) {
+            $currentPath = $path ? $path . '.' . $key : $key;
+            if ($key === 'dokumentasi') {
+                $locations[] = $currentPath;
+            }
+            if (is_array($value)) {
+                $locations = array_merge($locations, $this->findDokumentasiLocation($value, $currentPath));
+            }
+        }
+        return $locations;
+    }
     public function storePDF(Request $request)
     {
         $request->validate([
             'file' => 'required|mimes:pdf|max:10240', // 10MB
             'document_type' => 'required|string|max:50',
         ]);
+
+        Log::info('RAW JSON received from Python', [
+            'json_data' => $request->all(),
+            'has_dokumentasi_root' => isset($request->all()['dokumentasi']),
+            'dokumentasi_location' => $this->findDokumentasiLocation($request->all())
+        ]);
+        
 
         $file = $request->file('file');
         $originalName = $file->getClientOriginalName();

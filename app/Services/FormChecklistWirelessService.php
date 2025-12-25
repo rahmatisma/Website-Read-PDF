@@ -29,19 +29,29 @@ class FormChecklistWirelessService
         
         try {
             $parsedData = null;
-            $dokumentasi = null;
+            $dokumentasi = [];
             
+            // Ambil dokumentasi dari data.dokumentasi
+            if (isset($jsonData['data']['dokumentasi'])) {
+                $dokumentasi = $jsonData['data']['dokumentasi'];
+            } elseif (isset($jsonData['dokumentasi'])) {
+                $dokumentasi = $jsonData['dokumentasi'];
+            }
+            
+            // Ambil parsed data
             if (isset($jsonData['data']['parsed']['data'])) {
                 $parsedData = $jsonData['data']['parsed']['data'];
-                $dokumentasi = $jsonData['data']['dokumentasi'] ?? [];
             } elseif (isset($jsonData['parsed']['data'])) {
                 $parsedData = $jsonData['parsed']['data'];
-                $dokumentasi = $jsonData['dokumentasi'] ?? [];
             } else {
                 throw new Exception('Invalid JSON structure: parsed.data not found');
             }
             
-            Log::info('Processing Form Checklist Wireless', ['upload_id' => $uploadId, 'id_spk' => $idSpk]);
+            Log::info('Processing Form Checklist Wireless', [
+                'upload_id' => $uploadId, 
+                'id_spk' => $idSpk,
+                'dokumentasi_count' => count($dokumentasi)
+            ]);
             
             $idFcwl = $this->processFormChecklistWireless($parsedData['data_remote'] ?? [], $idSpk);
             
@@ -52,18 +62,28 @@ class FormChecklistWirelessService
             $this->safeProcess('PerangkatAntenna', fn() => $this->processPerangkatAntenna($parsedData['outdoor_area_checklist']['perangkat_antenna'] ?? [], $idFcwl));
             $this->safeProcess('CablingInstallation', fn() => $this->processCablingInstallation($parsedData['outdoor_area_checklist']['cabling_installation'] ?? [], $idFcwl));
             $this->safeProcess('DataPerangkat', fn() => $this->processDataPerangkat($parsedData['data_perangkat'] ?? [], $idFcwl));
+            
+            // Proses Guidance Foto (hanya yang jenis "Guidance")
             $this->safeProcess('GuidanceFoto', fn() => $this->processGuidanceFoto($dokumentasi, $idFcwl));
-            $this->safeProcess('Log', fn() => $this->processLog($parsedData['log'] ?? [], $idFcwl));
+            
+            // Proses Log dari foto yang jenis "Log"
+            $this->safeProcess('Log', fn() => $this->processLogFromDokumentasi($dokumentasi, $parsedData, $idFcwl));
             
             DB::commit();
             
-            Log::info('Form Checklist Wireless successfully processed', ['upload_id' => $uploadId, 'id_fcwl' => $idFcwl]);
+            Log::info('Form Checklist Wireless successfully processed', [
+                'upload_id' => $uploadId, 
+                'id_fcwl' => $idFcwl
+            ]);
             
             return ['success' => true, 'id_fcwl' => $idFcwl];
             
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Failed to process Form Checklist Wireless', ['upload_id' => $uploadId, 'error' => $e->getMessage()]);
+            Log::error('Failed to process Form Checklist Wireless', [
+                'upload_id' => $uploadId, 
+                'error' => $e->getMessage()
+            ]);
             throw $e;
         }
     }
@@ -299,35 +319,87 @@ class FormChecklistWirelessService
     {
         if (empty($dokumentasiArray)) return;
         
-        foreach ($dokumentasiArray as $index => $foto) {
+        $urutan = 1;
+        foreach ($dokumentasiArray as $foto) {
             if (empty($foto['patch_foto'])) continue;
+            
+            // Hanya proses foto yang jenis "Guidance", skip yang "Log"
+            $jenis = strtolower(trim($foto['jenis'] ?? ''));
+            if ($jenis === 'log') {
+                continue; // Skip foto log
+            }
             
             FcwlGuidanceFoto::create([
                 'id_fcwl' => $idFcwl,
                 'jenis_foto' => $this->mapJenisFoto($foto['jenis'] ?? ''),
                 'path_foto' => str_replace('\\', '/', $foto['patch_foto']),
-                'urutan' => $index + 1,
+                'urutan' => $urutan++,
             ]);
         }
+        
+        Log::info('Guidance foto processed', ['id_fcwl' => $idFcwl, 'count' => $urutan - 1]);
     }
     
-    private function processLog(array $logArray, int $idFcwl)
+    private function processLogFromDokumentasi(array $dokumentasiArray, array $parsedData, int $idFcwl)
     {
-        if (empty($logArray)) return;
+        if (empty($dokumentasiArray)) return;
         
-        foreach ($logArray as $log) {
-            if (empty($log['date_time']) && empty($log['info'])) continue;
+        // Filter hanya foto yang jenis "Log"
+        $logFotos = array_filter($dokumentasiArray, function($foto) {
+            $jenis = strtolower($foto['jenis'] ?? '');
+            return $jenis === 'log';
+        });
+        
+        if (empty($logFotos)) {
+            Log::info('No log photos found in dokumentasi', ['id_fcwl' => $idFcwl]);
+            return;
+        }
+        
+        // Ambil tanggal dari data_remote sebagai referensi
+        $tanggalReferensi = $parsedData['data_remote']['tanggal'] ?? null;
+        $baseDateTime = $this->parseDate($tanggalReferensi);
+        
+        $logCount = 0;
+        foreach ($logFotos as $foto) {
+            if (empty($foto['patch_foto'])) continue;
+            
+            $pathFoto = str_replace('\\', '/', $foto['patch_foto']);
+            
+            // Extract info dari nama file jika memungkinkan
+            $fileName = basename($pathFoto);
+            $info = $this->extractInfoFromFileName($fileName);
+            
+            // Generate datetime (gunakan tanggal referensi + increment waktu)
+            $dateTime = $baseDateTime ? $baseDateTime . ' 12:00:00' : now()->format('Y-m-d H:i:s');
             
             FcwlLog::create([
                 'id_fcwl' => $idFcwl,
-                'date_time' => $this->parseDateTime($log['date_time'] ?? null),
-                'info' => $log['info'] ?? null,
-                'photo' => isset($log['photo']) ? str_replace('\\', '/', $log['photo']) : null,
+                'date_time' => $dateTime,
+                'info' => $info,
+                'photo' => $pathFoto,
             ]);
+            
+            $logCount++;
         }
+        
+        Log::info('Log entries created from dokumentasi', ['id_fcwl' => $idFcwl, 'count' => $logCount]);
     }
     
     // Helper methods
+    private function extractInfoFromFileName($fileName)
+    {
+        // Remove extension
+        $name = pathinfo($fileName, PATHINFO_FILENAME);
+        
+        // Extract info dari pattern seperti "log_hal6" -> "Log Halaman 6"
+        if (preg_match('/log.*hal(\d+)/i', $name, $matches)) {
+            return 'Log Halaman ' . $matches[1];
+        }
+        
+        // Default
+        return 'Log dari dokumentasi';
+    }
+    
     private function parseDate($d) { if (empty($d) || $d === '-') return null; try { return \Carbon\Carbon::parse($d)->format('Y-m-d'); } catch (Exception $e) { return null; } }
     private function parseDateTime($d) { if (empty($d) || $d === '-') return null; try { return \Carbon\Carbon::parse($d)->format('Y-m-d H:i:s'); } catch (Exception $e) { return null; } }
     private function parseDecimal($v) { if (empty($v)) return null; $n = preg_replace('/[^0-9.-]/', '', $v); return !empty($n) ? (float) $n : null; }
