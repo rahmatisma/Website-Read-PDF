@@ -17,7 +17,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DocumentController::class, 'dashboard'])->name('dashboard');
 
     // ========================================
-    // DOCUMENTS ROUTES (Struktur Lama Anda)
+    // DOCUMENTS ROUTES
     // ========================================
     Route::prefix('documents')->name('documents.')->group(function () {
         // Upload dokumen
@@ -27,14 +27,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // ⬇️ ROUTE SPESIFIK HARUS DI ATAS (sebelum {type} atau {id})
         
-        // ✅ API untuk polling status (HARUS DI ATAS {type})
-        Route::get('/{id}/status', [DocumentController::class, 'getStatus'])
-            ->where('id', '[0-9]+')  // ⬅️ Hanya accept angka
-            ->name('getStatus');
-        
         // ✅ Detail dokumen (HARUS DI ATAS {type})
         Route::get('/{id}/detail', [DocumentController::class, 'detail'])
-            ->where('id', '[0-9]+')  // ⬅️ Hanya accept angka
+            ->where('id', '[0-9]+')
             ->name('detail');
         
         // ✅ Retry dokumen yang failed
@@ -55,6 +50,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('filter');
     });
 
+    // ========================================
+    // API ROUTES untuk AJAX/Polling
+    // ========================================
+    Route::prefix('api')->name('api.')->group(function () {
+        // ✅ Check status multiple documents (untuk polling)
+        Route::post('/documents/check-status', [DocumentController::class, 'checkStatus'])
+            ->name('documents.checkStatus');
+        
+        // ✅ Get single document status (alternatif)
+        Route::get('/documents/{id}/status', [DocumentController::class, 'getStatus'])
+            ->where('id', '[0-9]+')
+            ->name('documents.getStatus');
+    });
+
     // Form Checklist
     Route::prefix('form-checklist')->group(function () {
         Route::post('/process/{uploadId}', [FormChecklistController::class, 'processUpload']);
@@ -67,7 +76,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('chatbot');
     })->name('chatbot');
 
-    // ✅ CHATBOT API ENDPOINTS (RAG System)
+    // ========================================
+    // CHATBOT API ENDPOINTS (RAG System)
+    // ========================================
     Route::prefix('chatbot')->name('chatbot.')->group(function () {
         // Main chat endpoint dengan RAG
         Route::post('/chat', [ChatbotController::class, 'chat'])->name('chat');
@@ -128,23 +139,28 @@ require __DIR__ . '/auth.php';
 |--------------------------------------------------------------------------
 |
 | ========================================
-| DOCUMENTS
+| DOCUMENTS (Web Routes)
 | ========================================
-| POST /documents/pdf                → Upload PDF (background job)
-| POST /documents/image              → Upload gambar
-| POST /documents/doc                → Upload DOC/DOCX
-| GET  /documents/{type}             → Filter (pdf/doc/gambar)
-| GET  /documents/{id}/detail        → Detail dokumen
-| GET  /documents/{id}/status        → API polling status (NEW!)
-| POST /documents/{id}/retry         → Retry dokumen failed (NEW!)
-| DELETE /documents/{id}             → Hapus dokumen
+| POST   /documents/pdf                → Upload PDF (background job)
+| POST   /documents/image              → Upload gambar
+| POST   /documents/doc                → Upload DOC/DOCX
+| GET    /documents/{type}             → Filter (pdf/doc/gambar)
+| GET    /documents/{id}/detail        → Detail dokumen
+| POST   /documents/{id}/retry         → Retry dokumen failed
+| DELETE /documents/{id}               → Hapus dokumen
+|
+| ========================================
+| API ROUTES (untuk AJAX/Polling)
+| ========================================
+| POST   /api/documents/check-status   → Check status multiple docs (polling)
+| GET    /api/documents/{id}/status    → Get single document status
 |
 | ========================================
 | CHATBOT API (RAG System)
 | ========================================
-| POST /chatbot/chat                 → Chat dengan RAG
-| GET  /chatbot/health               → Health check
-| GET  /chatbot/stats                → Statistics
-| POST /chatbot/generate-embedding   → Generate embedding (testing)
+| POST /chatbot/chat                   → Chat dengan RAG
+| GET  /chatbot/health                 → Health check
+| GET  /chatbot/stats                  → Statistics
+| POST /chatbot/generate-embedding     → Generate embedding (testing)
 |
 */
