@@ -15,6 +15,12 @@ interface Message {
     sender: 'user' | 'bot';
     timestamp: string;
     relevantDataCount?: number;
+    extractedEntities?: {  // ✅ BARU
+        nojar?: string;
+        pelanggan?: string;
+        spk?: string;
+        pop?: string;
+    };
 }
 
 const STORAGE_KEY = 'chatbot_messages';
@@ -43,6 +49,14 @@ export default function Chatbot() {
         }
         return [getInitialMessage()];
     });
+
+    // ✅ TAMBAHAN BARU - State untuk conversation context
+    const [currentContext, setCurrentContext] = useState<{
+        last_nojar?: string;
+        last_pelanggan?: string;
+        last_spk?: string;
+        last_pop?: string;
+    }>({});
 
     const [inputMessage, setInputMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -80,17 +94,29 @@ export default function Chatbot() {
             setStreamingText('');
             setMessages([getInitialMessage()]);
             setInputMessage('');
+            setCurrentContext({});  // ✅ RESET CONTEXT
+            
             setTimeout(() => {
                 (document.querySelector('.chat-input') as HTMLInputElement)?.focus();
             }, 50);
         }
     };
 
-    // ✅ FUNGSI RAG (Baru)
+    // ✅ FUNGSI RAG dengan Conversation Memory
     const handleSendMessageRAG = async (messageToSend: string) => {
         setIsLoading(true);
 
         try {
+            // ✅ Build conversation history (5 messages terakhir)
+            const conversationHistory = messages
+                .slice(-10)  // Ambil 10 messages terakhir (5 pairs user-bot)
+                .map(msg => ({
+                    role: msg.sender === 'user' ? 'user' : 'assistant',
+                    content: msg.text,
+                    timestamp: msg.timestamp
+                }));
+
+            // ✅ Kirim query + history + context ke backend
             const response = await fetch('/chatbot/chat', {
                 method: 'POST',
                 headers: {
@@ -99,6 +125,8 @@ export default function Chatbot() {
                 },
                 body: JSON.stringify({
                     query: messageToSend,
+                    conversation_history: conversationHistory,  // ✅ BARU
+                    current_context: currentContext,            // ✅ BARU
                     search_type: 'both',
                     top_k: 3,
                 }),
@@ -112,6 +140,16 @@ export default function Chatbot() {
             setIsLoading(false);
 
             if (data.success && data.data) {
+                // ✅ Update context jika ada extracted entities
+                if (data.data.extracted_entities && Object.keys(data.data.extracted_entities).length > 0) {
+                    console.log('📌 Extracted entities:', data.data.extracted_entities);
+                    
+                    setCurrentContext(prev => ({
+                        ...prev,
+                        ...data.data.extracted_entities  // Merge entities baru
+                    }));
+                }
+
                 const botMessage: Message = {
                     id: Date.now(),
                     text: data.data.answer,
@@ -120,7 +158,8 @@ export default function Chatbot() {
                         hour: '2-digit',
                         minute: '2-digit',
                     }),
-                    relevantDataCount: data.data.relevant_data_count || 0,
+                    relevantDataCount: data.data.relevant_data?.length || 0,
+                    extractedEntities: data.data.extracted_entities,  // ✅ Simpan entities
                 };
                 
                 setMessages((prev) => [...prev, botMessage]);
@@ -324,6 +363,27 @@ export default function Chatbot() {
                                             : 'Mode Stream: Jawaban streaming real-time'
                                         }
                                     </CardDescription>
+
+                                    {/* ✅ CONTEXT INDICATOR (Optional - untuk debugging) */}
+                                    {Object.keys(currentContext).length > 0 && (
+                                        <div className="mt-1 flex flex-wrap gap-1">
+                                            {currentContext.last_nojar && (
+                                                <Badge variant="outline" className="text-[9px] md:text-[10px]">
+                                                    Nojar: {currentContext.last_nojar}
+                                                </Badge>
+                                            )}
+                                            {currentContext.last_pelanggan && (
+                                                <Badge variant="outline" className="text-[9px] md:text-[10px]">
+                                                    {currentContext.last_pelanggan.substring(0, 20)}...
+                                                </Badge>
+                                            )}
+                                            {currentContext.last_spk && (
+                                                <Badge variant="outline" className="text-[9px] md:text-[10px]">
+                                                    SPK: {currentContext.last_spk}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">

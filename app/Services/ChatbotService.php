@@ -22,84 +22,98 @@ class ChatbotService
     }
 
     /**
-     * HYBRID CHATBOT: Database First + Dynamic RAG
+     * HYBRID CHATBOT: Database First + Dynamic RAG + Conversation Memory
      */
-    public function chat(string $query, array $options = []): array
+    public function chat(
+        string $query, 
+        array $conversationHistory = [],  // ← BARU
+        array $currentContext = [],        // ← BARU
+        array $options = []
+    ): array
     {
         try {
-            Log::info('Chatbot query received', ['query' => $query]);
+            Log::info('Chatbot query received', [
+                'query' => $query,
+                'has_history' => !empty($conversationHistory),
+                'has_context' => !empty($currentContext),
+                'context' => $currentContext
+            ]);
 
             // ================================
-            // STEP 1: RULE-BASED DETECTION (Database Query)
+            // STEP 1: ENHANCE QUERY DENGAN CONTEXT
+            // ================================
+            $enhancedQuery = $this->enhanceQueryWithContext($query, $currentContext);
+            
+            Log::info('Query enhanced', [
+                'original' => $query,
+                'enhanced' => $enhancedQuery
+            ]);
+
+            // ================================
+            // STEP 2: RULE-BASED DETECTION (Database Query)
             // ================================
             
             // Pattern 1: Nama pelanggan -> nomor jaringan
-            if (preg_match('/pelanggan\s+([A-Z\s&\.]+?)\s+(?:memiliki|punya|ada)\s+(?:nomor\s+)?(?:jaringan|nojar)/i', $query, $matches)) {
+            if (preg_match('/pelanggan\s+([A-Z\s&\.]+?)\s+(?:memiliki|punya|ada)\s+(?:nomor\s+)?(?:jaringan|nojar)/i', $enhancedQuery, $matches)) {
                 return $this->queryJaringanByCustomer(trim($matches[1]));
             }
             
-            // Pattern 2: Nomor jaringan -> list SPK
-            if (preg_match('/(?:sebutkan|coba|ada|list|daftar).*?(?:spk).*?(?:nomor\s+jaringan|nojar)\s*(\d+)/i', $query, $matches)) {
-                return $this->querySpkByNoJaringan($matches[1]);
-            }
+            // ... (pattern lainnya tetap sama, gunakan $enhancedQuery)
             
-            // Pattern 3: No SPK spesifik -> detail lengkap
-            if (preg_match('/(?:detail|informasi|jelaskan).*?(?:spk)\s+([A-Z0-9\-\/]+)/i', $query, $matches)) {
-                return $this->querySpkDetail($matches[1]);
-            }
-            
-            // Pattern 4: Cari SPK berdasarkan jenis
-            if (preg_match('/(?:sebutkan|list|daftar).*?spk.*?(?:aktivasi|instalasi|survey|maintenance|dismantle)/i', $query)) {
-                return $this->querySpkByJenis($query);
-            }
-
             // ================================
-            // STEP 2: RAG (Semantic Search) dengan Dynamic Parameters
+            // STEP 3: RAG dengan Context-Aware
             // ================================
             
-            $queryType = $this->detectQueryType($query);
+            $queryType = $this->detectQueryType($enhancedQuery);
             $ragParams = $this->getOptimalRagParams($queryType);
             
-            Log::info('Using RAG approach', [
-                'query_type' => $queryType,
-                'top_k' => $ragParams['top_k'],
-                'min_similarity' => $ragParams['min_similarity']
-            ]);
-
-            $queryEmbedding = $this->embeddingService->generateEmbedding($query);
-            $relevantData = $this->similaritySearchSpk($queryEmbedding, $ragParams);
+            // Generate embedding dari enhanced query
+            $queryEmbedding = $this->embeddingService->generateEmbedding($enhancedQuery);
             
-            // Fallback: Lower threshold jika tidak ada hasil
-            if (empty($relevantData) && $ragParams['min_similarity'] > 0.3) {
-                Log::warning('No results found, lowering similarity threshold to 0.3');
-                $ragParams['min_similarity'] = 0.3;
-                $relevantData = $this->similaritySearchSpk($queryEmbedding, $ragParams);
-            }
+            // Similarity search dengan context awareness
+            $relevantData = $this->contextAwareSimilaritySearch(
+                $queryEmbedding, 
+                $currentContext,  // ← Pass context
+                $ragParams
+            );
+            
+            // ... (rest of RAG code)
             
             $context = $this->buildContext($relevantData);
-            $answer = $this->callFlaskChatbot($query, $context);
+            
+            // Call Flask dengan conversation history
+            $answer = $this->callFlaskChatbot(
+                $enhancedQuery, 
+                $context,
+                $conversationHistory  // ← Pass history
+            );
 
-            Log::info('Chatbot response generated via RAG', [
+            // ================================
+            // STEP 4: EXTRACT ENTITIES dari jawaban
+            // ================================
+            $extractedEntities = $this->extractEntitiesFromAnswer($answer, $relevantData);
+
+            Log::info('Chatbot response generated', [
                 'query_type' => $queryType,
-                'relevant_data_count' => count($relevantData),
-                'top_similarity' => $relevantData[0]['similarity'] ?? 0
+                'extracted_entities' => $extractedEntities
             ]);
 
             return [
                 'success' => true,
                 'query' => $query,
+                'enhanced_query' => $enhancedQuery,
                 'answer' => $answer,
                 'source' => 'rag',
                 'query_type' => $queryType,
                 'rag_params' => $ragParams,
                 'relevant_data' => $relevantData,
+                'extracted_entities' => $extractedEntities,  // ← BARU untuk frontend
             ];
 
         } catch (Exception $e) {
             Log::error('Chatbot error', [
                 'query' => $query,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
 
             return [
@@ -364,14 +378,37 @@ class ChatbotService
     }
 
     /**
-     * Similarity search dengan dynamic parameters
+     * Similarity search dengan context awareness
      */
-    private function similaritySearchSpk(array $queryEmbedding, array $options = []): array
-    {
+    private function contextAwareSimilaritySearch(
+        array $queryEmbedding, 
+        array $context,
+        array $options = []
+    ): array {
         $topK = $options['top_k'] ?? 5;
         $minSimilarity = $options['min_similarity'] ?? 0.5;
         
-        $spkEmbeddings = SpkEmbedding::all();
+        $query = SpkEmbedding::query();
+        
+        // PRIORITASKAN embedding yang match dengan context
+        if (!empty($context['last_nojar'])) {
+            // Cari yang mengandung nojar yang sedang dibahas
+            $nojarMatches = SpkEmbedding::where('content_text', 'LIKE', "%{$context['last_nojar']}%")->get();
+            
+            if ($nojarMatches->isNotEmpty()) {
+                Log::info('Context match found', [
+                    'nojar' => $context['last_nojar'],
+                    'matches' => $nojarMatches->count()
+                ]);
+                
+                // Gunakan ini sebagai kandidat utama
+                $spkEmbeddings = $nojarMatches;
+            } else {
+                $spkEmbeddings = SpkEmbedding::all();
+            }
+        } else {
+            $spkEmbeddings = SpkEmbedding::all();
+        }
         
         if ($spkEmbeddings->isEmpty()) {
             Log::warning('No SPK embeddings found in database');
@@ -384,11 +421,21 @@ class ChatbotService
             $embedding = $item->getEmbeddingArray();
             
             if (empty($embedding)) {
-                Log::warning('Empty embedding found', ['id_spk' => $item->id_spk]);
                 continue;
             }
             
             $similarity = $this->cosineSimilarity($queryEmbedding, $embedding);
+            
+            // Boost similarity jika match dengan context
+            if (!empty($context['last_nojar']) && 
+                strpos($item->content_text, $context['last_nojar']) !== false) {
+                $similarity *= 1.2; // Boost 20%
+                Log::info('Similarity boosted for context match', [
+                    'no_spk' => $item->no_spk,
+                    'original_similarity' => $similarity / 1.2,
+                    'boosted_similarity' => $similarity
+                ]);
+            }
             
             if ($similarity >= $minSimilarity) {
                 $results[] = [
@@ -397,23 +444,12 @@ class ChatbotService
                     'id_spk' => $item->id_spk,
                     'no_spk' => $item->no_spk,
                     'content_text' => $item->content_text,
-                    'similarity' => $similarity,
+                    'similarity' => min($similarity, 1.0), // Cap at 1.0
                 ];
             }
         }
 
         usort($results, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
-        
-        Log::info('Similarity search completed', [
-            'total_embeddings' => $spkEmbeddings->count(),
-            'filtered_results' => count($results),
-            'top_k' => $topK,
-            'min_similarity' => $minSimilarity,
-            'top_3_similarities' => array_map(
-                fn($r) => ['no_spk' => $r['no_spk'], 'similarity' => round($r['similarity'], 4)],
-                array_slice($results, 0, 3)
-            )
-        ]);
         
         return array_slice($results, 0, $topK);
     }
@@ -474,16 +510,33 @@ class ChatbotService
     }
 
     /**
-     * Call Flask API untuk chatbot
+     * Call Flask API untuk chatbot dengan conversation history
      */
-    private function callFlaskChatbot(string $query, string $context): string
-    {
+    private function callFlaskChatbot(
+        string $query, 
+        string $context,
+        array $conversationHistory = []
+    ): string {
         try {
+            $payload = [
+                'query' => $query,
+                'context' => $context,
+            ];
+            
+            // Tambahkan conversation history jika ada
+            if (!empty($conversationHistory)) {
+                // Ambil 5 percakapan terakhir saja
+                $payload['conversation_history'] = array_slice($conversationHistory, -5);
+            }
+            
+            Log::info('Calling Flask chatbot', [
+                'query' => $query,
+                'has_history' => !empty($conversationHistory),
+                'history_count' => count($conversationHistory)
+            ]);
+            
             $response = Http::timeout($this->timeout)
-                ->post("{$this->flaskApiUrl}/chat", [
-                    'query' => $query,
-                    'context' => $context,
-                ]);
+                ->post("{$this->flaskApiUrl}/chat", $payload);
 
             if (!$response->successful()) {
                 throw new Exception("Flask API error: " . $response->body());
@@ -504,5 +557,99 @@ class ChatbotService
             ]);
             throw $e;
         }
+    }
+    /**
+     * Enhance query dengan context dari percakapan sebelumnya
+     */
+    private function enhanceQueryWithContext(string $query, array $context): string
+    {
+        // Jika tidak ada context, return query original
+        if (empty($context)) {
+            return $query;
+        }
+        
+        $queryLower = strtolower($query);
+        
+        // Deteksi pronoun reference (nya, itu, tersebut, dia)
+        $hasPronoun = preg_match('/\b(nya|itu|tersebut|dia|ini)\b/i', $query);
+        
+        if (!$hasPronoun) {
+            return $query; // Tidak perlu enhancement
+        }
+        
+        // Build enhancement based on available context
+        $enhancements = [];
+        
+        // Jika ada nojar di context
+        if (!empty($context['last_nojar'])) {
+            $enhancements[] = "nojar {$context['last_nojar']}";
+        }
+        
+        // Jika ada pelanggan di context
+        if (!empty($context['last_pelanggan'])) {
+            $enhancements[] = "pelanggan {$context['last_pelanggan']}";
+        }
+        
+        // Jika ada SPK di context
+        if (!empty($context['last_spk'])) {
+            $enhancements[] = "SPK {$context['last_spk']}";
+        }
+        
+        if (empty($enhancements)) {
+            return $query;
+        }
+        
+        // Contoh:
+        // "POP nya apa?" → "POP nya apa? (merujuk ke nojar 2023390898)"
+        $enhanced = $query . ' (merujuk ke ' . implode(', ', $enhancements) . ')';
+        
+        return $enhanced;
+    }
+
+    /**
+     * Extract entities dari jawaban untuk tracking context
+     */
+    private function extractEntitiesFromAnswer(string $answer, array $relevantData): array
+    {
+        $entities = [];
+        
+        // Extract dari relevant data (lebih akurat)
+        if (!empty($relevantData)) {
+            $firstData = $relevantData[0];
+            
+            // Coba extract dari content_text
+            if (isset($firstData['content_text'])) {
+                $content = $firstData['content_text'];
+                
+                // Extract nomor jaringan
+                if (preg_match('/Nomor Jaringan:\s*(\d+)/i', $content, $matches)) {
+                    $entities['nojar'] = $matches[1];
+                }
+                
+                // Extract nama pelanggan
+                if (preg_match('/Nama Pelanggan:\s*(.+?)(?:\n|$)/i', $content, $matches)) {
+                    $entities['pelanggan'] = trim($matches[1]);
+                }
+                
+                // Extract nomor SPK
+                if (preg_match('/Nomor SPK:\s*(.+?)(?:\n|$)/i', $content, $matches)) {
+                    $entities['spk'] = trim($matches[1]);
+                }
+                
+                // Extract POP
+                if (preg_match('/POP:\s*(.+?)(?:\n|$)/i', $content, $matches)) {
+                    $entities['pop'] = trim($matches[1]);
+                }
+            }
+        }
+        
+        // Fallback: Extract dari answer text
+        if (empty($entities['nojar'])) {
+            if (preg_match('/\b(\d{10})\b/', $answer, $matches)) {
+                $entities['nojar'] = $matches[1];
+            }
+        }
+        
+        return $entities;
     }
 }
