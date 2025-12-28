@@ -173,6 +173,54 @@ class UploadController extends Controller
         }
     }
 
+     /**
+     * ========================================
+     * UPLOAD FORM CHECKLIST - DENGAN BACKGROUND JOB
+     * ========================================
+     * Sama seperti upload PDF, form checklist juga menggunakan background job.
+     * Semua proses berat (Python API, ekstraksi, parsing) dilakukan di background.
+     */
+
+     public function storeChecklist(Request $request)
+     {
+         $request->validate([
+             'file' => 'required|mimes:pdf|max:10240', // 10MB
+             'document_type' => 'required|string|max:50',
+         ]);
+ 
+         $file = $request->file('file');
+         $originalName = $file->getClientOriginalName();
+ 
+         // Simpan file ke storage/app/public/checklists
+         $path = $file->storeAs('checklists', $originalName, 'public');
+ 
+         // Simpan ke database dengan status 'uploaded'
+         $upload = Document::create([
+             'source_type' => 'user',
+             'id_user' => Auth::id(),
+             'source_system' => null,
+             'document_type' => 'form_checklist',
+             'file_name' => $originalName,
+             'file_path' => $path,
+             'file_type' => $file->getClientOriginalExtension(),
+             'file_size' => $file->getSize(),
+             'status' => 'uploaded',
+         ]);
+ 
+         Log::info('Form Checklist PDF uploaded successfully, dispatching background job', [
+             'upload_id' => $upload->id_upload,
+             'file_name' => $originalName,
+             'document_type' => 'form_checklist',
+             'file_size' => $file->getSize()
+         ]);
+ 
+         // ✅ DISPATCH JOB KE QUEUE (sama seperti PDF)
+         ProcessDocumentJob::dispatch($upload->id_upload);
+ 
+         // ✅ LANGSUNG RETURN - User tidak perlu tunggu
+         return redirect()->back()->with('success', 'Upload form checklist berhasil! Dokumen sedang diproses di background. Refresh halaman untuk melihat status. 🚀');
+     }
+
     /**
      * ========================================
      * LIHAT STATUS DOKUMEN

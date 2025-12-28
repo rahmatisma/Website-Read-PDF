@@ -3,7 +3,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertCircle, ArrowLeft, Building2, Calendar, Camera, ClipboardList, FileText, HardDrive, Network, Package, Users } from 'lucide-react';
+import {
+    AlertCircle,
+    Antenna,
+    ArrowLeft,
+    Building2,
+    Calendar,
+    Camera,
+    ClipboardList,
+    DollarSign,
+    FileText,
+    HardDrive,
+    Network,
+    Package,
+    Server,
+    Users,
+    Wifi,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface Upload {
@@ -18,6 +34,7 @@ interface Upload {
 }
 
 interface SPKData {
+    no_mr: string;
     no_spk: string;
     tipe_spk: string;
     judul_spk: string;
@@ -34,17 +51,29 @@ interface VendorData {
 }
 
 interface JaringanData {
+    pop: string;
     jasa: string;
     ip_lan: string | null;
     no_fmb: string | null;
     kecepatan: string;
     tgl_rfs_la: string | null;
+    media_akses: string | null;
     no_jaringan: string;
     opsi_router: string | null;
     tgl_rfs_plg: string | null;
     kode_jaringan: string | null;
     manage_router: string | null;
-    jenis_aktivasi: string;
+    jenis_aktivasi: string | null;
+}
+
+interface ListItems {
+    kode?: string | null;
+    deskripsi?: string | null;
+    [key: string]: string | null | undefined;
+}
+
+interface ListItemsData {
+    [key: string]: ListItems;
 }
 
 interface PelangganData {
@@ -61,6 +90,7 @@ interface PelaksanaanData {
 }
 
 interface BeritaAcaraData {
+    pop: string;
     jasa: string;
     ip_lan: string | null;
     no_fps: string | null;
@@ -71,22 +101,145 @@ interface BeritaAcaraData {
     kecepatan: string;
     nomor_spk: string;
     tgl_rfs_la: string | null;
+    media_akses: string | null;
     no_jaringan: string;
     opsi_router: string | null;
-    kontak_person: string;
+    kontak_person: string | null;
     manage_router: string | null;
-    jenis_aktivasi: string;
     nama_pelanggan: string;
     lokasi_pelanggan: string;
     tgl_rfs_pelanggan: string | null;
 }
 
+interface PekerjaCabutData {
+    teknisi: string | null;
+    nama_vendor: string | null;
+    pic_pelanggan: string | null;
+    kontak_pic_pelanggan: string | null;
+}
+
+interface HHBaruItem {
+    lokasi_hh_1?: string | null;
+    kapasitas_closure_1?: string | null;
+    longitude_dan_latitude_hh_1?: string | null;
+    kebutuhan_penambahan_closure_1?: string | null;
+    // Support dinamis field
+    [key: string]: string | null | undefined;
+}
+
+interface HHBaruData {
+    [key: string]: HHBaruItem;
+}
+
+interface KawasanUmumData {
+    nama_kawasan_umum__pu_yang_dilewati: string | null;
+    panjang__jalur_outdoor_di_kawasan_umum: string | null;
+}
+
 interface InformasiGedungData {
     email: string | null;
     alamat: string;
+    biaya_ikg: string;
+    pelanggan_fo: string;
     telpon___fax: string;
     kontak_person: string;
+    status_gedung: string | null;
+    kondisi_gedung: string | null;
     bagian___jabatan: string | null;
+    pemilik_bangunan: string | null;
+    sewa_shaft_kabel: string;
+    penempatan_antena: string;
+    sewa_space_antena: string;
+    jumlah_lantai_gedung: string | null;
+    penanggungjawab_sewa: string;
+}
+
+interface HHEksistingItem {
+    lokasi_hh_1?: string | null;
+    kondisi_hh_1?: string | null;
+    kondisi_closure_1?: string | null;
+    kapasitas_closure_1?: string | null;
+    ketersediaan_closure_1?: string | null;
+    longitude_dan_latitude_hh_1?: string | null;
+    // Support dinamis field
+    [key: string]: string | null | undefined;
+}
+
+interface HHEksistingData {
+    [key: string]: HHEksistingItem;
+}
+
+interface SplitterData {
+    arah_akses: string;
+    id_splitter: string | null;
+    lokasi_splitter: string | null;
+    list_port_kosong: string | null;
+    kapasitas_splitter: string | null;
+    list_port_kosong_dan_redaman: string | null;
+    nama_node_jika_tidak_ada_splitter: string | null;
+}
+
+interface LokasiAntenaData {
+    tower___pole: string;
+    lokasi_antena: string | null;
+    tindak_lanjut: string | null;
+    space_tersedia: string;
+    penangkal_petir: string;
+    detail_lokasi_antena: string | null;
+    tinggi_penangkal_petir: string | null;
+    akses_di_lokasi_perlu_alat_bantu: string;
+}
+
+interface SarpenRuangServerData {
+    ups: string;
+    dua_ruang: string;
+    satu_lantai: string | null;
+    suhu_ruangan: string;
+    ruangan_ber_ac: string;
+    grounding_listrik: string;
+    perangkat_pelanggan: string;
+    power_line___listrik: string | null;
+    info_kelistrikan_pln_n_g: string | null;
+    info_kelistrikan_pln_p_g: string | null;
+    info_kelistrikan_pln_p_n: string | null;
+    ketersediaan_power_outlet_untuk_otb_modem_dan_router: string;
+}
+
+interface PenempatanPerangkatData {
+    kesiapan_ruang_server: string;
+    ketersediaan_rak_server: string;
+    space_modem_dan_router: string;
+    lokasi_penempatan_modem_dan_router: string | null;
+    diizinkan_foto_ruang_server_pelanggan: string;
+}
+
+interface PerizinanBiayaGedungData {
+    pic_bm: string | null;
+    supervisi: string | null;
+    biaya_sewa: string | null;
+    biaya_lain: string | null;
+    deposit_kerja: string | null;
+    info_lain__lain_jika_ada: string | null;
+    ikg_instalasi_kabel_gedung: string | null;
+    material_dan_infrastruktur: string;
+    panjang_kabel_dalam_gedung: string | null;
+    waktu_pelaksanaan_penarikan_kabel: string | null;
+    pelaksana_penarikan_kabel_dalam_gedung: string | null;
+}
+
+interface PerizinanBiayaKawasanData {
+    supervisi: string | null;
+    biaya_sewa: string | null;
+    pic_kawasan: string | null;
+    nama_kawasan: string | null;
+    biaya_lain: string | null;
+    deposit_kerja: string | null;
+    kontak_pic_kawasan: string | null;
+    melewati_kawasan_private: string;
+    info_lain___lain_jika_ada: string | null;
+    panjang_kabel_dalam_kawasan: string | null;
+    biaya_penarikan_kabel_dalam_kawasan: string | null;
+    pelaksana_penarikan_kabel_dalam_kawasan: string | null;
 }
 
 interface DokumentasiItem {
@@ -101,11 +254,23 @@ interface ExtractedData {
                 spk?: SPKData;
                 vendor?: VendorData;
                 jaringan?: JaringanData;
+                list_item?: ListItemsData;
                 pelanggan?: PelangganData;
                 pelaksanaan?: PelaksanaanData;
                 berita_acara?: BeritaAcaraData;
+                pekerja_cabut?: PekerjaCabutData;
+                kawasan_umum?: KawasanUmumData;
                 informasi_gedung?: InformasiGedungData;
                 pelaksanan_berita_acara?: PelaksanaanData;
+                splitter?: SplitterData;
+                lokasi_antena?: LokasiAntenaData;
+                hh_eksisting?: HHEksistingData;
+                penempatan_perangkat?: PenempatanPerangkatData;
+                sarpen_ruang_server?: SarpenRuangServerData;
+                perizinan_biaya_gedung?: PerizinanBiayaGedungData;
+                perizinan_biaya_kawasan?: PerizinanBiayaKawasanData;
+                data_hh_baru?: HHBaruData;
+                data_hh_eksisting?: HHEksistingData;
             };
             metadata?: {
                 parser_used: string;
@@ -279,6 +444,7 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                                         <CardDescription>Detail surat perintah kerja</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-3">
+                                        <DetailItem label="No. MR" value={parsedData.spk.no_mr} />
                                         <DetailItem label="No. SPK" value={parsedData.spk.no_spk} />
                                         <DetailItem label="Tipe SPK" value={parsedData.spk.tipe_spk} />
                                         <DetailItem label="Judul" value={parsedData.spk.judul_spk} />
@@ -314,6 +480,63 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                                 </Card>
                             )}
 
+                            {/* Card Jaringan */}
+                            {parsedData.jaringan && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Network className="h-5 w-5" />
+                                            Informasi Jaringan
+                                        </CardTitle>
+                                        <CardDescription>Detail jaringan dan layanan</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <DetailItem label="Pop" value={parsedData.jaringan.pop} />
+                                        <DetailItem label="Jasa" value={parsedData.jaringan.jasa} />
+                                        <DetailItem label="IP LAN" value={parsedData.jaringan.ip_lan} />
+                                        <DetailItem label="No FMB" value={parsedData.jaringan.no_fmb} />
+                                        <DetailItem label="Kecepatan" value={parsedData.jaringan.kecepatan} />
+                                        <DetailItem label="Tanggal RFS LA" value={parsedData.jaringan.tgl_rfs_la} />
+                                        <DetailItem label="Media Akses" value={parsedData.jaringan.media_akses} />
+                                        <DetailItem label="No. Jaringan" value={parsedData.jaringan.no_jaringan} />
+                                        <DetailItem label="Opsi Router" value={parsedData.jaringan.opsi_router} />
+                                        <DetailItem label="Tanggal RFS PLG" value={parsedData.jaringan.tgl_rfs_plg} />
+                                        <DetailItem label="Kode Jaringan" value={parsedData.jaringan.kode_jaringan} />
+                                        <DetailItem label="Manage Router" value={parsedData.jaringan.manage_router} />
+                                        <DetailItem label="Jenis Aktivasi" value={parsedData.jaringan.jenis_aktivasi} />
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card List Items */}
+                            {parsedData.list_item && Object.keys(parsedData.list_item).length > 0 && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Package className="h-5 w-5" />
+                                            List Items
+                                        </CardTitle>
+                                        <CardDescription>Daftar peralatan - {Object.keys(parsedData.list_item).length} item</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {Object.entries(parsedData.list_item).map(([itemKey, itemData], index) => (
+                                            <div key={itemKey} className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <Badge variant="outline" className="font-semibold">
+                                                        {itemKey.replace(/_/g, ' ').toUpperCase()}
+                                                    </Badge>
+                                                    <span className="text-sm text-muted-foreground">Item {index + 1}</span>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                    <DetailItem label="Kode" value={itemData.kode} />
+                                                    <DetailItem label="Deskripsi" value={itemData.deskripsi} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             {/* Card Pelanggan */}
                             {parsedData.pelanggan && (
                                 <Card>
@@ -329,27 +552,6 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                                         <DetailItem label="Lokasi" value={parsedData.pelanggan.lokasi_pelanggan} />
                                         <DetailItem label="Kontak Person" value={parsedData.pelanggan.kontak_person} />
                                         <DetailItem label="Telepon" value={parsedData.pelanggan.telepon} />
-                                    </CardContent>
-                                </Card>
-                            )}
-
-                            {/* Card Jaringan */}
-                            {parsedData.jaringan && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Network className="h-5 w-5" />
-                                            Informasi Jaringan
-                                        </CardTitle>
-                                        <CardDescription>Detail jaringan dan layanan</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        <DetailItem label="Jasa" value={parsedData.jaringan.jasa} />
-                                        <DetailItem label="No. Jaringan" value={parsedData.jaringan.no_jaringan} />
-                                        <DetailItem label="Kecepatan" value={parsedData.jaringan.kecepatan} />
-                                        <DetailItem label="Jenis Aktivasi" value={parsedData.jaringan.jenis_aktivasi} />
-                                        <DetailItem label="IP LAN" value={parsedData.jaringan.ip_lan} />
-                                        <DetailItem label="Kode Jaringan" value={parsedData.jaringan.kode_jaringan} />
                                     </CardContent>
                                 </Card>
                             )}
@@ -372,6 +574,145 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                                 </Card>
                             )}
 
+                            {/* Card HH Baru */}
+                            {parsedData.data_hh_baru && Object.keys(parsedData.data_hh_baru).length > 0 && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Network className="h-5 w-5" />
+                                            Data HH Baru
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Informasi Handhole baru - {Object.keys(parsedData.data_hh_baru).length} lokasi
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {Object.entries(parsedData.data_hh_baru).map(([hhKey, hhData], index) => (
+                                            <div key={hhKey} className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <Badge variant="outline" className="font-semibold">
+                                                        {hhKey.replace(/_/g, ' ').toUpperCase()}
+                                                    </Badge>
+                                                    <span className="text-sm text-muted-foreground">Lokasi {index + 1}</span>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                                    <DetailItem label="Lokasi" value={hhData.lokasi_hh_1} />
+                                                    <DetailItem label="Kapasitas Closure" value={hhData.kapasitas_closure_1} />
+                                                    <DetailItem label="Koordinat (Longitude, Latitude)" value={hhData.longitude_dan_latitude_hh_1} />
+                                                    <DetailItem label="Kebutuhan Penambahan Closure" value={hhData.kebutuhan_penambahan_closure_1} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card HH Eksisting */}
+                            {parsedData.data_hh_eksisting && Object.keys(parsedData.data_hh_eksisting).length > 0 && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Network className="h-5 w-5" />
+                                            Data HH Eksisting
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Informasi Handhole eksisting - {Object.keys(parsedData.data_hh_eksisting).length} lokasi
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {Object.entries(parsedData.data_hh_eksisting).map(([hhKey, hhData], index) => (
+                                            <div key={hhKey} className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <Badge variant="outline" className="font-semibold">
+                                                        {hhKey.replace(/_/g, ' ').toUpperCase()}
+                                                    </Badge>
+                                                    <span className="text-sm text-muted-foreground">Lokasi {index + 1}</span>
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                                    <DetailItem label="Lokasi" value={hhData.lokasi_hh_1} />
+                                                    <DetailItem label="Kondisi HH" value={hhData.kondisi_hh_1} />
+                                                    <DetailItem label="Kondisi Closure" value={hhData.kondisi_closure_1} />
+                                                    <DetailItem label="Kapasitas Closure" value={hhData.kapasitas_closure_1} />
+                                                    <DetailItem label="Ketersediaan Closure" value={hhData.ketersediaan_closure_1} />
+                                                    <DetailItem label="Koordinat (Longitude, Latitude)" value={hhData.longitude_dan_latitude_hh_1} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card Kawasan Umum */}
+                            {parsedData.kawasan_umum && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Building2 className="h-5 w-5" />
+                                            Kawasan Umum
+                                        </CardTitle>
+                                        <CardDescription>Detail kawasan umum</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            <DetailItem
+                                                label="Nama Kawasan Umum / PU yang Dilewati"
+                                                value={parsedData.kawasan_umum.nama_kawasan_umum__pu_yang_dilewati}
+                                            />
+                                            <DetailItem
+                                                label="Panjang Jalur Outdoor di Kawasan Umum"
+                                                value={parsedData.kawasan_umum.panjang__jalur_outdoor_di_kawasan_umum}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card Berita Acara (Full Width) */}
+                            {parsedData.berita_acara && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <ClipboardList className="h-5 w-5" />
+                                            Berita Acara
+                                        </CardTitle>
+                                        <CardDescription>Detail berita acara pelaksanaan</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            <DetailItem label="Nomor SPK" value={parsedData.berita_acara.nomor_spk} />
+                                            <DetailItem label="Tanggal" value={parsedData.berita_acara.tanggal} />
+                                            <DetailItem label="Tipe SPK" value={parsedData.berita_acara.tipe_spk} />
+                                            <DetailItem label="Nama Pelanggan" value={parsedData.berita_acara.nama_pelanggan} />
+                                            <DetailItem label="Lokasi" value={parsedData.berita_acara.lokasi_pelanggan} />
+                                            <DetailItem label="Kontak Person" value={parsedData.berita_acara.kontak_person} />
+                                            <DetailItem label="Telepon" value={parsedData.berita_acara.telepon} />
+                                            <DetailItem label="Jasa" value={parsedData.berita_acara.jasa} />
+                                            <DetailItem label="No. Jaringan" value={parsedData.berita_acara.no_jaringan} />
+                                            <DetailItem label="Kecepatan" value={parsedData.berita_acara.kecepatan} />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card Pekerja Cabut */}
+                            {parsedData.pekerja_cabut && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Building2 className="h-5 w-5" />
+                                            Pekerja Cabut
+                                        </CardTitle>
+                                        <CardDescription>Detail pekerja cabut</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <DetailItem label="Nama Pelanggan" value={parsedData.pekerja_cabut.teknisi} />
+                                        <DetailItem label="Lokasi" value={parsedData.pekerja_cabut.nama_vendor} />
+                                        <DetailItem label="Kontak Person" value={parsedData.pekerja_cabut.pic_pelanggan} />
+                                        <DetailItem label="Telepon" value={parsedData.pekerja_cabut.kontak_pic_pelanggan} />
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             {/* Card Informasi Gedung */}
                             {parsedData.informasi_gedung && (
                                 <Card>
@@ -384,38 +725,227 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                                     </CardHeader>
                                     <CardContent className="space-y-3">
                                         <DetailItem label="Alamat" value={parsedData.informasi_gedung.alamat} />
-                                        <DetailItem label="Kontak Person" value={parsedData.informasi_gedung.kontak_person} />
+                                        <DetailItem label="Biaya IKG" value={parsedData.informasi_gedung.biaya_ikg} />
+                                        <DetailItem label="Pelanggan FO" value={parsedData.informasi_gedung.pelanggan_fo} />
                                         <DetailItem label="Telepon/Fax" value={parsedData.informasi_gedung.telpon___fax} />
-                                        <DetailItem label="Email" value={parsedData.informasi_gedung.email} />
-                                        <DetailItem label="Bagian/Jabatan" value={parsedData.informasi_gedung.bagian___jabatan} />
+                                        <DetailItem label="Kontak Person" value={parsedData.informasi_gedung.kontak_person} />
+                                        <DetailItem label="Status Gedung" value={parsedData.informasi_gedung.status_gedung} />
+                                        <DetailItem label="Kondisi Gedung" value={parsedData.informasi_gedung.kondisi_gedung} />
+                                        <DetailItem label="Bagian Jabatan" value={parsedData.informasi_gedung.bagian___jabatan} />
+                                        <DetailItem label="Pemilik Bangunan" value={parsedData.informasi_gedung.pemilik_bangunan} />
+                                        <DetailItem label="Sewa Shaft Kabel" value={parsedData.informasi_gedung.sewa_shaft_kabel} />
+                                        <DetailItem label="Penempatan Antena" value={parsedData.informasi_gedung.penempatan_antena} />
+                                        <DetailItem label="Sewa Space Antena" value={parsedData.informasi_gedung.sewa_space_antena} />
+                                        <DetailItem label="Jumlah Lantai Gedung" value={parsedData.informasi_gedung.jumlah_lantai_gedung} />
+                                        <DetailItem label="Penanggungjawab Sewa" value={parsedData.informasi_gedung.penanggungjawab_sewa} />
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card Splitter */}
+                            {parsedData.splitter && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Wifi className="h-5 w-5" />
+                                            Data Splitter
+                                        </CardTitle>
+                                        <CardDescription>Informasi splitter fiber optic</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <DetailItem label="ID Splitter" value={parsedData.splitter.id_splitter} />
+                                        <DetailItem label="Lokasi Splitter" value={parsedData.splitter.lokasi_splitter} />
+                                        <DetailItem label="Kapasitas Splitter" value={parsedData.splitter.kapasitas_splitter} />
+                                        <DetailItem label="Arah Akses" value={parsedData.splitter.arah_akses} />
+                                        <DetailItem label="List Port Kosong" value={parsedData.splitter.list_port_kosong} />
+                                        <DetailItem label="Port Kosong & Redaman" value={parsedData.splitter.list_port_kosong_dan_redaman} />
+                                        <DetailItem
+                                            label="Nama Node (jika tidak ada splitter)"
+                                            value={parsedData.splitter.nama_node_jika_tidak_ada_splitter}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card Lokasi Antena */}
+                            {parsedData.lokasi_antena && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Antenna className="h-5 w-5" />
+                                            Lokasi Antena
+                                        </CardTitle>
+                                        <CardDescription>Detail penempatan antena</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <DetailItem label="Tower/Pole" value={parsedData.lokasi_antena.tower___pole} />
+                                        <DetailItem label="Lokasi Antena" value={parsedData.lokasi_antena.lokasi_antena} />
+                                        <DetailItem label="Detail Lokasi Antena" value={parsedData.lokasi_antena.detail_lokasi_antena} />
+                                        <DetailItem label="Space Tersedia" value={parsedData.lokasi_antena.space_tersedia} />
+                                        <DetailItem label="Penangkal Petir" value={parsedData.lokasi_antena.penangkal_petir} />
+                                        <DetailItem label="Tinggi Penangkal Petir" value={parsedData.lokasi_antena.tinggi_penangkal_petir} />
+                                        <DetailItem
+                                            label="Akses Perlu Alat Bantu"
+                                            value={parsedData.lokasi_antena.akses_di_lokasi_perlu_alat_bantu}
+                                        />
+                                        <DetailItem label="Tindak Lanjut" value={parsedData.lokasi_antena.tindak_lanjut} />
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card Sarpen Ruang Server */}
+                            {parsedData.sarpen_ruang_server && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Server className="h-5 w-5" />
+                                            Sarpen Ruang Server
+                                        </CardTitle>
+                                        <CardDescription>Sarana pendukung ruang server</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <DetailItem label="Ruangan Ber-AC" value={parsedData.sarpen_ruang_server.ruangan_ber_ac} />
+                                        <DetailItem label="Suhu Ruangan" value={parsedData.sarpen_ruang_server.suhu_ruangan} />
+                                        <DetailItem label="UPS" value={parsedData.sarpen_ruang_server.ups} />
+                                        <DetailItem label="Grounding Listrik" value={parsedData.sarpen_ruang_server.grounding_listrik} />
+                                        <DetailItem label="Power Line/Listrik" value={parsedData.sarpen_ruang_server.power_line___listrik} />
+                                        <DetailItem
+                                            label="Ketersediaan Power Outlet"
+                                            value={parsedData.sarpen_ruang_server.ketersediaan_power_outlet_untuk_otb_modem_dan_router}
+                                        />
+                                        <DetailItem label="Perangkat Pelanggan" value={parsedData.sarpen_ruang_server.perangkat_pelanggan} />
+                                        <DetailItem label="Satu Lantai" value={parsedData.sarpen_ruang_server.satu_lantai} />
+                                        <DetailItem label="Dua Ruang" value={parsedData.sarpen_ruang_server.dua_ruang} />
+                                        <DetailItem
+                                            label="Info Kelistrikan PLN (P-N)"
+                                            value={parsedData.sarpen_ruang_server.info_kelistrikan_pln_p_n}
+                                        />
+                                        <DetailItem
+                                            label="Info Kelistrikan PLN (P-G)"
+                                            value={parsedData.sarpen_ruang_server.info_kelistrikan_pln_p_g}
+                                        />
+                                        <DetailItem
+                                            label="Info Kelistrikan PLN (N-G)"
+                                            value={parsedData.sarpen_ruang_server.info_kelistrikan_pln_n_g}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card Penempatan Perangkat */}
+                            {parsedData.penempatan_perangkat && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Building2 className="h-5 w-5" />
+                                            Penempatan Perangkat
+                                        </CardTitle>
+                                        <CardDescription>Detail penempatan perangkat</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            <DetailItem label="Kesiapan Ruang Server" value={parsedData.penempatan_perangkat.kesiapan_ruang_server} />
+                                            <DetailItem
+                                                label="Ketersediaan Rak Server"
+                                                value={parsedData.penempatan_perangkat.ketersediaan_rak_server}
+                                            />
+                                            <DetailItem
+                                                label="Space Modem dan Router"
+                                                value={parsedData.penempatan_perangkat.space_modem_dan_router}
+                                            />
+                                            <DetailItem
+                                                label="Lokasi Penempatan Modem dan Router"
+                                                value={parsedData.penempatan_perangkat.lokasi_penempatan_modem_dan_router}
+                                            />
+                                            <DetailItem
+                                                label="Diizinkan Foto Ruang Server Pelanggan"
+                                                value={parsedData.penempatan_perangkat.diizinkan_foto_ruang_server_pelanggan}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* Card Perizinan Biaya Gedung (Full Width) */}
+                            {parsedData.perizinan_biaya_gedung && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <DollarSign className="h-5 w-5" />
+                                            Perizinan & Biaya Gedung
+                                        </CardTitle>
+                                        <CardDescription>Detail perizinan dan biaya instalasi gedung</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            <DetailItem
+                                                label="Material & Infrastruktur"
+                                                value={parsedData.perizinan_biaya_gedung.material_dan_infrastruktur}
+                                            />
+                                            <DetailItem
+                                                label="IKG (Instalasi Kabel Gedung)"
+                                                value={parsedData.perizinan_biaya_gedung.ikg_instalasi_kabel_gedung}
+                                            />
+                                            <DetailItem
+                                                label="Panjang Kabel Dalam Gedung"
+                                                value={parsedData.perizinan_biaya_gedung.panjang_kabel_dalam_gedung}
+                                            />
+                                            <DetailItem
+                                                label="Pelaksana Penarikan Kabel"
+                                                value={parsedData.perizinan_biaya_gedung.pelaksana_penarikan_kabel_dalam_gedung}
+                                            />
+                                            <DetailItem
+                                                label="Waktu Pelaksanaan"
+                                                value={parsedData.perizinan_biaya_gedung.waktu_pelaksanaan_penarikan_kabel}
+                                            />
+                                            <DetailItem label="Biaya Sewa" value={parsedData.perizinan_biaya_gedung.biaya_sewa} />
+                                            <DetailItem label="Deposit Kerja" value={parsedData.perizinan_biaya_gedung.deposit_kerja} />
+                                            <DetailItem label="Biaya Lain" value={parsedData.perizinan_biaya_gedung.biaya_lain} />
+                                            <DetailItem label="Supervisi" value={parsedData.perizinan_biaya_gedung.supervisi} />
+                                            <DetailItem label="PIC BM" value={parsedData.perizinan_biaya_gedung.pic_bm} />
+                                            <DetailItem label="Info Lain-lain" value={parsedData.perizinan_biaya_gedung.info_lain__lain_jika_ada} />
+                                        </div>
                                     </CardContent>
                                 </Card>
                             )}
                         </div>
 
-                        {/* Card Berita Acara (Full Width) */}
-                        {parsedData.berita_acara && (
+                        {/* Card Perizinan Biaya Kawasan (Full Width) */}
+                        {parsedData.perizinan_biaya_kawasan && (
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
-                                        <ClipboardList className="h-5 w-5" />
-                                        Berita Acara
+                                        <Building2 className="h-5 w-5" />
+                                        Perizinan & Biaya Kawasan
                                     </CardTitle>
-                                    <CardDescription>Detail berita acara pelaksanaan</CardDescription>
+                                    <CardDescription>Detail perizinan dan biaya penarikan kabel kawasan</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid gap-3 md:grid-cols-3">
-                                        <DetailItem label="Nomor SPK" value={parsedData.berita_acara.nomor_spk} />
-                                        <DetailItem label="Tanggal" value={parsedData.berita_acara.tanggal} />
-                                        <DetailItem label="Tipe SPK" value={parsedData.berita_acara.tipe_spk} />
-                                        <DetailItem label="Nama Pelanggan" value={parsedData.berita_acara.nama_pelanggan} />
-                                        <DetailItem label="Lokasi" value={parsedData.berita_acara.lokasi_pelanggan} />
-                                        <DetailItem label="Kontak Person" value={parsedData.berita_acara.kontak_person} />
-                                        <DetailItem label="Telepon" value={parsedData.berita_acara.telepon} />
-                                        <DetailItem label="Jasa" value={parsedData.berita_acara.jasa} />
-                                        <DetailItem label="No. Jaringan" value={parsedData.berita_acara.no_jaringan} />
-                                        <DetailItem label="Kecepatan" value={parsedData.berita_acara.kecepatan} />
-                                        <DetailItem label="Jenis Aktivasi" value={parsedData.berita_acara.jenis_aktivasi} />
+                                        <DetailItem
+                                            label="Melewati Kawasan Private"
+                                            value={parsedData.perizinan_biaya_kawasan.melewati_kawasan_private}
+                                        />
+                                        <DetailItem label="Nama Kawasan" value={parsedData.perizinan_biaya_kawasan.nama_kawasan} />
+                                        <DetailItem label="PIC Kawasan" value={parsedData.perizinan_biaya_kawasan.pic_kawasan} />
+                                        <DetailItem label="Kontak PIC Kawasan" value={parsedData.perizinan_biaya_kawasan.kontak_pic_kawasan} />
+                                        <DetailItem
+                                            label="Panjang Kabel Dalam Kawasan"
+                                            value={parsedData.perizinan_biaya_kawasan.panjang_kabel_dalam_kawasan}
+                                        />
+                                        <DetailItem
+                                            label="Pelaksana Penarikan Kabel"
+                                            value={parsedData.perizinan_biaya_kawasan.pelaksana_penarikan_kabel_dalam_kawasan}
+                                        />
+                                        <DetailItem
+                                            label="Biaya Penarikan Kabel"
+                                            value={parsedData.perizinan_biaya_kawasan.biaya_penarikan_kabel_dalam_kawasan}
+                                        />
+                                        <DetailItem label="Biaya Sewa" value={parsedData.perizinan_biaya_kawasan.biaya_sewa} />
+                                        <DetailItem label="Deposit Kerja" value={parsedData.perizinan_biaya_kawasan.deposit_kerja} />
+                                        <DetailItem label="Biaya Lain" value={parsedData.perizinan_biaya_kawasan.biaya_lain} />
+                                        <DetailItem label="Supervisi" value={parsedData.perizinan_biaya_kawasan.supervisi} />
+                                        <DetailItem label="Info Lain-lain" value={parsedData.perizinan_biaya_kawasan.info_lain___lain_jika_ada} />
                                     </div>
                                 </CardContent>
                             </Card>
