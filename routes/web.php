@@ -24,6 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/pdf', [UploadController::class, 'storePDF'])->name('store.pdf');
         Route::post('/image', [UploadController::class, 'storeImage'])->name('store.image');
         Route::post('/doc', [UploadController::class, 'storeDoc'])->name('store.doc');
+        Route::post('/checklist', [UploadController::class, 'storeChecklist'])->name('store.checklist');
         
         // ⬇️ ROUTE SPESIFIK HARUS DI ATAS (sebelum {type} atau {id})
         
@@ -46,7 +47,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Filter berdasarkan tipe (DI PALING BAWAH karena paling general)
         Route::get('/{type}', [DocumentController::class, 'filter'])
-            ->where('type', 'pdf|gambar|doc')
+            ->where('type', 'pdf|gambar|doc|form-checklist')
             ->name('filter');
     });
 

@@ -37,6 +37,7 @@ class DocumentController extends Controller
         switch ($type) {
             case 'pdf':
                 $query->where('file_type', 'pdf');
+                $query->where('document_type', '!=', 'form_checklist');
                 break;
             case 'doc':
                 $query->whereIn('file_type', ['doc', 'docx']);
@@ -44,11 +45,14 @@ class DocumentController extends Controller
             case 'gambar':
                 $query->whereIn('file_type', ['jpg', 'jpeg', 'png']);
                 break;
+            case 'form-checklist':
+                $query->where('document_type', 'form_checklist');
+                break;
             default:
                 abort(404);
         }
 
-        $documents = $query->get();
+        $documents = $query->orderBy('created_at', 'desc')->get();
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
@@ -113,6 +117,10 @@ class DocumentController extends Controller
         $countIMG = Document::where('id_user', $userId)
             ->whereIn('file_type', ['jpg', 'jpeg', 'png'])
             ->count();
+        
+        $countChecklist = Document::where('id_user', $userId)
+            ->where('document_type', 'form_checklist')
+            ->count();
 
         $countAll = Document::where('id_user', $userId)->count();
 
@@ -120,6 +128,7 @@ class DocumentController extends Controller
             'countPDF'  => $countPDF,
             'countDOC'  => $countDOC,
             'countIMG'  => $countIMG,
+            'countChecklist' => $countChecklist,
             'countAll'  => $countAll,
         ]);
     }
@@ -258,6 +267,7 @@ class DocumentController extends Controller
                 'id_upload' => $upload->id_upload,
                 'file_name' => $upload->file_name,
                 'status' => $upload->status,
+                'document_type' => $upload->document_type,
                 'user_id' => Auth::id()
             ]);
             
@@ -267,8 +277,14 @@ class DocumentController extends Controller
                     ? json_decode($upload->extracted_data, true) 
                     : $upload->extracted_data;
             }
+
+            // ✅ Check if document_type contains "checklist"
+        $isChecklist = strpos($upload->document_type, 'checklist') !== false;
+        
+        // Choose appropriate component
+        $component = $isChecklist ? 'Documents/FormChecklistDetail' : 'Documents/Detail';
             
-            return Inertia::render('Documents/Detail', [
+            return Inertia::render($component, [
                 'upload' => [
                     'id_upload' => $upload->id_upload,
                     'file_name' => $upload->file_name,

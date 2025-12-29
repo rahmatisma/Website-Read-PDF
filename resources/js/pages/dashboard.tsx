@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { Head, usePage } from '@inertiajs/react';
-import { Calendar, CheckCircle2, File, FileText, HardDrive, Mail, Shield, Upload, FileCheck, ClipboardCheck, Clock } from 'lucide-react';
+import { Calendar, CheckCircle2, ClipboardCheck, File, FileCheck, Mail, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -34,7 +34,11 @@ interface DashboardProps {
     countUsersVerified?: number;
     countSPKTypes?: number;
     countFormChecklist?: number;
-    uploadTrend?: { date: string; uploads: number }[];
+    uploadTrend?: {
+        date: string;
+        spk: number;
+        checklist: number;
+    }[];
     recentDocuments?: Document[];
     [key: string]: unknown;
 }
@@ -50,13 +54,13 @@ export default function Dashboard() {
 
     // Dummy data untuk upload trend (7 hari terakhir)
     const defaultUploadTrend = [
-        { date: '17 Dec', uploads: 12 },
-        { date: '18 Dec', uploads: 19 },
-        { date: '19 Dec', uploads: 15 },
-        { date: '20 Dec', uploads: 25 },
-        { date: '21 Dec', uploads: 22 },
-        { date: '22 Dec', uploads: 30 },
-        { date: '23 Dec', uploads: 28 },
+        { date: '17 Dec', spk: 5, checklist: 3 },
+        { date: '18 Dec', spk: 4, checklist: 5 },
+        { date: '19 Dec', spk: 3, checklist: 6 },
+        { date: '20 Dec', spk: 5, checklist: 7 },
+        { date: '21 Dec', spk: 4, checklist: 6 },
+        { date: '22 Dec', spk: 6, checklist: 8 },
+        { date: '23 Dec', spk: 12, checklist: 1 },
     ];
 
     // Dummy data untuk recent documents
@@ -98,8 +102,8 @@ export default function Dashboard() {
         },
     ];
 
-    const chartData = uploadTrend.length > 0 ? uploadTrend : defaultUploadTrend;
-    const documents = recentDocuments.length > 0 ? recentDocuments : defaultRecentDocuments;
+    const chartData = defaultUploadTrend;
+    const documents = defaultRecentDocuments;
 
     // Data Dummy Users
     const dummyUsers: User[] = [
@@ -193,17 +197,17 @@ export default function Dashboard() {
 
         switch (status) {
             case 'completed':
-                return <span className="px-2 py-1 text-xs rounded-full bg-green-500/20 text-green-400">✅ Selesai</span>;
+                return <span className="rounded-full bg-green-500/20 px-2 py-1 text-xs text-green-400">✅ Selesai</span>;
             case 'processing':
-                return <span className="px-2 py-1 text-xs rounded-full bg-yellow-500/20 text-yellow-400 animate-pulse">🔄 Proses</span>;
+                return <span className="animate-pulse rounded-full bg-yellow-500/20 px-2 py-1 text-xs text-yellow-400">🔄 Proses</span>;
             case 'failed':
-                return <span className="px-2 py-1 text-xs rounded-full bg-red-500/20 text-red-400">❌ Gagal</span>;
+                return <span className="rounded-full bg-red-500/20 px-2 py-1 text-xs text-red-400">❌ Gagal</span>;
             case 'uploaded':
-                return <span className="px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-400">📤 Upload</span>;
+                return <span className="rounded-full bg-blue-500/20 px-2 py-1 text-xs text-blue-400">📤 Upload</span>;
             default:
                 return null;
         }
-    }
+    };
 
     return (
         <AppLayout>
@@ -258,9 +262,15 @@ export default function Dashboard() {
                         <ResponsiveContainer width="100%" height={300}>
                             <AreaChart data={chartData}>
                                 <defs>
-                                    <linearGradient id="colorUploads" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#ffffff" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
+                                    {/* Gradient untuk SPK - Purple */}
+                                    <linearGradient id="colorSPK" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.5} />
+                                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0.1} />
+                                    </linearGradient>
+                                    {/* Gradient untuk Form Checklist - Emerald */}
+                                    <linearGradient id="colorChecklist" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.5} />
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -273,10 +283,48 @@ export default function Dashboard() {
                                         borderRadius: '8px',
                                     }}
                                     labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                                    formatter={(value, name) => {
+                                        // ✅ Fix: Cek name dengan benar
+                                        const label = name === 'spk' ? 'SPK Documents' : 'Form Checklist';
+                                        return [value ?? 0, label];
+                                    }}
                                 />
-                                <Area type="monotone" dataKey="uploads" stroke="#ffffff" fillOpacity={1} fill="url(#colorUploads)" />
+
+                                {/* Area untuk SPK - Layer pertama (di bawah) */}
+                                <Area
+                                    type="monotone"
+                                    dataKey="spk"
+                                    stroke="#a855f7"
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#colorSPK)"
+                                    name="spk"
+                                />
+
+                                {/* Area untuk Form Checklist - Layer kedua (di atas) */}
+                                <Area
+                                    type="monotone"
+                                    dataKey="checklist"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#colorChecklist)"
+                                    name="checklist"
+                                />
                             </AreaChart>
                         </ResponsiveContainer>
+
+                        {/* Custom Legend */}
+                        <div className="mt-4 flex items-center justify-center gap-6">
+                            <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-purple-500"></div>
+                                <span className="text-sm text-muted-foreground">SPK Documents</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
+                                <span className="text-sm text-muted-foreground">Form Checklist</span>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -299,8 +347,7 @@ export default function Dashboard() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {documents
-                                    .map((doc) => (
+                                    {documents.map((doc) => (
                                         <TableRow key={doc.id}>
                                             <TableCell className="font-medium">{doc.id}</TableCell>
                                             <TableCell>
@@ -318,7 +365,6 @@ export default function Dashboard() {
                                             <TableCell className="text-sm text-muted-foreground">{doc.fileSize}</TableCell>
                                             <TableCell>{getStatusBadge(doc.status)}</TableCell>
                                         </TableRow>
-                                        
                                     ))}
                                 </TableBody>
                             </Table>
