@@ -16,35 +16,35 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [DocumentController::class, 'dashboard'])->name('dashboard');
-    
+
     // ========================================
     // DOCUMENTS ROUTES
     // ========================================
     Route::prefix('documents')->name('documents.')->group(function () {
         // ✅ TAMBAHKAN: Route untuk halaman utama documents
         Route::get('/', [DocumentController::class, 'index'])->name('index');
-        
+
         // Upload dokumen
         Route::post('/pdf', [UploadController::class, 'storePDF'])->name('store.pdf');
         Route::post('/image', [UploadController::class, 'storeImage'])->name('store.image');
         Route::post('/doc', [UploadController::class, 'storeDoc'])->name('store.doc');
         Route::post('/checklist', [UploadController::class, 'storeChecklist'])->name('store.checklist');
-        
+
         // Detail dokumen
         Route::get('/{id}/detail', [DocumentController::class, 'detail'])
             ->where('id', '[0-9]+')
             ->name('detail');
-        
+
         // Retry dokumen yang failed
         Route::post('/{id}/retry', [UploadController::class, 'retry'])
             ->where('id', '[0-9]+')
             ->name('retry');
-        
+
         // Delete dokumen
         Route::delete('/{id}', [DocumentController::class, 'destroy'])
             ->where('id', '[0-9]+')
             ->name('destroy');
-        
+
         // Filter berdasarkan tipe (harus di paling bawah)
         Route::get('/{type}', [DocumentController::class, 'filter'])
             ->where('type', 'pdf|gambar|doc|form-checklist')
@@ -57,10 +57,10 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
     Route::prefix('api')->name('api.')->group(function () {
         Route::post('/documents/check-status', [DocumentController::class, 'checkStatus'])
             ->name('documents.checkStatus');
-            
+
         Route::get('/dashboard/stats', [DocumentController::class, 'getDashboardStats'])
             ->name('dashboard.stats');
-        
+
         Route::get('/documents/{id}/status', [DocumentController::class, 'getStatus'])
             ->where('id', '[0-9]+')
             ->name('documents.getStatus');
@@ -86,6 +86,7 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
         Route::post('/generate-embedding', [ChatbotController::class, 'generateEmbedding'])
             ->name('generate.embedding');
         Route::get('/health', [ChatbotController::class, 'health'])->name('health');
+        Route::post('/chat-stream', [ChatbotController::class, 'chatStream'])->name('chat.stream');
         Route::get('/stats', [ChatbotController::class, 'stats'])->name('stats');
         Route::post('/message', [ChatbotController::class, 'sendMessage'])->name('message');
         Route::post('/stream', [ChatbotController::class, 'sendMessageStream'])->name('stream');
@@ -94,7 +95,7 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
     // Send to Python
     Route::post('/send-to-python', [DocumentController::class, 'sendToPython'])
         ->name('send.to.python');
-        
+
     // Test Ollama
     Route::get('/test-ollama', function() {
         try {
@@ -104,7 +105,7 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
                     'prompt' => 'Hello',
                     'stream' => false
                 ]);
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $response->json()

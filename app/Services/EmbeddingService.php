@@ -30,7 +30,6 @@ class EmbeddingService
     public function generateSpkEmbedding(int $idSpk): ?SpkEmbedding
     {
         try {
-            // 1. Ambil data SPK dengan SEMUA relasi
             $spk = Spk::with([
                 'jaringan',
                 'pelaksanaan',
@@ -38,9 +37,9 @@ class EmbeddingService
                 'informasiGedung',
                 'sarpenRuangServer',
                 'lokasiAntena',
-                'perizinanBiayaGedung',
+                'perizinanGedung',        // ✅ PERBAIKI: dari perizinanBiayaGedung
                 'penempatanPerangkat',
-                'perizinanBiayaKawasan',
+                'perizinanKawasan',       // ✅ PERBAIKI: dari perizinanBiayaKawasan
                 'kawasanUmum',
                 'dataSplitter',
                 'hhEksisting',
@@ -103,7 +102,7 @@ class EmbeddingService
         $parts[] = "Jenis SPK: {$spk->jenis_spk}";
         $parts[] = "Tipe Dokumen: {$spk->document_type}";
         $parts[] = "Tanggal SPK: " . ($spk->tanggal_spk ?? '-');
-        
+
         if ($spk->no_fps) {
             $parts[] = "Nomor FPS: {$spk->no_fps}";
         }
@@ -121,7 +120,7 @@ class EmbeddingService
             $parts[] = "Nama Pelanggan: {$j->nama_pelanggan}";
             $parts[] = "Lokasi Pelanggan: {$j->lokasi_pelanggan}";
             $parts[] = "Jasa: {$j->jasa}";
-            
+
             if ($j->media_akses) {
                 $parts[] = "Media Akses: {$j->media_akses}";
             }
@@ -177,7 +176,7 @@ class EmbeddingService
             $parts[] = "\n=== INFORMASI EKSEKUSI ===";
             $parts[] = "Teknisi: {$e->teknisi}";
             $parts[] = "Nama Vendor: {$e->nama_vendor}";
-            
+
             if ($e->pic_pelanggan) {
                 $parts[] = "PIC Pelanggan: {$e->pic_pelanggan}";
             }
@@ -196,7 +195,7 @@ class EmbeddingService
             $g = $spk->informasiGedung;
             $parts[] = "\n=== INFORMASI GEDUNG ===";
             $parts[] = "Alamat Lengkap: {$g->alamat}";
-            
+
             if ($g->status_gedung) {
                 $parts[] = "Status Gedung: {$g->status_gedung}";
             }
@@ -232,7 +231,7 @@ class EmbeddingService
         if ($spk->sarpenRuangServer) {
             $s = $spk->sarpenRuangServer;
             $parts[] = "\n=== SARPEN RUANG SERVER ===";
-            
+
             if ($s->power_line_listrik) {
                 $parts[] = "Power Line: {$s->power_line_listrik}";
             }
@@ -268,7 +267,7 @@ class EmbeddingService
         if ($spk->lokasiAntena) {
             $a = $spk->lokasiAntena;
             $parts[] = "\n=== LOKASI ANTENA ===";
-            
+
             if ($a->lokasi_antena) {
                 $parts[] = "Lokasi Antena: {$a->lokasi_antena}";
             }
@@ -298,7 +297,7 @@ class EmbeddingService
         if ($spk->perizinanBiayaGedung) {
             $pb = $spk->perizinanBiayaGedung;
             $parts[] = "\n=== PERIZINAN & BIAYA GEDUNG ===";
-            
+
             if ($pb->pic_bm) {
                 $parts[] = "PIC Building Management: {$pb->pic_bm}";
             }
@@ -319,7 +318,7 @@ class EmbeddingService
         if ($spk->penempatanPerangkat) {
             $pp = $spk->penempatanPerangkat;
             $parts[] = "\n=== PENEMPATAN PERANGKAT ===";
-            
+
             if ($pp->lokasi_penempatan_modem_dan_router) {
                 $parts[] = "Lokasi Modem & Router: {$pp->lokasi_penempatan_modem_dan_router}";
             }
@@ -338,7 +337,7 @@ class EmbeddingService
             $pk = $spk->perizinanBiayaKawasan;
             $parts[] = "\n=== PERIZINAN KAWASAN PRIVATE ===";
             $parts[] = "Melewati Kawasan Private: {$pk->melewati_kawasan_private}";
-            
+
             if ($pk->nama_kawasan) {
                 $parts[] = "Nama Kawasan: {$pk->nama_kawasan}";
             }
@@ -350,7 +349,7 @@ class EmbeddingService
         if ($spk->kawasanUmum) {
             $ku = $spk->kawasanUmum;
             $parts[] = "\n=== KAWASAN UMUM ===";
-            
+
             if ($ku->nama_kawasan_umum_pu_yang_dilewati) {
                 $parts[] = "Kawasan Umum: {$ku->nama_kawasan_umum_pu_yang_dilewati}";
             }
@@ -365,7 +364,7 @@ class EmbeddingService
         if ($spk->dataSplitter) {
             $ds = $spk->dataSplitter;
             $parts[] = "\n=== DATA SPLITTER ===";
-            
+
             if ($ds->lokasi_splitter) {
                 $parts[] = "Lokasi Splitter: {$ds->lokasi_splitter}";
             }

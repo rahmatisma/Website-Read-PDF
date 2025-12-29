@@ -63,6 +63,6 @@ class SpkPerizinanBiayaGedung extends Model
 
     public function spk()
     {
-        return $this->belongsTo(Spk::class, 'id_spk');
+        return $this->belongsTo(SPK::class, 'id_spk');
     }
 }

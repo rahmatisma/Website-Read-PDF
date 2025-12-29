@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Exception;
 
 class ChatbotController extends Controller
@@ -24,37 +25,19 @@ class ChatbotController extends Controller
     }
 
     /**
-     * Chat dengan chatbot
-     * 
-     * POST /chatbot/chat
-     * Body: {
-     *   "query": "Cek nojar 12345 untuk pelanggan siapa?",
-     *   "search_type": "both",  // optional: "jaringan", "spk", "both"
-     *   "top_k": 3              // optional: jumlah data relevan
-     * }
+     * Chat dengan chatbot (NON-STREAMING) - untuk RAG mode
      */
     public function chat(Request $request): JsonResponse
     {
-        // ================================
-        // VALIDATION
-        // ================================
         $validator = Validator::make($request->all(), [
             'query' => 'required|string|min:3|max:500',
             'conversation_history' => 'nullable|array',
-            'conversation_history.*.role' => 'nullable|in:user,assistant',
-            'conversation_history.*.content' => 'nullable|string',
             'current_context' => 'nullable|array',
-            'current_context.last_nojar' => 'nullable|string',
-            'current_context.last_pelanggan' => 'nullable|string',
-            'current_context.last_spk' => 'nullable|string',
-            'current_context.last_pop' => 'nullable|string',
             'search_type' => 'nullable|in:jaringan,spk,both',
             'top_k' => 'nullable|integer|min:1|max:10',
         ]);
 
         if ($validator->fails()) {
-            Log::warning('Chat validation failed', ['errors' => $validator->errors()]);
-            
             return response()->json([
                 'success' => false,
                 'error' => 'Validasi gagal: ' . $validator->errors()->first(),
@@ -62,48 +45,23 @@ class ChatbotController extends Controller
         }
 
         try {
-            // ================================
-            // EXTRACT REQUEST DATA
-            // ================================
             $query = $request->input('query');
             $conversationHistory = $request->input('conversation_history', []);
             $currentContext = $request->input('current_context', []);
-            
+
             $options = [
                 'search_type' => $request->input('search_type', 'both'),
                 'top_k' => $request->input('top_k', 3),
                 'min_similarity' => $request->input('min_similarity', 0.5),
             ];
 
-            Log::info('Chat request received', [
-                'query' => $query,
-                'has_history' => !empty($conversationHistory),
-                'history_count' => count($conversationHistory),
-                'has_context' => !empty($currentContext),
-                'context' => $currentContext,
-                'options' => $options
-            ]);
-
-            // ================================
-            // CALL CHATBOT SERVICE
-            // ================================
             $result = $this->chatbotService->chat(
                 $query,
-                $conversationHistory,  // ✅ Pass conversation history
-                $currentContext,       // ✅ Pass current context
+                $conversationHistory,
+                $currentContext,
                 $options
             );
 
-            Log::info('Chat service result', [
-                'success' => $result['success'],
-                'source' => $result['source'] ?? 'unknown',
-                'has_answer' => isset($result['answer']),
-                'has_extracted_entities' => isset($result['extracted_entities']),
-            ]);
-
-            // ================================
-            // HANDLE SERVICE FAILURE
-            // ================================
             if (!$result['success']) {
                 return response()->json([
                     'success' => false,
@@ -111,28 +69,18 @@ class ChatbotController extends Controller
                 ], 200);
             }
 
-            // ================================
-            // BUILD SUCCESS RESPONSE
-            // ================================
             $responseData = [
                 'query' => $result['query'] ?? $query,
-                'enhanced_query' => $result['enhanced_query'] ?? null,  // ✅ Query yang sudah di-enhance
+                'enhanced_query' => $result['enhanced_query'] ?? null,
                 'answer' => $result['answer'] ?? 'Tidak ada jawaban.',
                 'source' => $result['source'] ?? 'unknown',
                 'query_type' => $result['query_type'] ?? null,
-                'relevant_data_count' => isset($result['relevant_data']) 
-                    ? count($result['relevant_data']) 
+                'relevant_data_count' => isset($result['relevant_data'])
+                    ? count($result['relevant_data'])
                     : 0,
                 'relevant_data' => $result['relevant_data'] ?? [],
-                'extracted_entities' => $result['extracted_entities'] ?? [],  // ✅ Entities untuk update context
+                'extracted_entities' => $result['extracted_entities'] ?? [],
             ];
-
-            // ✅ Log extracted entities jika ada
-            if (!empty($result['extracted_entities'])) {
-                Log::info('Extracted entities', [
-                    'entities' => $result['extracted_entities']
-                ]);
-            }
 
             return response()->json([
                 'success' => true,
@@ -142,7 +90,6 @@ class ChatbotController extends Controller
         } catch (Exception $e) {
             Log::error('Chat controller error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
                 'query' => $request->input('query'),
             ]);
 
@@ -154,12 +101,133 @@ class ChatbotController extends Controller
     }
 
     /**
-     * Generate embedding untuk teks tertentu (untuk testing)
-     * 
-     * POST /chatbot/generate-embedding
-     * Body: {
-     *   "text": "Teks yang ingin di-embed"
+     * 🔥 NEW: STREAMING chat dengan Ollama
+     *
+     * Request Body:
+     * {
+     *   "query": "Pertanyaan user",
+     *   "conversation_history": [...],
+     *   "current_context": {...}
      * }
+     *
+     * Response: Server-Sent Events (SSE) streaming
+     */
+    public function chatStream(Request $request): StreamedResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'query' => 'required|string|min:3|max:500',
+            'conversation_history' => 'nullable|array',
+            'current_context' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->streamJson([
+                'error' => 'Validasi gagal: ' . $validator->errors()->first(),
+            ], 400);
+        }
+
+        $query = $request->input('query');
+        $conversationHistory = $request->input('conversation_history', []);
+        $currentContext = $request->input('current_context', []);
+
+        $flaskUrl = env('FLASK_API_URL', 'http://localhost:5000');
+
+        Log::info('🌊 Streaming chat request', [
+            'query' => $query,
+            'has_history' => !empty($conversationHistory),
+            'has_context' => !empty($currentContext),
+        ]);
+
+        return response()->stream(function () use ($flaskUrl, $query, $conversationHistory, $currentContext) {
+            try {
+                // ✅ Build conversation history untuk Ollama
+                $historyForOllama = [];
+                foreach ($conversationHistory as $msg) {
+                    $historyForOllama[] = [
+                        'role' => $msg['role'] ?? 'user',
+                        'content' => $msg['content'] ?? '',
+                    ];
+                }
+
+                // ✅ Build context string (optional - bisa dikosongkan jika pure streaming)
+                $contextString = '';
+                if (!empty($currentContext)) {
+                    $contextParts = [];
+                    if (isset($currentContext['last_nojar'])) {
+                        $contextParts[] = "Nojar: {$currentContext['last_nojar']}";
+                    }
+                    if (isset($currentContext['last_pelanggan'])) {
+                        $contextParts[] = "Pelanggan: {$currentContext['last_pelanggan']}";
+                    }
+                    $contextString = implode("\n", $contextParts);
+                }
+
+                // ✅ Call Flask streaming endpoint
+                $ch = curl_init("{$flaskUrl}/chat-stream");
+
+                curl_setopt_array($ch, [
+                    CURLOPT_POST => true,
+                    CURLOPT_POSTFIELDS => json_encode([
+                        'query' => $query,
+                        'context' => $contextString,
+                        'conversation_history' => $historyForOllama,
+                        'model' => env('OLLAMA_CHAT_MODEL', 'llama3.2:3b'),
+                    ]),
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json',
+                    ],
+                    CURLOPT_RETURNTRANSFER => false,
+                    CURLOPT_WRITEFUNCTION => function ($ch, $data) {
+                        // ✅ Forward setiap chunk dari Flask langsung ke client
+                        echo $data;
+
+                        // Flush output buffer agar langsung terkirim
+                        if (ob_get_level() > 0) {
+                            ob_flush();
+                        }
+                        flush();
+
+                        return strlen($data);
+                    },
+                    CURLOPT_TIMEOUT => 300,
+                    CURLOPT_CONNECTTIMEOUT => 10,
+                ]);
+
+                $success = curl_exec($ch);
+
+                if ($success === false) {
+                    $error = curl_error($ch);
+                    Log::error('Streaming curl error', ['error' => $error]);
+
+                    echo "data: " . json_encode(['error' => "Connection error: {$error}"]) . "\n\n";
+                    flush();
+                }
+
+                curl_close($ch);
+
+            } catch (Exception $e) {
+                Log::error('Streaming error', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+
+                echo "data: " . json_encode(['error' => $e->getMessage()]) . "\n\n";
+
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+                flush();
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+            'Connection' => 'keep-alive',
+        ]);
+    }
+
+    /**
+     * Generate embedding untuk teks tertentu (untuk testing)
      */
     public function generateEmbedding(Request $request): JsonResponse
     {
@@ -189,7 +257,7 @@ class ChatbotController extends Controller
 
         } catch (Exception $e) {
             Log::error('Generate embedding error', ['error' => $e->getMessage()]);
-            
+
             return response()->json([
                 'success' => false,
                 'error' => 'Gagal generate embedding: ' . $e->getMessage(),
@@ -199,13 +267,10 @@ class ChatbotController extends Controller
 
     /**
      * Health check untuk chatbot
-     * 
-     * GET /chatbot/health
      */
     public function health(): JsonResponse
     {
         try {
-            // Test koneksi ke Flask API
             $flaskUrl = env('FLASK_API_URL', 'http://localhost:5000');
             $response = \Illuminate\Support\Facades\Http::timeout(5)
                 ->get("{$flaskUrl}/health");
@@ -236,8 +301,6 @@ class ChatbotController extends Controller
 
     /**
      * Get statistik embeddings
-     * 
-     * GET /chatbot/stats
      */
     public function stats(): JsonResponse
     {
@@ -256,30 +319,11 @@ class ChatbotController extends Controller
 
         } catch (Exception $e) {
             Log::error('Stats error', ['error' => $e->getMessage()]);
-            
+
             return response()->json([
                 'success' => false,
                 'error' => 'Gagal get stats: ' . $e->getMessage(),
             ], 200);
         }
-    }
-
-    /**
-     * Legacy: Send message (redirect ke chat)
-     */
-    public function sendMessage(Request $request): JsonResponse
-    {
-        return $this->chat($request);
-    }
-
-    /**
-     * Legacy: Streaming endpoint (deprecated)
-     */
-    public function sendMessageStream(Request $request): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'error' => 'Streaming endpoint deprecated. Use /chatbot/chat instead.',
-        ], 200);
     }
 }

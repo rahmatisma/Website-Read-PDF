@@ -15,7 +15,7 @@ interface Message {
     sender: 'user' | 'bot';
     timestamp: string;
     relevantDataCount?: number;
-    extractedEntities?: {  // ✅ BARU
+    extractedEntities?: {
         nojar?: string;
         pelanggan?: string;
         spk?: string;
@@ -25,8 +25,11 @@ interface Message {
 
 const STORAGE_KEY = 'chatbot_messages';
 
+// ✅ Message ID counter untuk generate unique ID
+let messageIdCounter = 0;
+
 const getInitialMessage = (): Message => ({
-    id: 1,
+    id: ++messageIdCounter,  // ✅ Unique ID
     text: 'Halo! Saya adalah chatbot SPK Management System. Saya dapat membantu Anda dengan pertanyaan seputar data SPK, jaringan, pelanggan, dan informasi teknis lainnya. Ada yang bisa saya bantu?',
     sender: 'bot',
     timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -41,16 +44,25 @@ export default function Chatbot() {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 try {
-                    return JSON.parse(saved);
+                    const parsed = JSON.parse(saved);
+                    // ✅ Re-assign unique IDs untuk semua messages dari localStorage
+                    if (parsed.length > 0) {
+                        const messagesWithNewIds = parsed.map((msg: Message) => ({
+                            ...msg,
+                            id: ++messageIdCounter  // ✅ Generate new unique ID
+                        }));
+                        return messagesWithNewIds;
+                    }
                 } catch (e) {
                     console.error('Error parsing saved messages:', e);
+                    // ✅ Clear corrupted localStorage
+                    localStorage.removeItem(STORAGE_KEY);
                 }
             }
         }
         return [getInitialMessage()];
     });
 
-    // ✅ TAMBAHAN BARU - State untuk conversation context
     const [currentContext, setCurrentContext] = useState<{
         last_nojar?: string;
         last_pelanggan?: string;
@@ -62,10 +74,7 @@ export default function Chatbot() {
     const [isLoading, setIsLoading] = useState(false);
     const [streamingText, setStreamingText] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
-    
-    // ✅ TAMBAHAN: Toggle antara RAG mode dan Stream mode
-    const [useRAG, setUseRAG] = useState(true);
-    
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -92,102 +101,21 @@ export default function Chatbot() {
             }
             setIsStreaming(false);
             setStreamingText('');
+
+            // ✅ Reset counter saat new chat
+            messageIdCounter = 0;
             setMessages([getInitialMessage()]);
             setInputMessage('');
-            setCurrentContext({});  // ✅ RESET CONTEXT
-            
+            setCurrentContext({});
+
             setTimeout(() => {
                 (document.querySelector('.chat-input') as HTMLInputElement)?.focus();
             }, 50);
         }
     };
 
-    // ✅ FUNGSI RAG dengan Conversation Memory
+    // ✅ FUNGSI RAG MODE DENGAN STREAMING REAL-TIME
     const handleSendMessageRAG = async (messageToSend: string) => {
-        setIsLoading(true);
-
-        try {
-            // ✅ Build conversation history (5 messages terakhir)
-            const conversationHistory = messages
-                .slice(-10)  // Ambil 10 messages terakhir (5 pairs user-bot)
-                .map(msg => ({
-                    role: msg.sender === 'user' ? 'user' : 'assistant',
-                    content: msg.text,
-                    timestamp: msg.timestamp
-                }));
-
-            // ✅ Kirim query + history + context ke backend
-            const response = await fetch('/chatbot/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify({
-                    query: messageToSend,
-                    conversation_history: conversationHistory,  // ✅ BARU
-                    current_context: currentContext,            // ✅ BARU
-                    search_type: 'both',
-                    top_k: 3,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-
-            const data = await response.json();
-            setIsLoading(false);
-
-            if (data.success && data.data) {
-                // ✅ Update context jika ada extracted entities
-                if (data.data.extracted_entities && Object.keys(data.data.extracted_entities).length > 0) {
-                    console.log('📌 Extracted entities:', data.data.extracted_entities);
-                    
-                    setCurrentContext(prev => ({
-                        ...prev,
-                        ...data.data.extracted_entities  // Merge entities baru
-                    }));
-                }
-
-                const botMessage: Message = {
-                    id: Date.now(),
-                    text: data.data.answer,
-                    sender: 'bot',
-                    timestamp: new Date().toLocaleTimeString('id-ID', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                    }),
-                    relevantDataCount: data.data.relevant_data?.length || 0,
-                    extractedEntities: data.data.extracted_entities,  // ✅ Simpan entities
-                };
-                
-                setMessages((prev) => [...prev, botMessage]);
-            } else {
-                throw new Error(data.error || 'Terjadi kesalahan');
-            }
-
-        } catch (error: any) {
-            setIsLoading(false);
-            
-            const errorText = error.message || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
-            
-            const botMessage: Message = {
-                id: Date.now(),
-                text: errorText,
-                sender: 'bot',
-                timestamp: new Date().toLocaleTimeString('id-ID', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }),
-            };
-            
-            setMessages((prev) => [...prev, botMessage]);
-        }
-    };
-
-    // ✅ FUNGSI STREAMING (Existing - Tetap Dipertahankan)
-    const handleSendMessageStream = async (messageToSend: string) => {
         setIsLoading(true);
         setStreamingText('');
         setIsStreaming(true);
@@ -195,24 +123,78 @@ export default function Chatbot() {
         abortControllerRef.current = new AbortController();
 
         try {
-            const response = await fetch('/chatbot/stream', {
+            // ✅ Build conversation history (10 messages terakhir)
+            const conversationHistory = messages
+                .slice(-10)
+                .map(msg => ({
+                    role: msg.sender === 'user' ? 'user' : 'assistant',
+                    content: msg.text,
+                    timestamp: msg.timestamp
+                }));
+
+            console.log('📤 Sending RAG streaming request:', {
+                query: messageToSend,
+                has_history: conversationHistory.length > 0,
+                has_context: Object.keys(currentContext).length > 0,
+                context: currentContext
+            });
+
+            // ✅ Get CSRF token - coba beberapa cara
+            let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            // Fallback: cari di meta tag lain
+            if (!csrfToken) {
+                csrfToken = document.querySelector('meta[name="X-CSRF-TOKEN"]')?.getAttribute('content');
+            }
+
+            // Fallback: cari di input hidden
+            if (!csrfToken) {
+                csrfToken = (document.querySelector('input[name="_token"]') as HTMLInputElement)?.value;
+            }
+
+            console.log('🔍 CSRF Token found:', !!csrfToken);
+
+            if (!csrfToken) {
+                console.error('❌ CSRF token tidak ditemukan di DOM');
+                console.log('Available meta tags:', Array.from(document.querySelectorAll('meta')).map(m => m.getAttribute('name')));
+                throw new Error('CSRF token tidak ditemukan. Pastikan meta tag CSRF ada di layout.');
+            }
+
+            console.log('🔑 CSRF Token:', csrfToken.substring(0, 20) + '...');
+
+            // ✅ Call Laravel streaming endpoint dengan RAG context
+            const response = await fetch('/chatbot/chat-stream', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'text/event-stream',
                 },
                 body: JSON.stringify({
-                    message: messageToSend,
+                    query: messageToSend,
+                    conversation_history: conversationHistory,  // ✅ RAG: conversation memory
+                    current_context: currentContext,            // ✅ RAG: extracted entities context
                 }),
                 signal: abortControllerRef.current.signal,
             });
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                console.error('❌ Response not OK:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: response.url
+                });
+
+                // Coba baca error message dari response
+                const errorText = await response.text();
+                console.error('Error body:', errorText);
+
+                throw new Error(`Request failed: ${response.status} ${response.statusText}`);
             }
 
             setIsLoading(false);
 
+            // ✅ Read streaming response token by token
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let fullText = '';
@@ -220,32 +202,39 @@ export default function Chatbot() {
             if (reader) {
                 while (true) {
                     const { done, value } = await reader.read();
-                    
-                    if (done) break;
+
+                    if (done) {
+                        console.log('✅ Streaming completed, total length:', fullText.length);
+                        break;
+                    }
 
                     const chunk = decoder.decode(value, { stream: true });
                     const lines = chunk.split('\n');
-                    
+
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             try {
                                 const jsonStr = line.substring(6);
                                 const data = JSON.parse(jsonStr);
-                                
+
                                 if (data.error) {
-                                    throw new Error(data.message || 'Terjadi kesalahan');
+                                    throw new Error(data.error || 'Terjadi kesalahan');
                                 }
-                                
+
+                                // 🔥 Terima token dari Ollama via Flask via Laravel
                                 if (data.token) {
                                     fullText += data.token;
-                                    setStreamingText(fullText);
+                                    setStreamingText(fullText);  // 🔥 Update UI real-time per token
                                 }
-                                
+
+                                // ✅ Check jika streaming selesai
                                 if (data.done) {
+                                    console.log('🏁 Stream done signal received');
                                     break;
                                 }
                             } catch (e) {
                                 // Skip invalid JSON
+                                console.warn('Invalid JSON in stream:', line, e);
                             }
                         }
                     }
@@ -253,32 +242,40 @@ export default function Chatbot() {
             }
 
             setIsStreaming(false);
-            
+
+            // ✅ Save complete message dengan unique ID
             const botMessage: Message = {
-                id: Date.now(),
+                id: ++messageIdCounter,  // ✅ FIXED: Unique ID
                 text: fullText || 'Maaf, tidak ada respons.',
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString('id-ID', {
                     hour: '2-digit',
                     minute: '2-digit',
                 }),
+                // Note: Untuk mode streaming, kita tidak bisa tahu relevantDataCount
+                // karena response langsung stream tanpa metadata
             };
-            
+
             setMessages((prev) => [...prev, botMessage]);
             setStreamingText('');
+
+            console.log('✅ Message saved to history');
 
         } catch (error: any) {
             setIsLoading(false);
             setIsStreaming(false);
-            
+
             if (error.name === 'AbortError') {
+                console.log('⚠️ Stream aborted by user');
                 return;
             }
-            
-            const errorText = 'Maaf, terjadi kesalahan. Silakan coba lagi.';
-            
+
+            console.error('❌ RAG Streaming error:', error);
+
+            const errorText = error.message || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
+
             const botMessage: Message = {
-                id: Date.now(),
+                id: ++messageIdCounter,  // ✅ FIXED: Unique ID
                 text: errorText,
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -286,18 +283,18 @@ export default function Chatbot() {
                     minute: '2-digit',
                 }),
             };
-            
+
             setMessages((prev) => [...prev, botMessage]);
             setStreamingText('');
         }
     };
 
-    // ✅ MAIN HANDLER - Pilih antara RAG atau Streaming
+    // ✅ MAIN HANDLER - Langsung pakai RAG Streaming
     const handleSendMessage = async () => {
         if (!inputMessage.trim() || isLoading || isStreaming) return;
 
         const userMessage: Message = {
-            id: Date.now(),
+            id: ++messageIdCounter,  // ✅ FIXED: Unique ID
             text: inputMessage,
             sender: 'user',
             timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -314,12 +311,8 @@ export default function Chatbot() {
             (document.querySelector('.chat-input') as HTMLInputElement)?.focus();
         }, 50);
 
-        // Pilih mode berdasarkan toggle
-        if (useRAG) {
-            await handleSendMessageRAG(messageToSend);
-        } else {
-            await handleSendMessageStream(messageToSend);
-        }
+        // 🔥 Langsung pakai RAG Streaming
+        await handleSendMessageRAG(messageToSend);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -342,44 +335,33 @@ export default function Chatbot() {
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <CardTitle className="text-base md:text-lg">SPK Chatbot</CardTitle>
-                                        {/* ✅ BADGE MODE */}
-                                        <Badge variant={useRAG ? "default" : "secondary"} className="text-[10px]">
-                                            {useRAG ? (
-                                                <span className="flex items-center gap-1">
-                                                    <Database className="h-2.5 w-2.5" />
-                                                    RAG
-                                                </span>
-                                            ) : (
-                                                <span className="flex items-center gap-1">
-                                                    <Zap className="h-2.5 w-2.5" />
-                                                    Stream
-                                                </span>
-                                            )}
+                                        <Badge variant="default" className="text-[10px]">
+                                            <span className="flex items-center gap-1">
+                                                <Zap className="h-2.5 w-2.5" />
+                                                RAG Stream
+                                            </span>
                                         </Badge>
                                     </div>
                                     <CardDescription className="hidden text-xs md:block md:text-sm">
-                                        {useRAG 
-                                            ? 'Mode RAG: Jawaban berdasarkan database SPK'
-                                            : 'Mode Stream: Jawaban streaming real-time'
-                                        }
+                                        Mode RAG Streaming: Jawaban real-time dari database SPK
                                     </CardDescription>
 
-                                    {/* ✅ CONTEXT INDICATOR (Optional - untuk debugging) */}
+                                    {/* ✅ CONTEXT INDICATOR */}
                                     {Object.keys(currentContext).length > 0 && (
                                         <div className="mt-1 flex flex-wrap gap-1">
                                             {currentContext.last_nojar && (
                                                 <Badge variant="outline" className="text-[9px] md:text-[10px]">
-                                                    Nojar: {currentContext.last_nojar}
+                                                    📍 Nojar: {currentContext.last_nojar}
                                                 </Badge>
                                             )}
                                             {currentContext.last_pelanggan && (
                                                 <Badge variant="outline" className="text-[9px] md:text-[10px]">
-                                                    {currentContext.last_pelanggan.substring(0, 20)}...
+                                                    👤 {currentContext.last_pelanggan.substring(0, 20)}...
                                                 </Badge>
                                             )}
                                             {currentContext.last_spk && (
                                                 <Badge variant="outline" className="text-[9px] md:text-[10px]">
-                                                    SPK: {currentContext.last_spk}
+                                                    📄 SPK: {currentContext.last_spk}
                                                 </Badge>
                                             )}
                                         </div>
@@ -387,16 +369,6 @@ export default function Chatbot() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {/* ✅ TOGGLE MODE */}
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setUseRAG(!useRAG)}
-                                    className="flex cursor-pointer items-center gap-1 md:gap-2"
-                                >
-                                    {useRAG ? <Zap className="h-3 w-3 md:h-4 md:w-4" /> : <Database className="h-3 w-3 md:h-4 md:w-4" />}
-                                    <span className="hidden md:inline">{useRAG ? 'Stream' : 'RAG'}</span>
-                                </Button>
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -435,7 +407,6 @@ export default function Chatbot() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] text-muted-foreground md:text-xs">{message.timestamp}</span>
-                                                {/* ✅ Tampilkan jumlah data relevan (RAG mode) */}
                                                 {message.sender === 'bot' && message.relevantDataCount !== undefined && message.relevantDataCount > 0 && (
                                                     <span className="flex items-center gap-1 text-[10px] text-muted-foreground md:text-xs">
                                                         <Database className="h-2.5 w-2.5 md:h-3 md:w-3" />
@@ -446,7 +417,7 @@ export default function Chatbot() {
                                         </div>
                                     </div>
                                 ))}
-                                
+
                                 {isLoading && (
                                     <div className="flex items-start gap-2 md:gap-3">
                                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted md:h-8 md:w-8">
@@ -474,6 +445,10 @@ export default function Chatbot() {
                                                     <span className="animate-pulse">▊</span>
                                                 </p>
                                             </div>
+                                            <span className="text-[10px] text-muted-foreground md:text-xs flex items-center gap-1">
+                                                <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                                                Streaming...
+                                            </span>
                                         </div>
                                     </div>
                                 )}
@@ -488,7 +463,7 @@ export default function Chatbot() {
                     <div className="rounded-t-lg border-t bg-background p-3 shadow-xl md:mx-2 md:rounded-lg md:border md:bg-background/95 md:p-4 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
                         <div className="flex items-center gap-2">
                             <Input
-                                placeholder={useRAG ? "Tanya tentang SPK, nojar, pelanggan..." : "Ketik pesan..."}
+                                placeholder="Tanya tentang SPK, nojar, pelanggan..."
                                 autoFocus
                                 value={inputMessage}
                                 onChange={(e) => setInputMessage(e.target.value)}
@@ -496,10 +471,10 @@ export default function Chatbot() {
                                 className="chat-input flex-1 text-sm md:text-base"
                                 disabled={isLoading || isStreaming}
                             />
-                            <Button 
-                                onClick={handleSendMessage} 
-                                disabled={!inputMessage.trim() || isLoading || isStreaming} 
-                                size="icon" 
+                            <Button
+                                onClick={handleSendMessage}
+                                disabled={!inputMessage.trim() || isLoading || isStreaming}
+                                size="icon"
                                 className="h-9 w-9 shrink-0 cursor-pointer md:h-10 md:w-10"
                             >
                                 <Send className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -507,10 +482,7 @@ export default function Chatbot() {
                         </div>
 
                         <p className="mt-2 hidden text-xs text-muted-foreground md:block">
-                            {useRAG 
-                                ? '💡 Tips: "Cek nojar 12345", "Siapa vendor SPK-001?", "Lokasi pelanggan PT Telkom?"'
-                                : '💡 Tips: Tanyakan tentang produk, layanan, kontak, atau informasi perusahaan kami'
-                            }
+                            💡 Tips: "Cek nojar 12345", "Siapa vendor SPK-001?", "Lokasi pelanggan PT Telkom?"
                         </p>
                     </div>
                 </div>

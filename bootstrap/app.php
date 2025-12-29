@@ -18,13 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Exclude cookies dari enkripsi
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        // CSRF exception untuk chatbot streaming
+        // ✅ FIX: CSRF exception untuk chatbot streaming
         $middleware->validateCsrfTokens(except: [
-            'chatbot/stream',
+            'chatbot/chat-stream',  // ✅ Ubah dari 'chatbot/stream' ke 'chatbot/chat-stream'
             'chatbot/chat',
         ]);
 
-        // ✅ TAMBAHAN: Register middleware alias untuk admin verification
+        // Register middleware alias untuk admin verification
         $middleware->alias([
             'verified.admin' => EnsureUserIsVerified::class,
             'admin.only'     => \App\Http\Middleware\AdminOnly::class,
