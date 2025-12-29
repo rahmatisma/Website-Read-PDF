@@ -3,10 +3,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
-import { Head, usePage } from '@inertiajs/react';
-import { Calendar, CheckCircle2, ClipboardCheck, File, FileCheck, Mail, Shield } from 'lucide-react';
-import { useState } from 'react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { Calendar, AlertCircle, ClipboardCheck, File, FileCheck, Mail, Shield, ChevronRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import axios from 'axios';
 
 interface Document {
     id: number;
@@ -20,146 +21,79 @@ interface User {
     id: number;
     name: string;
     email: string;
-    role: string;
+    role: 'admin' | 'engineer' | 'nms';
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
 }
 
+interface UploadTrend {
+    date: string;
+    spk: number;
+    checklist: number;
+}
+
 interface DashboardProps {
+    countPDF: number;
     countDOC: number;
     countIMG: number;
+    countChecklist: number;
     countAll: number;
-    countUsersVerified?: number;
-    countSPKTypes?: number;
-    countFormChecklist?: number;
-    uploadTrend?: {
-        date: string;
-        spk: number;
-        checklist: number;
-    }[];
-    recentDocuments?: Document[];
-    [key: string]: unknown;
+    countUsersUnverified: number;
+    countSPKTypes: number;
+    countFormChecklist: number;
+    uploadTrend: UploadTrend[];
+    recentDocuments: Document[];
+    unverifiedUsers: User[];
+    [key: string]: any;
 }
 
 export default function Dashboard() {
-    const {
-        countUsersVerified = 0,
-        countSPKTypes = 0,
-        countFormChecklist = 0,
-        uploadTrend = [],
-        recentDocuments = [],
-    } = usePage<DashboardProps>().props;
+    const initialProps = usePage<DashboardProps>().props;
 
-    // Dummy data untuk upload trend (7 hari terakhir)
-    const defaultUploadTrend = [
-        { date: '17 Dec', spk: 5, checklist: 3 },
-        { date: '18 Dec', spk: 4, checklist: 5 },
-        { date: '19 Dec', spk: 3, checklist: 6 },
-        { date: '20 Dec', spk: 5, checklist: 7 },
-        { date: '21 Dec', spk: 4, checklist: 6 },
-        { date: '22 Dec', spk: 6, checklist: 8 },
-        { date: '23 Dec', spk: 12, checklist: 1 },
-    ];
+    // ✅ State untuk semua data real-time
+    const [countUsersUnverified, setCountUsersUnverified] = useState(initialProps.countUsersUnverified);
+    const [countSPKTypes, setCountSPKTypes] = useState(initialProps.countSPKTypes);
+    const [countFormChecklist, setCountFormChecklist] = useState(initialProps.countFormChecklist);
+    const [uploadTrend, setUploadTrend] = useState(initialProps.uploadTrend);
+    const [localDocuments, setLocalDocuments] = useState<Document[]>(initialProps.recentDocuments);
+    const [unverifiedUsers, setUnverifiedUsers] = useState(initialProps.unverifiedUsers);
+    const [isPolling, setIsPolling] = useState(false);
 
-    // Dummy data untuk recent documents
-    const defaultRecentDocuments: Document[] = [
-        {
-            id: 1,
-            fileName: 'SPK_Masket_2025.pdf',
-            uploadedDate: '2025-12-23 10:30',
-            fileSize: '2.4 MB',
-            status: 'processing',
-        },
-        {
-            id: 2,
-            fileName: 'Proposal_Jaringan_Lintasarta.pdf',
-            uploadedDate: '2025-12-23 09:15',
-            fileSize: '1.8 MB',
-            status: 'completed',
-        },
-        {
-            id: 3,
-            fileName: 'Berita_Acara_Lintasarta.pdf',
-            uploadedDate: '2025-12-22 16:45',
-            fileSize: '3.2 MB',
-            status: 'processing',
-        },
-        {
-            id: 4,
-            fileName: 'SPK_Smartfren_Q4.pdf',
-            uploadedDate: '2025-12-22 14:20',
-            fileSize: '1.5 MB',
-            status: 'failed',
-        },
-        {
-            id: 5,
-            fileName: 'Dokumentasi_Site_Survey.pdf',
-            uploadedDate: '2025-12-22 11:00',
-            fileSize: '4.1 MB',
-            status: 'processing',
-        },
-    ];
+    // ✅ Real-time polling untuk SEMUA data dashboard
+    useEffect(() => {
+        console.log('🚀 Dashboard Real-time Started');
+        setIsPolling(true);
 
-    const chartData = defaultUploadTrend;
-    const documents = defaultRecentDocuments;
+        // Polling setiap 5 detik untuk update semua data
+        const interval = setInterval(async () => {
+            try {
+                console.log('📡 Fetching dashboard stats...');
+                
+                const response = await axios.get('/api/dashboard/stats');
+                const data = response.data;
+                
+                console.log('✅ Dashboard stats received:', data);
 
-    // Data Dummy Users
-    const dummyUsers: User[] = [
-        {
-            id: 1,
-            name: 'Administrator',
-            email: 'admin@email.com',
-            role: 'admin',
-            avatar: undefined,
-            email_verified_at: '2024-01-15T10:30:00.000000Z',
-            created_at: '2024-01-15T10:30:00.000000Z',
-            updated_at: '2024-12-22T08:15:00.000000Z',
-        },
-        {
-            id: 2,
-            name: 'John Doe',
-            email: 'john@email.com',
-            role: 'user',
-            avatar: undefined,
-            email_verified_at: '2024-03-20T14:20:00.000000Z',
-            created_at: '2024-03-20T14:20:00.000000Z',
-            updated_at: '2024-12-20T09:30:00.000000Z',
-        },
-        {
-            id: 3,
-            name: 'Jane Smith',
-            email: 'jane@email.com',
-            role: 'user',
-            avatar: undefined,
-            email_verified_at: '2024-05-10T09:15:00.000000Z',
-            created_at: '2024-05-10T09:15:00.000000Z',
-            updated_at: '2024-12-21T11:45:00.000000Z',
-        },
-        {
-            id: 4,
-            name: 'Bob Manager',
-            email: 'bob@email.com',
-            role: 'manager',
-            avatar: undefined,
-            email_verified_at: '2024-02-28T16:45:00.000000Z',
-            created_at: '2024-02-28T16:45:00.000000Z',
-            updated_at: '2024-12-19T13:20:00.000000Z',
-        },
-        {
-            id: 5,
-            name: 'Alice Cooper',
-            email: 'alice@email.com',
-            role: 'user',
-            avatar: undefined,
-            email_verified_at: null,
-            created_at: '2024-12-01T08:00:00.000000Z',
-            updated_at: '2024-12-01T08:00:00.000000Z',
-        },
-    ];
+                // Update semua state
+                setCountUsersUnverified(data.countUsersUnverified);
+                setCountSPKTypes(data.countSPKTypes);
+                setCountFormChecklist(data.countFormChecklist);
+                setUploadTrend(data.uploadTrend);
+                setLocalDocuments(data.recentDocuments);
+                setUnverifiedUsers(data.unverifiedUsers);
+            } catch (error) {
+                console.error('❌ Dashboard polling error:', error);
+            }
+        }, 5000); // Poll setiap 5 detik
 
-    const [users, setUsers] = useState<User[]>(dummyUsers);
+        return () => {
+            console.log('🛑 Stopping dashboard polling');
+            clearInterval(interval);
+            setIsPolling(false);
+        };
+    }, []);
 
     const getInitials = (name: string) => {
         return name
@@ -174,10 +108,12 @@ export default function Dashboard() {
         switch (role) {
             case 'admin':
                 return 'destructive';
-            case 'manager':
+            case 'engineer':
                 return 'default';
-            default:
+            case 'nms':
                 return 'secondary';
+            default:
+                return 'outline';
         }
     };
 
@@ -213,17 +149,29 @@ export default function Dashboard() {
         <AppLayout>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
+                {/* ✅ Real-time Indicator */}
+                {isPolling && (
+                    <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+                        <div className="flex items-center gap-3">
+                            <div className="h-2 w-2 animate-pulse rounded-full bg-blue-400"></div>
+                            <span className="text-sm text-blue-400">
+                                🔄 Real-time monitoring active - Dashboard updates every 5 seconds
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Statistics Cards */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {/* Verified Users */}
+                    {/* ✅ CHANGED: Unverified Users (bukan Verified) */}
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Verified</CardTitle>
-                            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                            <CardTitle className="text-sm font-medium">Unverified Users</CardTitle>
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{countUsersVerified}</div>
-                            <p className="text-xs text-muted-foreground">Users has been verified</p>
+                            <div className="text-2xl font-bold">{countUsersUnverified}</div>
+                            <p className="text-xs text-muted-foreground">Users pending verification</p>
                         </CardContent>
                     </Card>
 
@@ -234,7 +182,7 @@ export default function Dashboard() {
                             <FileCheck className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{countSPKTypes || 8}</div>
+                            <div className="text-2xl font-bold">{countSPKTypes}</div>
                             <p className="text-xs text-muted-foreground">Different SPK types</p>
                         </CardContent>
                     </Card>
@@ -246,7 +194,7 @@ export default function Dashboard() {
                             <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{countFormChecklist || 12}</div>
+                            <div className="text-2xl font-bold">{countFormChecklist}</div>
                             <p className="text-xs text-muted-foreground">Total form templates</p>
                         </CardContent>
                     </Card>
@@ -256,18 +204,16 @@ export default function Dashboard() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Upload Trend</CardTitle>
-                        <CardDescription>Daily document uploads for the last 7 days</CardDescription>
+                        <CardDescription>Daily document uploads for the last 7 days (auto-updates)</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
                         <ResponsiveContainer width="100%" height={300}>
-                            <AreaChart data={chartData}>
+                            <AreaChart data={uploadTrend}>
                                 <defs>
-                                    {/* Gradient untuk SPK - Purple */}
                                     <linearGradient id="colorSPK" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#a855f7" stopOpacity={0.5} />
                                         <stop offset="95%" stopColor="#a855f7" stopOpacity={0.1} />
                                     </linearGradient>
-                                    {/* Gradient untuk Form Checklist - Emerald */}
                                     <linearGradient id="colorChecklist" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.5} />
                                         <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
@@ -284,13 +230,10 @@ export default function Dashboard() {
                                     }}
                                     labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
                                     formatter={(value, name) => {
-                                        // ✅ Fix: Cek name dengan benar
                                         const label = name === 'spk' ? 'SPK Documents' : 'Form Checklist';
                                         return [value ?? 0, label];
                                     }}
                                 />
-
-                                {/* Area untuk SPK - Layer pertama (di bawah) */}
                                 <Area
                                     type="monotone"
                                     dataKey="spk"
@@ -300,8 +243,6 @@ export default function Dashboard() {
                                     fill="url(#colorSPK)"
                                     name="spk"
                                 />
-
-                                {/* Area untuk Form Checklist - Layer kedua (di atas) */}
                                 <Area
                                     type="monotone"
                                     dataKey="checklist"
@@ -332,69 +273,87 @@ export default function Dashboard() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Recent Documents</CardTitle>
-                        <CardDescription>Latest uploaded PDF documents</CardDescription>
+                        <CardDescription>5 Latest uploaded documents (auto-deleted after 1 day, auto-updates)</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[50px]">ID</TableHead>
-                                        <TableHead>File Name</TableHead>
-                                        <TableHead>Uploaded Date</TableHead>
-                                        <TableHead>File Size</TableHead>
-                                        <TableHead>Document Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {documents.map((doc) => (
-                                        <TableRow key={doc.id}>
-                                            <TableCell className="font-medium">{doc.id}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <File className="h-4 w-4 text-muted-foreground" />
-                                                    <span className="font-medium">{doc.fileName}</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                    <Calendar className="h-4 w-4" />
-                                                    {formatDate(doc.uploadedDate)}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">{doc.fileSize}</TableCell>
-                                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        {localDocuments.length > 0 ? (
+                            <>
+                                <div className="rounded-lg border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-[50px]">ID</TableHead>
+                                                <TableHead>File Name</TableHead>
+                                                <TableHead>Uploaded Date</TableHead>
+                                                <TableHead>File Size</TableHead>
+                                                <TableHead>Status</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {localDocuments.map((doc) => (
+                                                <TableRow key={doc.id}>
+                                                    <TableCell className="font-medium">{doc.id}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <File className="h-4 w-4 text-muted-foreground" />
+                                                            <span className="font-medium">{doc.fileName}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                            <Calendar className="h-4 w-4" />
+                                                            {formatDate(doc.uploadedDate)}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm text-muted-foreground">{doc.fileSize}</TableCell>
+                                                    <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                {/* View More Button */}
+                                <div className="mt-4 flex justify-center">
+                                    <button
+                                        onClick={() => router.visit('/documents')}
+                                        className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                                    >
+                                        <File className="h-4 w-4" />
+                                        View More Documents
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="py-8 text-center text-muted-foreground">
+                                <File className="mx-auto h-12 w-12 opacity-20" />
+                                <p className="mt-2">No recent documents</p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* Unverified User Table */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Unverified User</CardTitle>
-                        <CardDescription>Pengguna yang belum terverifikasi</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[50px]">ID</TableHead>
-                                        <TableHead>User</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Role</TableHead>
-                                        <TableHead className="w-60">Joined</TableHead>
-                                        <TableHead className="w-45">Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {users
-                                        .filter((user) => user.email_verified_at === null)
-                                        .map((user) => (
+                {/* Unverified Users Table */}
+                {unverifiedUsers.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Unverified Users</CardTitle>
+                            <CardDescription>Latest users pending admin verification (auto-updates)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[50px]">ID</TableHead>
+                                            <TableHead>User</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Role</TableHead>
+                                            <TableHead className="w-60">Joined</TableHead>
+                                            <TableHead className="w-45">Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {unverifiedUsers.map((user) => (
                                             <TableRow key={user.id}>
                                                 <TableCell className="font-medium">{user.id}</TableCell>
                                                 <TableCell>
@@ -429,19 +388,29 @@ export default function Dashboard() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant="outline" className="border-yellow-500 text-yellow-600">
-                                                            Unverified
-                                                        </Badge>
-                                                    </div>
+                                                    <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+                                                        Pending Approval
+                                                    </Badge>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            {/* View More Button */}
+                            <div className="mt-4 flex justify-center">
+                                <button
+                                    onClick={() => router.visit('/users')}
+                                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                                >
+                                    <Shield className="h-4 w-4" />
+                                    Manage All Users
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </AppLayout>
     );

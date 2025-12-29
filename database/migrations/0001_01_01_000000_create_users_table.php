@@ -17,8 +17,26 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+
+            // Role: admin, engineer, nms
+            $table->enum('role', ['admin', 'engineer', 'nms'])->default('engineer');
+
+            // Admin verification - user harus diverifikasi admin dulu sebelum bisa login
+            $table->boolean('is_verified_by_admin')->default(false);
+            $table->unsignedBigInteger('verified_by')->nullable(); // ID admin yang verifikasi
+            $table->timestamp('verified_at')->nullable(); // Waktu verifikasi
+
+            // Avatar (optional)
+            $table->string('avatar')->nullable();
+
             $table->rememberToken();
             $table->timestamps();
+
+            // Foreign key untuk admin yang memverifikasi
+            $table->foreign('verified_by')
+                ->references('id')
+                ->on('users')
+                ->onDelete('set null');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

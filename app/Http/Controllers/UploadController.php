@@ -20,38 +20,60 @@ class UploadController extends Controller
 
     /**
      * ========================================
-     * UPLOAD PDF - DENGAN BACKGROUND JOB
+     * VALIDASI DOCUMENT TYPE
      * ========================================
-     * User langsung redirect tanpa tunggu processing selesai.
-     * Semua proses berat (Python API, ekstraksi, parsing) dilakukan di background.
      */
-    private function findDokumentasiLocation($data, $path = '')
+    private function validateDocumentType(string $detectedType, string $expectedCategory): array
     {
-        $locations = [];
-        foreach ($data as $key => $value) {
-            $currentPath = $path ? $path . '.' . $key : $key;
-            if ($key === 'dokumentasi') {
-                $locations[] = $currentPath;
+        // Definisi kategori dokumen
+        $spkTypes = ['spk_survey', 'spk_instalasi', 'spk_dismantle', 'spk_aktivasi'];
+        $checklistTypes = ['checklist_wireline', 'checklist_wireless'];
+        
+        $isValid = false;
+        $message = '';
+        
+        if ($expectedCategory === 'spk') {
+            $isValid = in_array($detectedType, $spkTypes);
+            if (!$isValid) {
+                if (in_array($detectedType, $checklistTypes)) {
+                    $message = "Dokumen ini adalah Form Checklist, bukan SPK! Silakan upload di halaman Form Checklist.";
+                } elseif ($detectedType === 'unknown') {
+                    $message = "Jenis dokumen tidak dapat dideteksi. Pastikan file PDF adalah dokumen SPK yang valid.";
+                } else {
+                    $message = "Jenis dokumen tidak sesuai untuk upload SPK.";
+                }
             }
-            if (is_array($value)) {
-                $locations = array_merge($locations, $this->findDokumentasiLocation($value, $currentPath));
+        } elseif ($expectedCategory === 'checklist') {
+            $isValid = in_array($detectedType, $checklistTypes);
+            if (!$isValid) {
+                if (in_array($detectedType, $spkTypes)) {
+                    $message = "Dokumen ini adalah SPK, bukan Form Checklist! Silakan upload di halaman Dokumen PDF.";
+                } elseif ($detectedType === 'unknown') {
+                    $message = "Jenis dokumen tidak dapat dideteksi. Pastikan file PDF adalah Form Checklist yang valid.";
+                } else {
+                    $message = "Jenis dokumen tidak sesuai untuk upload Form Checklist.";
+                }
             }
         }
-        return $locations;
+        
+        return [
+            'valid' => $isValid,
+            'message' => $message,
+            'detected_type' => $detectedType
+        ];
     }
+
+    /**
+     * ========================================
+     * UPLOAD SPK - DENGAN BACKGROUND JOB + VALIDASI
+     * ========================================
+     */
     public function storePDF(Request $request)
     {
         $request->validate([
             'file' => 'required|mimes:pdf|max:10240', // 10MB
             'document_type' => 'required|string|max:50',
         ]);
-
-        Log::info('RAW JSON received from Python', [
-            'json_data' => $request->all(),
-            'has_dokumentasi_root' => isset($request->all()['dokumentasi']),
-            'dokumentasi_location' => $this->findDokumentasiLocation($request->all())
-        ]);
-        
 
         $file = $request->file('file');
         $originalName = $file->getClientOriginalName();
@@ -76,27 +98,65 @@ class UploadController extends Controller
             'upload_id' => $upload->id_upload,
             'file_name' => $originalName,
             'document_type' => $request->document_type,
-            'file_size' => $file->getSize()
+            'file_size' => $file->getSize(),
+            'expected_category' => 'spk' // ← TAMBAHAN: untuk validasi di Job
         ]);
 
-        // ✅ DISPATCH JOB KE QUEUE
-        // Proses yang akan dilakukan di background:
-        // 1. Update status → 'processing'
-        // 2. Kirim file ke Python API (timeout 10 menit)
-        // 3. Simpan extracted_data (JSON dari Python)
-        // 4. Pecah data ke tabel-tabel (JsonToDatabase->process)
-        // 5. Update status → 'completed' / 'failed'
-        ProcessDocumentJob::dispatch($upload->id_upload);
+        // ✅ DISPATCH JOB KE QUEUE dengan parameter validasi
+        ProcessDocumentJob::dispatch($upload->id_upload, 'spk');
 
-        // ✅ LANGSUNG RETURN - User tidak perlu tunggu
-        return redirect()->back()->with('success', 'Upload berhasil! Dokumen sedang diproses di background. Refresh halaman untuk melihat status. 🚀');
+        return redirect()->back()->with('success', 'Upload berhasil! Dokumen SPK sedang diproses di background. Refresh halaman untuk melihat status. 🚀');
+    }
+
+    /**
+     * ========================================
+     * UPLOAD FORM CHECKLIST - DENGAN BACKGROUND JOB + VALIDASI
+     * ========================================
+     */
+    public function storeChecklist(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:pdf|max:10240', // 10MB
+            'document_type' => 'required|string|max:50',
+        ]);
+
+        $file = $request->file('file');
+        $originalName = $file->getClientOriginalName();
+
+        // Simpan file ke storage/app/public/checklists
+        $path = $file->storeAs('checklists', $originalName, 'public');
+
+        // Simpan ke database dengan status 'uploaded'
+        $upload = Document::create([
+            'source_type' => 'user',
+            'id_user' => Auth::id(),
+            'source_system' => null,
+            'document_type' => 'form_checklist',
+            'file_name' => $originalName,
+            'file_path' => $path,
+            'file_type' => $file->getClientOriginalExtension(),
+            'file_size' => $file->getSize(),
+            'status' => 'uploaded',
+        ]);
+
+        Log::info('Form Checklist PDF uploaded successfully, dispatching background job', [
+            'upload_id' => $upload->id_upload,
+            'file_name' => $originalName,
+            'document_type' => 'form_checklist',
+            'file_size' => $file->getSize(),
+            'expected_category' => 'checklist' // ← TAMBAHAN: untuk validasi di Job
+        ]);
+
+        // ✅ DISPATCH JOB KE QUEUE dengan parameter validasi
+        ProcessDocumentJob::dispatch($upload->id_upload, 'checklist');
+
+        return redirect()->back()->with('success', 'Upload form checklist berhasil! Dokumen sedang diproses di background. Refresh halaman untuk melihat status. 🚀');
     }
 
     /**
      * ========================================
      * UPLOAD IMAGE - SYNCHRONOUS (Cepat)
      * ========================================
-     * Tidak perlu background job karena upload gambar cepat
      */
     public function storeImage(Request $request)
     {
@@ -122,7 +182,7 @@ class UploadController extends Controller
                 'file_path' => $path,
                 'file_type' => $file->getClientOriginalExtension(),
                 'file_size' => $file->getSize(),
-                'status' => 'completed', // Langsung completed karena tidak perlu processing
+                'status' => 'completed',
             ]);
 
             Log::info('Image uploaded successfully', [
@@ -132,7 +192,6 @@ class UploadController extends Controller
             ]);
 
             return redirect()->back()->with('success', 'Gambar berhasil diupload! ✅');
-
         } catch (\Exception $e) {
             Log::error('Failed to upload image', [
                 'error' => $e->getMessage(),
@@ -147,7 +206,6 @@ class UploadController extends Controller
      * ========================================
      * UPLOAD DOCUMENT (DOC/DOCX) - SYNCHRONOUS
      * ========================================
-     * Tidak perlu background job karena hanya upload file
      */
     public function storeDoc(Request $request)
     {
@@ -173,7 +231,7 @@ class UploadController extends Controller
                 'file_path' => $path,
                 'file_type' => $file->getClientOriginalExtension(),
                 'file_size' => $file->getSize(),
-                'status' => 'completed', // Langsung completed karena tidak perlu processing
+                'status' => 'completed',
             ]);
 
             Log::info('Document uploaded successfully', [
@@ -183,7 +241,6 @@ class UploadController extends Controller
             ]);
 
             return redirect()->back()->with('success', 'Dokumen berhasil diupload! ✅');
-
         } catch (\Exception $e) {
             Log::error('Failed to upload document', [
                 'error' => $e->getMessage(),
@@ -194,59 +251,10 @@ class UploadController extends Controller
         }
     }
 
-     /**
-     * ========================================
-     * UPLOAD FORM CHECKLIST - DENGAN BACKGROUND JOB
-     * ========================================
-     * Sama seperti upload PDF, form checklist juga menggunakan background job.
-     * Semua proses berat (Python API, ekstraksi, parsing) dilakukan di background.
-     */
-
-     public function storeChecklist(Request $request)
-     {
-         $request->validate([
-             'file' => 'required|mimes:pdf|max:10240', // 10MB
-             'document_type' => 'required|string|max:50',
-         ]);
- 
-         $file = $request->file('file');
-         $originalName = $file->getClientOriginalName();
- 
-         // Simpan file ke storage/app/public/checklists
-         $path = $file->storeAs('checklists', $originalName, 'public');
- 
-         // Simpan ke database dengan status 'uploaded'
-         $upload = Document::create([
-             'source_type' => 'user',
-             'id_user' => Auth::id(),
-             'source_system' => null,
-             'document_type' => 'form_checklist',
-             'file_name' => $originalName,
-             'file_path' => $path,
-             'file_type' => $file->getClientOriginalExtension(),
-             'file_size' => $file->getSize(),
-             'status' => 'uploaded',
-         ]);
- 
-         Log::info('Form Checklist PDF uploaded successfully, dispatching background job', [
-             'upload_id' => $upload->id_upload,
-             'file_name' => $originalName,
-             'document_type' => 'form_checklist',
-             'file_size' => $file->getSize()
-         ]);
- 
-         // ✅ DISPATCH JOB KE QUEUE (sama seperti PDF)
-         ProcessDocumentJob::dispatch($upload->id_upload);
- 
-         // ✅ LANGSUNG RETURN - User tidak perlu tunggu
-         return redirect()->back()->with('success', 'Upload form checklist berhasil! Dokumen sedang diproses di background. Refresh halaman untuk melihat status. 🚀');
-     }
-
     /**
      * ========================================
      * LIHAT STATUS DOKUMEN
      * ========================================
-     * Menampilkan semua dokumen user dengan status processing/completed/failed
      */
     public function status()
     {
@@ -261,7 +269,6 @@ class UploadController extends Controller
      * ========================================
      * GET STATUS DOCUMENT (AJAX)
      * ========================================
-     * Untuk cek status dokumen via AJAX (polling)
      */
     public function getStatus($id)
     {
@@ -287,7 +294,6 @@ class UploadController extends Controller
      * ========================================
      * RETRY PROCESSING (Manual)
      * ========================================
-     * Jika dokumen failed, user bisa retry manual
      */
     public function retry($id)
     {
@@ -311,7 +317,14 @@ class UploadController extends Controller
             'file_name' => $document->file_name
         ]);
 
-        ProcessDocumentJob::dispatch($document->id_upload);
+        // Tentukan kategori berdasarkan path atau document_type
+        $category = 'spk'; // default
+        if (str_contains($document->file_path, 'checklists/') || 
+            $document->document_type === 'form_checklist') {
+            $category = 'checklist';
+        }
+
+        ProcessDocumentJob::dispatch($document->id_upload, $category);
 
         return redirect()->back()->with('success', 'Dokumen akan diproses ulang di background! 🔄');
     }

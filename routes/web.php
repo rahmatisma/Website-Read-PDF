@@ -4,6 +4,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\FormChecklistController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -11,29 +12,30 @@ Route::get('/', function () {
     return Inertia::render('auth/login');
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified.admin'])->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [DocumentController::class, 'dashboard'])->name('dashboard');
-
+    
     // ========================================
     // DOCUMENTS ROUTES
     // ========================================
     Route::prefix('documents')->name('documents.')->group(function () {
+        // ✅ TAMBAHKAN: Route untuk halaman utama documents
+        Route::get('/', [DocumentController::class, 'index'])->name('index');
+        
         // Upload dokumen
         Route::post('/pdf', [UploadController::class, 'storePDF'])->name('store.pdf');
         Route::post('/image', [UploadController::class, 'storeImage'])->name('store.image');
         Route::post('/doc', [UploadController::class, 'storeDoc'])->name('store.doc');
         Route::post('/checklist', [UploadController::class, 'storeChecklist'])->name('store.checklist');
         
-        // ⬇️ ROUTE SPESIFIK HARUS DI ATAS (sebelum {type} atau {id})
-        
-        // ✅ Detail dokumen (HARUS DI ATAS {type})
+        // Detail dokumen
         Route::get('/{id}/detail', [DocumentController::class, 'detail'])
             ->where('id', '[0-9]+')
             ->name('detail');
         
-        // ✅ Retry dokumen yang failed
+        // Retry dokumen yang failed
         Route::post('/{id}/retry', [UploadController::class, 'retry'])
             ->where('id', '[0-9]+')
             ->name('retry');
@@ -43,9 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->where('id', '[0-9]+')
             ->name('destroy');
         
-        // ⬇️ ROUTE GENERAL DI BAWAH
-        
-        // Filter berdasarkan tipe (DI PALING BAWAH karena paling general)
+        // Filter berdasarkan tipe (harus di paling bawah)
         Route::get('/{type}', [DocumentController::class, 'filter'])
             ->where('type', 'pdf|gambar|doc|form-checklist')
             ->name('filter');
@@ -55,11 +55,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // API ROUTES untuk AJAX/Polling
     // ========================================
     Route::prefix('api')->name('api.')->group(function () {
-        // ✅ Check status multiple documents (untuk polling)
         Route::post('/documents/check-status', [DocumentController::class, 'checkStatus'])
             ->name('documents.checkStatus');
+            
+        Route::get('/dashboard/stats', [DocumentController::class, 'getDashboardStats'])
+            ->name('dashboard.stats');
         
-        // ✅ Get single document status (alternatif)
         Route::get('/documents/{id}/status', [DocumentController::class, 'getStatus'])
             ->where('id', '[0-9]+')
             ->name('documents.getStatus');
@@ -81,20 +82,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // CHATBOT API ENDPOINTS (RAG System)
     // ========================================
     Route::prefix('chatbot')->name('chatbot.')->group(function () {
-        // Main chat endpoint dengan RAG
         Route::post('/chat', [ChatbotController::class, 'chat'])->name('chat');
-        
-        // Generate embedding (untuk testing)
         Route::post('/generate-embedding', [ChatbotController::class, 'generateEmbedding'])
             ->name('generate.embedding');
-        
-        // Health check
         Route::get('/health', [ChatbotController::class, 'health'])->name('health');
-        
-        // Statistics
         Route::get('/stats', [ChatbotController::class, 'stats'])->name('stats');
-        
-        // Legacy endpoints (jika masih dipakai)
         Route::post('/message', [ChatbotController::class, 'sendMessage'])->name('message');
         Route::post('/stream', [ChatbotController::class, 'sendMessageStream'])->name('stream');
     });
@@ -125,43 +117,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         }
     });
 
-    // Users Page
-    Route::get('/users', function () {
-        return Inertia::render('users');
-    })->name('users'); 
+    // ========================================
+    // USERS MANAGEMENT ROUTES (ADMIN ONLY)
+    // ========================================
+    Route::prefix('users')
+        ->name('users.')
+        ->middleware(['admin.only'])
+        ->group(function () {
+            Route::get('/', [UserController::class, 'index'])->name('index');
+            Route::post('/', [UserController::class, 'store'])->name('store');
+            Route::put('/{user}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+            Route::patch('/{user}/toggle-admin-verification',
+                [UserController::class, 'toggleAdminVerification']
+            )->name('toggleAdminVerification');
+        });
 });
 
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';
-
-/*
-|--------------------------------------------------------------------------
-| 📚 ROUTING GUIDE
-|--------------------------------------------------------------------------
-|
-| ========================================
-| DOCUMENTS (Web Routes)
-| ========================================
-| POST   /documents/pdf                → Upload PDF (background job)
-| POST   /documents/image              → Upload gambar
-| POST   /documents/doc                → Upload DOC/DOCX
-| GET    /documents/{type}             → Filter (pdf/doc/gambar)
-| GET    /documents/{id}/detail        → Detail dokumen
-| POST   /documents/{id}/retry         → Retry dokumen failed
-| DELETE /documents/{id}               → Hapus dokumen
-|
-| ========================================
-| API ROUTES (untuk AJAX/Polling)
-| ========================================
-| POST   /api/documents/check-status   → Check status multiple docs (polling)
-| GET    /api/documents/{id}/status    → Get single document status
-|
-| ========================================
-| CHATBOT API (RAG System)
-| ========================================
-| POST /chatbot/chat                   → Chat dengan RAG
-| GET  /chatbot/health                 → Health check
-| GET  /chatbot/stats                  → Statistics
-| POST /chatbot/generate-embedding     → Generate embedding (testing)
-|
-*/

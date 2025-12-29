@@ -14,12 +14,114 @@ export default function UploadPDFBox() {
         fileInputRef.current?.click();
     };
 
-    const handleFile = (file: File) => {
-        if (file.type === 'application/pdf') {
-            setSelectedFile(file);
-        } else {
-            toast.error('Hanya file PDF yang diperbolehkan!');
+    /**
+     * ✅ STRICT VALIDATION - Block obvious mistakes
+     * ❌ BLOCK: File yang JELAS adalah Form Checklist
+     * ⚠️  WARN: File yang tidak jelas tapi tetap izinkan
+     * ✅ ALLOW: File dengan kata kunci SPK
+     */
+    const validateFileName = (fileName: string): { 
+        valid: boolean; 
+        blockReason?: string;
+        warning?: string;
+    } => {
+        const lowerName = fileName.toLowerCase();
+        
+        // ❌ BLOCK: Kata kunci Form Checklist yang JELAS
+        const strictChecklistKeywords = [
+            'form checklist',
+            'form_checklist', 
+            'formchecklist',
+            'checklist wireline',
+            'checklist wireless',
+            'fcw', // Form Checklist Wireline
+            'fcwl' // Form Checklist Wireless
+        ];
+        
+        const hasStrictChecklistKeyword = strictChecklistKeywords.some(keyword => 
+            lowerName.includes(keyword)
+        );
+        
+        if (hasStrictChecklistKeyword) {
+            return {
+                valid: false,
+                blockReason: '🚫 File ini jelas adalah Form Checklist!\n\n' +
+                           'Silakan upload di halaman "Form Checklist" yang terpisah.\n\n' +
+                           'Halaman ini HANYA untuk dokumen SPK (Survey, Instalasi, Dismantle, Aktivasi).'
+            };
         }
+        
+        // ❌ BLOCK: File dengan kata "checklist" tapi tidak ada kata "spk"
+        if (lowerName.includes('checklist') && !lowerName.includes('spk')) {
+            return {
+                valid: false,
+                blockReason: '🚫 File ini sepertinya Form Checklist!\n\n' +
+                           'Jika ini memang Form Checklist, silakan upload di halaman "Form Checklist".\n\n' +
+                           'Jika ini SPK, pastikan nama file mengandung kata "SPK".'
+            };
+        }
+        
+        // ✅ ALLOW: File dengan kata kunci SPK yang jelas
+        const spkKeywords = ['spk', 'survey', 'instalasi', 'dismantle', 'aktivasi'];
+        const hasSpkKeyword = spkKeywords.some(keyword => lowerName.includes(keyword));
+        
+        if (hasSpkKeyword) {
+            return { valid: true }; // Perfect!
+        }
+        
+        // ⚠️ WARN: File ambigu (tidak ada kata kunci jelas)
+        // Tetap izinkan upload, tapi beri warning
+        return {
+            valid: true,
+            warning: '⚠️ Tidak dapat mendeteksi jenis dokumen dari nama file.\n\n' +
+                    'Pastikan ini adalah dokumen SPK (Survey, Instalasi, Dismantle, atau Aktivasi).\n\n' +
+                    'Jika ini Form Checklist, upload akan ditolak setelah diproses.'
+        };
+    };
+
+    const handleFile = (file: File) => {
+        // Validasi tipe file
+        if (file.type !== 'application/pdf') {
+            toast.error('Hanya file PDF yang diperbolehkan!', {
+                duration: 5000,
+                classNames: {
+                    toast: '!bg-gray-900 !border-2 !border-red-400',
+                    title: '!text-white',
+                    icon: '!text-red-500',
+                }
+            });
+            return;
+        }
+
+        // ✅ STRICT Validasi nama file
+        const validation = validateFileName(file.name);
+        
+        // ❌ BLOCK: Jika jelas salah
+        if (!validation.valid && validation.blockReason) {
+            toast.error(validation.blockReason, {
+                duration: 8000,
+                classNames: {
+                    toast: '!bg-gray-900 !border-2 !border-red-500',
+                    title: '!text-white !text-sm !whitespace-pre-line',
+                    icon: '!text-red-500',
+                }
+            });
+            return;
+        }
+        
+        // ⚠️ WARN: Jika ambigu tapi tetap izinkan
+        if (validation.warning) {
+            toast.warning(validation.warning, {
+                duration: 6000,
+                classNames: {
+                    toast: '!bg-gray-900 !border-2 !border-yellow-400',
+                    title: '!text-white !text-sm !whitespace-pre-line',
+                    icon: '!text-yellow-500',
+                }
+            });
+        }
+
+        setSelectedFile(file);
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,11 +161,30 @@ export default function UploadPDFBox() {
         router.post('/documents/pdf', formData, {
             forceFormData: true,
             onSuccess: () => {
-                toast.success('Upload PDF berhasil!');
+                toast.success('✅ Upload berhasil!\n\nDokumen sedang divalidasi oleh sistem...', {
+                    duration: 4000,
+                    classNames: {
+                        toast: '!bg-gray-900 !border-2 !border-green-400',
+                        title: '!text-white !text-sm !whitespace-pre-line',
+                        icon: '!text-green-500',
+                    }
+                });
                 setSelectedFile(null);
             },
-            onError: () => {
-                toast.error('Upload gagal, coba lagi.');
+            onError: (errors) => {
+                console.error('Upload errors:', errors);
+                const errorMessage = typeof errors === 'object' 
+                    ? Object.values(errors).flat().join(', ') 
+                    : 'Upload gagal, coba lagi.';
+                
+                toast.error(errorMessage, {
+                    duration: 5000,
+                    classNames: {
+                        toast: '!bg-gray-900 !border-2 !border-red-400',
+                        title: '!text-white',
+                        icon: '!text-red-500',
+                    }
+                });
             },
             onFinish: () => setLoading(false),
         });
@@ -80,19 +201,27 @@ export default function UploadPDFBox() {
                 {!selectedFile ? (
                     <>
                         <CloudArrowUpIcon className="mx-auto mb-4 h-12 w-12 text-purple-400" />
-                        <p className="mb-4 text-sm text-white">{isDragging ? 'Lepaskan file di sini' : 'Drag & drop PDF file to upload'}</p>
+                        <p className="mb-2 text-sm font-semibold text-white">
+                            {isDragging ? 'Lepaskan file di sini' : 'Drag & drop PDF SPK to upload'}
+                        </p>
+                        <p className="mb-4 text-xs text-gray-400">
+                            Hanya untuk: SPK Survey, SPK Instalasi, SPK Dismantle, SPK Aktivasi
+                        </p>
                         <button
                             onClick={handleClick}
                             className="mx-auto rounded-full bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-2 text-white shadow transition hover:brightness-110"
                         >
-                            Select PDF
+                            Select PDF SPK
                         </button>
                         <input type="file" accept="application/pdf" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                     </>
                 ) : (
                     <>
                         <DocumentIcon className="mx-auto mb-4 h-12 w-12 text-red-500" />
-                        <p className="mb-2 text-sm text-white">{selectedFile.name}</p>
+                        <p className="mb-2 text-sm text-white font-semibold">{selectedFile.name}</p>
+                        <p className="mb-4 text-xs text-gray-400">
+                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
                         <button
                             onClick={handleSubmit}
                             disabled={loading}
@@ -100,11 +229,33 @@ export default function UploadPDFBox() {
                         >
                             {loading ? 'Uploading...' : 'Submit'}
                         </button>
-                        <button onClick={() => setSelectedFile(null)} className="mt-2 text-xs text-gray-400 underline">
+                        <button onClick={() => setSelectedFile(null)} className="mt-2 text-xs text-gray-400 underline hover:text-gray-300">
                             Ganti file
                         </button>
                     </>
                 )}
+            </div>
+            
+            {/* Enhanced Info Box */}
+            <div className="mt-4 w-full max-w-md rounded-lg bg-purple-900/30 border border-purple-400/30 p-4">
+                <div className="mb-3">
+                    <p className="text-xs font-semibold text-purple-200 mb-2">
+                        📋 Dokumen yang BOLEH diupload di halaman ini:
+                    </p>
+                    <ul className="text-xs text-purple-300 space-y-1 ml-4">
+                        <li>✅ SPK Survey</li>
+                        <li>✅ SPK Instalasi</li>
+                        <li>✅ SPK Dismantle</li>
+                        <li>✅ SPK Aktivasi</li>
+                    </ul>
+                </div>
+                <div className="pt-3 border-t border-purple-400/20">
+                    <p className="text-xs text-purple-300">
+                        ❌ <strong>Form Checklist</strong> tidak bisa diupload di halaman ini.
+                        <br />
+                        Silakan gunakan halaman <strong>"Form Checklist"</strong>.
+                    </p>
+                </div>
             </div>
         </div>
     );

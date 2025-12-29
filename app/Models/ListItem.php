@@ -5,6 +5,27 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id_item
+ * @property int $id_spk
+ * @property string|null $kode
+ * @property string|null $deskripsi
+ * @property string|null $serial_number
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\DokumentasiFoto> $dokumentasiFoto
+ * @property-read int|null $dokumentasi_foto_count
+ * @property-read \App\Models\SPK $spk
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem whereDeskripsi($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem whereIdItem($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem whereIdSpk($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem whereKode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ListItem whereSerialNumber($value)
+ * @mixin \Eloquent
+ */
 class ListItem extends Model
 {
     use HasFactory;

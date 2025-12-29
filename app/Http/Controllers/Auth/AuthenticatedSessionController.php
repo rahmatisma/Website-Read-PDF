@@ -31,6 +31,20 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        // ✅ TAMBAHAN: Cek apakah user sudah diverifikasi oleh admin
+        $user = Auth::user();
+        
+        if (!$user->is_verified_by_admin) {
+            // Logout user yang belum diverifikasi
+            Auth::logout();
+            
+            // Redirect kembali ke login dengan error message
+            return back()->withErrors([
+                'email' => 'Your account is pending approval by an administrator. Please wait for verification or contact support.',
+            ])->withInput($request->only('email'));
+        }
+
+        // ✅ User sudah verified, lanjutkan login
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));

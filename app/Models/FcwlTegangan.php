@@ -5,6 +5,25 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id_tegangan
+ * @property int $id_fcwl
+ * @property string $jenis_sumber
+ * @property numeric|null $p_n
+ * @property numeric|null $p_g
+ * @property numeric|null $n_g
+ * @property-read \App\Models\FormChecklistWireless $formChecklistWireless
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan whereIdFcwl($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan whereIdTegangan($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan whereJenisSumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan whereNG($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan wherePG($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlTegangan wherePN($value)
+ * @mixin \Eloquent
+ */
 class FcwlTegangan extends Model
 {
     protected $table = 'fcwl_tegangan';

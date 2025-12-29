@@ -5,6 +5,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id_log
+ * @property int $id_fcwl
+ * @property \Illuminate\Support\Carbon $date_time
+ * @property string $info
+ * @property string|null $photo
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property-read \App\Models\FormChecklistWireless $formChecklistWireless
+ * @property-read mixed $photo_url
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog whereDateTime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog whereIdFcwl($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog whereIdLog($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog whereInfo($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlLog wherePhoto($value)
+ * @mixin \Eloquent
+ */
 class FcwlLog extends Model
 {
     protected $table = 'fcwl_log';

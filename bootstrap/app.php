@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserIsVerified;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -14,14 +15,22 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Exclude cookies dari enkripsi
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        // TAMBAHAN: Exclude CSRF untuk streaming endpoint
+        // CSRF exception untuk chatbot streaming
         $middleware->validateCsrfTokens(except: [
             'chatbot/stream',
             'chatbot/chat',
         ]);
 
+        // ✅ TAMBAHAN: Register middleware alias untuk admin verification
+        $middleware->alias([
+            'verified.admin' => EnsureUserIsVerified::class,
+            'admin.only'     => \App\Http\Middleware\AdminOnly::class,
+        ]);
+
+        // Web middleware group
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,

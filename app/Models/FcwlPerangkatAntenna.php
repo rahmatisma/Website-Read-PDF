@@ -5,6 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read \App\Models\FormChecklistWireless|null $formChecklistWireless
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlPerangkatAntenna newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlPerangkatAntenna newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlPerangkatAntenna query()
+ * @mixin \Eloquent
+ */
 class FcwlPerangkatAntenna extends Model
 {
     protected $table = 'fcwl_perangkat_antenna';

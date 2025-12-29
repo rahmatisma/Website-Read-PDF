@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\SPK;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
@@ -36,8 +37,11 @@ class DocumentController extends Controller
 
         switch ($type) {
             case 'pdf':
-                $query->where('file_type', 'pdf');
-                $query->where('document_type', '!=', 'form_checklist');
+                // ✅ FIXED: PDF yang BUKAN form checklist (cek lewat relasi SPK)
+                $query->where('file_type', 'pdf')
+                    ->whereDoesntHave('spks', function($q) {
+                        $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
+                    });
                 break;
             case 'doc':
                 $query->whereIn('file_type', ['doc', 'docx']);
@@ -46,7 +50,10 @@ class DocumentController extends Controller
                 $query->whereIn('file_type', ['jpg', 'jpeg', 'png']);
                 break;
             case 'form-checklist':
-                $query->where('document_type', 'form_checklist');
+                // ✅ FIXED: Ambil dokumen yang punya SPK dengan type form_checklist
+                $query->whereHas('spks', function($q) {
+                    $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
+                });
                 break;
             default:
                 abort(404);
@@ -99,15 +106,39 @@ class DocumentController extends Controller
         }
     }
     
-    /**
-     * Dashboard - menampilkan statistik dokumen
-     */
     public function dashboard()
     {
         $userId = Auth::id();
+        $currentUser = Auth::user();
 
+        // ========================================
+        // AUTO DELETE: Hapus dokumen > 1 hari
+        // ========================================
+        $oneDayAgo = now()->subDay();
+        
+        $oldDocuments = Document::where('created_at', '<', $oneDayAgo)->get();
+        
+        foreach ($oldDocuments as $doc) {
+            if (Storage::exists('public/' . $doc->file_path)) {
+                Storage::delete('public/' . $doc->file_path);
+            }
+            $doc->delete();
+        }
+
+        Log::info('Auto-delete dokumen lama', [
+            'jumlah_dihapus' => $oldDocuments->count(),
+            'cutoff_date' => $oneDayAgo
+        ]);
+
+        // ========================================
+        // STATISTIK DOKUMEN USER
+        // ========================================
+        // PDF yang BUKAN form checklist
         $countPDF = Document::where('id_user', $userId)
             ->where('file_type', 'pdf')
+            ->whereDoesntHave('spks', function($q) {
+                $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
+            })
             ->count();
 
         $countDOC = Document::where('id_user', $userId)
@@ -118,11 +149,91 @@ class DocumentController extends Controller
             ->whereIn('file_type', ['jpg', 'jpeg', 'png'])
             ->count();
         
+        // ✅ FIXED: Form Checklist dari SPK yang punya id_upload milik user ini
         $countChecklist = Document::where('id_user', $userId)
-            ->where('document_type', 'form_checklist')
+            ->whereHas('spks', function($q) {
+                $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
+            })
             ->count();
 
         $countAll = Document::where('id_user', $userId)->count();
+
+        // ========================================
+        // STATISTIK USERS (khusus untuk admin)
+        // ========================================
+        $countUsersUnverified = 0;
+        $unverifiedUsers = collect([]);
+        
+        if ($currentUser && $currentUser->isAdmin()) {
+            $countUsersUnverified = User::where('is_verified_by_admin', false)->count();
+            
+            $unverifiedUsers = User::where('is_verified_by_admin', false)
+                ->select(['id', 'name', 'email', 'role', 'avatar', 'email_verified_at', 'created_at', 'updated_at'])
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+        }
+
+        // ========================================
+        // ✅ FIXED: STATISTIK SPK (Global - semua user)
+        // ========================================
+        // Total jenis SPK yang unik
+        $countSPKTypes = SPK::where('document_type', 'spk')
+            ->distinct('jenis_spk')
+            ->count('jenis_spk');
+
+        // ✅ FIXED: Total form checklist (wireline + wireless)
+        $countFormChecklist = SPK::whereIn('document_type', [
+            'form_checklist_wireline', 
+            'form_checklist_wireless'
+        ])->count();
+
+        // ========================================
+        // ✅ FIXED: UPLOAD TREND (7 hari terakhir)
+        // ========================================
+        $uploadTrend = [];
+        
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dateStr = $date->format('d M');
+            
+            // SPK: Upload yang punya SPK dengan document_type = 'spk'
+            $spkCount = Document::whereDate('created_at', $date->toDateString())
+                ->whereHas('spks', function($q) {
+                    $q->where('document_type', 'spk');
+                })
+                ->count();
+            
+            // Checklist: Upload yang punya SPK dengan document_type = form_checklist_*
+            $checklistCount = Document::whereDate('created_at', $date->toDateString())
+                ->whereHas('spks', function($q) {
+                    $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
+                })
+                ->count();
+            
+            $uploadTrend[] = [
+                'date' => $dateStr,
+                'spk' => $spkCount,
+                'checklist' => $checklistCount,
+            ];
+        }
+
+        // ========================================
+        // RECENT DOCUMENTS (5 terbaru)
+        // ========================================
+        $recentDocuments = Document::where('id_user', $userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($doc) {
+                return [
+                    'id' => $doc->id_upload,
+                    'fileName' => $doc->file_name,
+                    'uploadedDate' => $doc->created_at->format('Y-m-d H:i:s'),
+                    'fileSize' => $doc->file_size ? number_format($doc->file_size / 1024 / 1024, 2) . ' MB' : '-',
+                    'status' => $doc->status ?? 'completed',
+                ];
+            });
 
         return Inertia::render('dashboard', [
             'countPDF'  => $countPDF,
@@ -130,6 +241,103 @@ class DocumentController extends Controller
             'countIMG'  => $countIMG,
             'countChecklist' => $countChecklist,
             'countAll'  => $countAll,
+            'countUsersUnverified' => $countUsersUnverified,
+            'countSPKTypes' => $countSPKTypes,
+            'countFormChecklist' => $countFormChecklist,
+            'uploadTrend' => $uploadTrend,
+            'recentDocuments' => $recentDocuments,
+            'unverifiedUsers' => $unverifiedUsers,
+        ]);
+    }
+    
+    /**
+     * ✅ FIXED: GET DASHBOARD STATS (untuk real-time updates)
+     */
+    public function getDashboardStats()
+    {
+        $userId = Auth::id();
+        $currentUser = Auth::user();
+
+        // ========================================
+        // STATISTIK USERS (khusus untuk admin)
+        // ========================================
+        $countUsersUnverified = 0;
+        $unverifiedUsers = collect([]);
+        
+        if ($currentUser && $currentUser->isAdmin()) {
+            $countUsersUnverified = User::where('is_verified_by_admin', false)->count();
+            
+            $unverifiedUsers = User::where('is_verified_by_admin', false)
+                ->select(['id', 'name', 'email', 'role', 'avatar', 'email_verified_at', 'created_at', 'updated_at'])
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+        }
+
+        // ========================================
+        // ✅ FIXED: STATISTIK SPK
+        // ========================================
+        $countSPKTypes = SPK::where('document_type', 'spk')
+            ->distinct('jenis_spk')
+            ->count('jenis_spk');
+
+        $countFormChecklist = SPK::whereIn('document_type', [
+            'form_checklist_wireline', 
+            'form_checklist_wireless'
+        ])->count();
+
+        // ========================================
+        // ✅ FIXED: UPLOAD TREND
+        // ========================================
+        $uploadTrend = [];
+        
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dateStr = $date->format('d M');
+            
+            $spkCount = Document::whereDate('created_at', $date->toDateString())
+                ->whereHas('spks', function($q) {
+                    $q->where('document_type', 'spk');
+                })
+                ->count();
+            
+            $checklistCount = Document::whereDate('created_at', $date->toDateString())
+                ->whereHas('spks', function($q) {
+                    $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
+                })
+                ->count();
+            
+            $uploadTrend[] = [
+                'date' => $dateStr,
+                'spk' => $spkCount,
+                'checklist' => $checklistCount,
+            ];
+        }
+
+        // ========================================
+        // RECENT DOCUMENTS
+        // ========================================
+        $recentDocuments = Document::where('id_user', $userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($doc) {
+                return [
+                    'id' => $doc->id_upload,
+                    'fileName' => $doc->file_name,
+                    'uploadedDate' => $doc->created_at->format('Y-m-d H:i:s'),
+                    'fileSize' => $doc->file_size ? number_format($doc->file_size / 1024 / 1024, 2) . ' MB' : '-',
+                    'status' => $doc->status ?? 'completed',
+                ];
+            });
+
+        return response()->json([
+            'countUsersUnverified' => $countUsersUnverified,
+            'countSPKTypes' => $countSPKTypes,
+            'countFormChecklist' => $countFormChecklist,
+            'uploadTrend' => $uploadTrend,
+            'recentDocuments' => $recentDocuments,
+            'unverifiedUsers' => $unverifiedUsers,
         ]);
     }
     
@@ -267,7 +475,6 @@ class DocumentController extends Controller
                 'id_upload' => $upload->id_upload,
                 'file_name' => $upload->file_name,
                 'status' => $upload->status,
-                'document_type' => $upload->document_type,
                 'user_id' => Auth::id()
             ]);
             
@@ -278,11 +485,12 @@ class DocumentController extends Controller
                     : $upload->extracted_data;
             }
 
-            // ✅ Check if document_type contains "checklist"
-        $isChecklist = strpos($upload->document_type, 'checklist') !== false;
-        
-        // Choose appropriate component
-        $component = $isChecklist ? 'Documents/FormChecklistDetail' : 'Documents/Detail';
+            // ✅ FIXED: Check via relasi SPK
+            $isChecklist = $upload->spks()
+                ->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless'])
+                ->exists();
+            
+            $component = $isChecklist ? 'Documents/FormChecklistDetail' : 'Documents/Detail';
             
             return Inertia::render($component, [
                 'upload' => [
@@ -318,8 +526,7 @@ class DocumentController extends Controller
     }
     
     /**
-     * ✅ GET STATUS SINGLE DOCUMENT (untuk polling individual)
-     * GET /api/documents/{id}/status
+     * ✅ GET STATUS SINGLE DOCUMENT
      */
     public function getStatus($id)
     {
@@ -343,22 +550,18 @@ class DocumentController extends Controller
     }
 
     /**
-     * ✅ CHECK STATUS MULTIPLE DOCUMENTS (untuk polling batch)
-     * POST /api/documents/check-status
-     * Body: { "ids": [1, 2, 3] }
+     * ✅ CHECK STATUS MULTIPLE DOCUMENTS
      */
     public function checkStatus(Request $request)
     {
         $ids = $request->input('ids', []);
         
-        // Validasi input
         if (empty($ids) || !is_array($ids)) {
             return response()->json([
                 'error' => 'IDs harus berupa array dan tidak boleh kosong'
             ], 400);
         }
         
-        // Ambil dokumen milik user yang sedang login saja
         $documents = Document::whereIn('id_upload', $ids)
             ->where('id_user', Auth::id())
             ->select('id_upload', 'status', 'file_name', 'updated_at')

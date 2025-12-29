@@ -5,6 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id_perangkat
+ * @property int $id_fcwl
+ * @property string $kategori
+ * @property string $nama_barang
+ * @property string|null $no_reg
+ * @property string|null $serial_number
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property-read \App\Models\FormChecklistWireless $formChecklistWireless
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat cabut()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat existing()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat penggantiPasangBaru()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat tidakTerpakai()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat whereIdFcwl($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat whereIdPerangkat($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat whereKategori($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat whereNamaBarang($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat whereNoReg($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FcwlDataPerangkat whereSerialNumber($value)
+ * @mixin \Eloquent
+ */
 class FcwlDataPerangkat extends Model
 {
     protected $table = 'fcwl_data_perangkat';
