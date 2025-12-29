@@ -10,7 +10,7 @@ return new class extends Migration
      * Run the migrations.
      * 
      * Table: FCWL_Guidance_Foto
-     * Purpose: Foto panduan untuk form wireless (10 jenis foto)
+     * Purpose: Foto panduan untuk form wireless (berbagai jenis foto)
      * Depends on: form_checklist_wireless
      * Relationship: ONE-TO-MANY
      */
@@ -23,18 +23,26 @@ return new class extends Migration
             // Foreign Key (NOT unique - one-to-many relationship)
             $table->unsignedBigInteger('id_fcwl');
 
-            // Photo Type (10 types for wireless - includes 2 additional for wireless)
+            // Photo Type - sesuai dengan schema yang benar
             $table->enum('jenis_foto', [
+                'teknisi_aktivasi',
+                'kondisi_sebelum_perbaikan',
+                'action_perbaikan',
+                'kondisi_setelah_perbaikan',
                 'test_ping',
                 'catuan_listrik',
                 'indikator_perangkat',
                 'kondisi_rak_penempatan',
                 'antenna_installation',
-                'Guidance'
+                'outdoor_mounting',
+                'guidance_umum'  // ✅ Ditambahkan sesuai mapJenisFoto()
             ]);
 
             // Photo Path
             $table->string('path_foto', 1000);
+
+            // ✅ TAMBAHAN: Kolom urutan (PENTING!)
+            $table->integer('urutan')->nullable();
 
             // Timestamp
             $table->timestamp('created_at')->useCurrent();
