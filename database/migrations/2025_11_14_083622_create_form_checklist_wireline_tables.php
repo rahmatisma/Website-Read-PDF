@@ -23,8 +23,8 @@ return new class extends Migration
             // Global Checklist - Data Lokasi
             $table->string('kota', 100)->nullable();
             $table->string('propinsi', 100)->nullable();
-            $table->decimal('latitude', 9, 6)->nullable();
-            $table->decimal('longitude', 10, 6)->nullable();
+            $table->double('latitude')->nullable();
+            $table->double('longitude')->nullable();
             $table->string('posisi_modem_di_lt', 100)->nullable();
             $table->string('ruang', 100)->nullable();
 

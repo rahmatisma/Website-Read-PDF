@@ -14,73 +14,64 @@ export default function UploadPDFBox() {
         fileInputRef.current?.click();
     };
 
-    /**
-     * ✅ STRICT VALIDATION - Block obvious mistakes
-     * ❌ BLOCK: File yang JELAS adalah Form Checklist
-     * ⚠️  WARN: File yang tidak jelas tapi tetap izinkan
-     * ✅ ALLOW: File dengan kata kunci SPK
-     */
-    const validateFileName = (fileName: string): { 
-        valid: boolean; 
+    const validateFileName = (
+        fileName: string,
+    ): {
+        valid: boolean;
         blockReason?: string;
         warning?: string;
     } => {
         const lowerName = fileName.toLowerCase();
-        
-        // ❌ BLOCK: Kata kunci Form Checklist yang JELAS
+
         const strictChecklistKeywords = [
             'form checklist',
-            'form_checklist', 
+            'form_checklist',
             'formchecklist',
             'checklist wireline',
             'checklist wireless',
-            'fcw', // Form Checklist Wireline
-            'fcwl' // Form Checklist Wireless
+            'fcw',
+            'fcwl',
         ];
-        
-        const hasStrictChecklistKeyword = strictChecklistKeywords.some(keyword => 
-            lowerName.includes(keyword)
-        );
-        
+
+        const hasStrictChecklistKeyword = strictChecklistKeywords.some((keyword) => lowerName.includes(keyword));
+
         if (hasStrictChecklistKeyword) {
             return {
                 valid: false,
-                blockReason: 'File ini jelas adalah Form Checklist!\n\n' +
-                           'Silakan upload di halaman "Form Checklist" yang terpisah.\n\n' +
-                           'Halaman ini HANYA untuk dokumen SPK (Survey, Instalasi, Dismantle, Aktivasi).'
+                blockReason:
+                    'File ini jelas adalah Form Checklist!\n\n' +
+                    'Silakan upload di halaman "Form Checklist" yang terpisah.\n\n' +
+                    'Halaman ini HANYA untuk dokumen SPK (Survey, Instalasi, Dismantle, Aktivasi).',
             };
         }
-        
-        // ❌ BLOCK: File dengan kata "checklist" tapi tidak ada kata "spk"
+
         if (lowerName.includes('checklist') && !lowerName.includes('spk')) {
             return {
                 valid: false,
-                blockReason: 'File ini sepertinya Form Checklist!\n\n' +
-                           'Jika ini memang Form Checklist, silakan upload di halaman "Form Checklist".\n\n' +
-                           'Jika ini SPK, pastikan nama file mengandung kata "SPK".'
+                blockReason:
+                    'File ini sepertinya Form Checklist!\n\n' +
+                    'Jika ini memang Form Checklist, silakan upload di halaman "Form Checklist".\n\n' +
+                    'Jika ini SPK, pastikan nama file mengandung kata "SPK".',
             };
         }
-        
-        // ✅ ALLOW: File dengan kata kunci SPK yang jelas
+
         const spkKeywords = ['spk', 'survey', 'instalasi', 'dismantle', 'dismantl', 'aktivasi', 'aktifasi'];
-        const hasSpkKeyword = spkKeywords.some(keyword => lowerName.includes(keyword));
-        
+        const hasSpkKeyword = spkKeywords.some((keyword) => lowerName.includes(keyword));
+
         if (hasSpkKeyword) {
-            return { valid: true }; // Perfect!
+            return { valid: true };
         }
-        
-        // ⚠️ WARN: File ambigu (tidak ada kata kunci jelas)
-        // Tetap izinkan upload, tapi beri warning
+
         return {
             valid: true,
-            warning: 'Tidak dapat mendeteksi jenis dokumen dari nama file.\n\n' +
-                    'Pastikan ini adalah dokumen SPK (Survey, Instalasi, Dismantle, atau Aktivasi).\n\n' +
-                    'Jika ini Form Checklist, upload akan ditolak setelah diproses.'
+            warning:
+                'Tidak dapat mendeteksi jenis dokumen dari nama file.\n\n' +
+                'Pastikan ini adalah dokumen SPK (Survey, Instalasi, Dismantle, atau Aktivasi).\n\n' +
+                '⚠️ Jika ini Form Checklist, upload akan ditolak setelah divalidasi.',
         };
     };
 
     const handleFile = (file: File) => {
-        // Validasi tipe file
         if (file.type !== 'application/pdf') {
             toast.error('Hanya file PDF yang diperbolehkan!', {
                 duration: 5000,
@@ -88,15 +79,13 @@ export default function UploadPDFBox() {
                     toast: '!bg-gray-900 !border-2 !border-red-400',
                     title: '!text-white',
                     icon: '!text-red-500',
-                }
+                },
             });
             return;
         }
 
-        // ✅ STRICT Validasi nama file
         const validation = validateFileName(file.name);
-        
-        // ❌ BLOCK: Jika jelas salah
+
         if (!validation.valid && validation.blockReason) {
             toast.error(validation.blockReason, {
                 duration: 8000,
@@ -104,12 +93,11 @@ export default function UploadPDFBox() {
                     toast: '!bg-gray-900 !border-2 !border-red-500',
                     title: '!text-white !text-sm !whitespace-pre-line',
                     icon: '!text-red-500',
-                }
+                },
             });
             return;
         }
-        
-        // ⚠️ WARN: Jika ambigu tapi tetap izinkan
+
         if (validation.warning) {
             toast.warning(validation.warning, {
                 duration: 6000,
@@ -117,7 +105,7 @@ export default function UploadPDFBox() {
                     toast: '!bg-gray-900 !border-2 !border-yellow-400',
                     title: '!text-white !text-sm !whitespace-pre-line',
                     icon: '!text-yellow-500',
-                }
+                },
             });
         }
 
@@ -158,32 +146,69 @@ export default function UploadPDFBox() {
 
         setLoading(true);
 
+        // 🎯 Toast loading dengan ID untuk update nanti
+        const toastId = toast.loading('📤 Uploading dan validasi dokumen SPK...', {
+            classNames: {
+                toast: '!bg-gray-900 !border-2 !border-blue-400',
+                title: '!text-white',
+                icon: '!text-blue-400',
+            },
+        });
+
         router.post('/documents/pdf', formData, {
             forceFormData: true,
-            onSuccess: () => {
-                toast.success('Upload berhasil! Dokumen sedang divalidasi oleh sistem...', {
+            onSuccess: (page) => {
+                // ✅ Update toast menjadi success
+                toast.success('✅ Upload berhasil! Dokumen sedang divalidasi...', {
+                    id: toastId,
                     duration: 4000,
+                    description: 'Sistem akan memvalidasi halaman pertama. Cek tabel di bawah untuk status real-time.',
                     classNames: {
                         toast: '!bg-gray-900 !border-2 !border-green-400',
-                        title: '!text-white !text-sm !whitespace-pre-line text-center',
+                        title: '!text-white',
+                        description: '!text-gray-300 !text-xs',
                         icon: '!text-green-500',
-                    }
+                    },
                 });
+
                 setSelectedFile(null);
+
+                // ✅ Info tambahan
+                setTimeout(() => {
+                    toast.info('💡 Tips: Dokumen akan divalidasi dalam beberapa detik', {
+                        duration: 3000,
+                        description: 'Jika file bukan SPK, akan otomatis dihapus dan diberi notifikasi.',
+                        classNames: {
+                            toast: '!bg-gray-900 !border-2 !border-cyan-400',
+                            title: '!text-white !text-sm',
+                            description: '!text-gray-300 !text-xs',
+                            icon: '!text-cyan-400',
+                        },
+                    });
+                }, 1500);
             },
             onError: (errors) => {
                 console.error('Upload errors:', errors);
-                const errorMessage = typeof errors === 'object' 
-                    ? Object.values(errors).flat().join(', ') 
-                    : 'Upload gagal, coba lagi.';
-                
-                toast.error(errorMessage, {
+
+                // ❌ Parse error message
+                let errorMessage = 'Upload gagal, coba lagi.';
+
+                if (typeof errors === 'object') {
+                    const errorValues = Object.values(errors).flat();
+                    errorMessage = errorValues.join('\n');
+                }
+
+                // Update toast menjadi error
+                toast.error('❌ Upload Gagal!', {
+                    id: toastId,
                     duration: 5000,
+                    description: errorMessage,
                     classNames: {
                         toast: '!bg-gray-900 !border-2 !border-red-400',
                         title: '!text-white',
+                        description: '!text-gray-300 !text-xs !whitespace-pre-line',
                         icon: '!text-red-500',
-                    }
+                    },
                 });
             },
             onFinish: () => setLoading(false),
@@ -204,9 +229,7 @@ export default function UploadPDFBox() {
                         <p className="mb-2 text-sm font-semibold text-white">
                             {isDragging ? 'Lepaskan file di sini' : 'Drag & drop PDF SPK to upload'}
                         </p>
-                        <p className="mb-4 text-xs text-gray-400">
-                            Hanya untuk: SPK Survey, SPK Instalasi, SPK Dismantle, SPK Aktivasi
-                        </p>
+                        <p className="mb-4 text-xs text-gray-400">Hanya untuk: SPK Survey, SPK Instalasi, SPK Dismantle, SPK Aktivasi</p>
                         <button
                             onClick={handleClick}
                             className="mx-auto rounded-full bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-2 text-white shadow transition hover:brightness-110"
@@ -218,43 +241,68 @@ export default function UploadPDFBox() {
                 ) : (
                     <>
                         <DocumentIcon className="mx-auto mb-4 h-12 w-12 text-red-500" />
-                        <p className="mb-2 text-sm text-white font-semibold">{selectedFile.name}</p>
-                        <p className="mb-4 text-xs text-gray-400">
-                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
+                        <p className="mb-2 text-sm font-semibold text-white">{selectedFile.name}</p>
+                        <p className="mb-4 text-xs text-gray-400">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                         <button
                             onClick={handleSubmit}
                             disabled={loading}
-                            className="mx-auto mt-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 px-6 py-2 text-white shadow transition hover:brightness-110 disabled:opacity-50"
+                            className="mx-auto mt-4 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 px-6 py-2 text-white shadow transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            {loading ? 'Uploading...' : 'Submit'}
+                            {loading ? (
+                                <span className="flex items-center gap-2">
+                                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        />
+                                    </svg>
+                                    Uploading...
+                                </span>
+                            ) : (
+                                'Submit'
+                            )}
                         </button>
-                        <button onClick={() => setSelectedFile(null)} className="mt-2 text-xs text-gray-400 underline hover:text-gray-300">
+                        <button
+                            onClick={() => setSelectedFile(null)}
+                            className="mt-2 text-xs text-gray-400 underline hover:text-gray-300"
+                            disabled={loading}
+                        >
                             Ganti file
                         </button>
                     </>
                 )}
             </div>
-            
+
             {/* Enhanced Info Box */}
-            <div className="mt-4 w-full max-w-md rounded-lg bg-purple-900/30 border border-purple-400/30 p-4">
+            <div className="mt-4 w-full max-w-md rounded-lg border border-purple-400/30 bg-purple-900/30 p-4">
                 <div className="mb-3">
-                    <p className="text-xs font-semibold text-purple-200 mb-2">
-                        📋 Dokumen yang BOLEH diupload di halaman ini:
-                    </p>
-                    <ul className="text-xs text-purple-300 space-y-1 ml-4">
+                    <p className="mb-2 text-xs font-semibold text-purple-200">📋 Dokumen yang BOLEH diupload di halaman ini:</p>
+                    <ul className="ml-4 space-y-1 text-xs text-purple-300">
                         <li>✅ SPK Survey</li>
                         <li>✅ SPK Instalasi</li>
                         <li>✅ SPK Dismantle</li>
                         <li>✅ SPK Aktivasi</li>
                     </ul>
                 </div>
-                <div className="pt-3 border-t border-purple-400/20">
+                <div className="border-t border-purple-400/20 pt-3">
                     <p className="text-xs text-purple-300">
                         ❌ <strong>Form Checklist</strong> tidak bisa diupload di halaman ini.
                         <br />
                         Silakan gunakan halaman <strong>"Form Checklist"</strong>.
                     </p>
+                </div>
+
+                {/* ✅ NEW: Validasi Info */}
+                <div className="mt-3 border-t border-purple-400/20 pt-3">
+                    <p className="mb-1 text-xs font-semibold text-purple-200">🔍 Proses Validasi:</p>
+                    <ol className="ml-4 list-decimal space-y-1 text-xs text-purple-300">
+                        <li>Upload file → Disimpan sementara</li>
+                        <li>Sistem scan halaman 1 (cepat!)</li>
+                        <li>Jika valid → Proses lengkap</li>
+                        <li>Jika tidak valid → Auto hapus + notifikasi</li>
+                    </ol>
                 </div>
             </div>
         </div>

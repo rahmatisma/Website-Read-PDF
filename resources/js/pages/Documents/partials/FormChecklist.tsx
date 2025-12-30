@@ -2,7 +2,8 @@ import DocumentTable from '@/components/DocumentTable';
 import SearchFilter from '@/components/SearchFilter';
 import UploadChecklistBox from '@/components/UploadChecklistBox';
 import { Document } from '@/types/document';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 interface PdfProps {
@@ -10,6 +11,32 @@ interface PdfProps {
 }
 
 export default function Checklist({ documents }: PdfProps) {
+    const { flash } = usePage().props as any;
+    
+    // ✅ Handle flash messages dari backend
+    useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success, {
+                duration: 4000,
+                classNames: {
+                    toast: '!bg-gray-900 !border-2 !border-green-400',
+                    title: '!text-white',
+                    icon: '!text-green-500',
+                }
+            });
+        }
+        
+        if (flash?.error) {
+            toast.error(flash.error, {
+                duration: 6000,
+                classNames: {
+                    toast: '!bg-gray-900 !border-2 !border-red-400',
+                    title: '!text-white !whitespace-pre-line',
+                    icon: '!text-red-500',
+                }
+            });
+        }
+    }, [flash]);
     const handleDelete = (id: number) => {
         toast.warning('Hapus dokumen?', {
             description: 'Dokumen yang dihapus tidak dapat dikembalikan.',

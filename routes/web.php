@@ -26,8 +26,6 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
 
         // Upload dokumen
         Route::post('/pdf', [UploadController::class, 'storePDF'])->name('store.pdf');
-        Route::post('/image', [UploadController::class, 'storeImage'])->name('store.image');
-        Route::post('/doc', [UploadController::class, 'storeDoc'])->name('store.doc');
         Route::post('/checklist', [UploadController::class, 'storeChecklist'])->name('store.checklist');
 
         // Detail dokumen
@@ -47,7 +45,7 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
 
         // Filter berdasarkan tipe (harus di paling bawah)
         Route::get('/{type}', [DocumentController::class, 'filter'])
-            ->where('type', 'pdf|gambar|doc|form-checklist')
+            ->where('type', 'pdf|form-checklist')
             ->name('filter');
     });
 

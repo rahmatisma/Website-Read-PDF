@@ -456,7 +456,7 @@ class DocumentController extends Controller
     }
 
     /**
-     * ✅ DETAIL DOKUMEN
+     * ✅ DETAIL DOKUMEN - FIXED: Wrap extracted_data dengan "data"
      */
     public function detail($id)
     {
@@ -474,14 +474,20 @@ class DocumentController extends Controller
                 'user_id' => Auth::id()
             ]);
             
+            // ✅ FIXED: Transform extracted_data sesuai struktur yang diharapkan frontend
             $extractedData = null;
             if ($upload->extracted_data) {
-                $extractedData = is_string($upload->extracted_data) 
+                $rawData = is_string($upload->extracted_data) 
                     ? json_decode($upload->extracted_data, true) 
                     : $upload->extracted_data;
+                
+                // ✅ Wrap dengan "data" agar sesuai dengan interface TypeScript
+                $extractedData = [
+                    'data' => $rawData
+                ];
             }
 
-            // ✅ FIXED: Check via relasi SPK
+            // ✅ Check via relasi SPK
             $isChecklist = $upload->spks()
                 ->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless'])
                 ->exists();
@@ -499,7 +505,7 @@ class DocumentController extends Controller
                     'created_at' => $upload->created_at,
                     'updated_at' => $upload->updated_at,
                 ],
-                'extractedData' => $extractedData,
+                'extractedData' => $extractedData, // ✅ Sudah wrapped dengan "data"
             ]);
             
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

@@ -10,346 +10,237 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class ProcessDocumentJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    // ✅ EXTENDED TIMEOUT untuk OCR yang lama
-    public $timeout = 2400; // 40 menit (2400 detik)
+    public $timeout = 600; // 10 menit
     public $tries = 1;
 
     protected $uploadId;
-    protected $expectedCategory; // 'spk' atau 'checklist'
+    protected $expectedCategory;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct($uploadId, $expectedCategory = 'spk')
+    public function __construct(int $uploadId, string $expectedCategory)
     {
         $this->uploadId = $uploadId;
         $this->expectedCategory = $expectedCategory;
     }
 
-    /**
-     * ========================================
-     * VALIDASI DOCUMENT TYPE
-     * ========================================
-     */
-    private function validateDocumentType(string $detectedType, string $expectedCategory): array
+    public function handle(JsonToDatabase $jsonToDatabase)
     {
-        // Definisi kategori dokumen
-        $spkTypes = ['spk_survey', 'spk_instalasi', 'spk_dismantle', 'spk_aktivasi'];
-        $checklistTypes = ['checklist_wireline', 'checklist_wireless'];
-        
-        $isValid = false;
-        $message = '';
-        
-        if ($expectedCategory === 'spk') {
-            $isValid = in_array($detectedType, $spkTypes);
-            if (!$isValid) {
-                if (in_array($detectedType, $checklistTypes)) {
-                    $message = "❌ VALIDASI GAGAL: Dokumen ini adalah Form Checklist ({$detectedType}), bukan SPK! Silakan upload di halaman Form Checklist.";
-                } elseif ($detectedType === 'unknown') {
-                    $message = "❌ VALIDASI GAGAL: Jenis dokumen tidak dapat dideteksi. Pastikan file PDF adalah dokumen SPK yang valid (Survey, Instalasi, Dismantle, atau Aktivasi).";
-                } else {
-                    $message = "❌ VALIDASI GAGAL: Jenis dokumen ({$detectedType}) tidak sesuai untuk upload SPK.";
-                }
-            }
-        } elseif ($expectedCategory === 'checklist') {
-            $isValid = in_array($detectedType, $checklistTypes);
-            if (!$isValid) {
-                if (in_array($detectedType, $spkTypes)) {
-                    $message = "❌ VALIDASI GAGAL: Dokumen ini adalah SPK ({$detectedType}), bukan Form Checklist! Silakan upload di halaman Dokumen PDF.";
-                } elseif ($detectedType === 'unknown') {
-                    $message = "❌ VALIDASI GAGAL: Jenis dokumen tidak dapat dideteksi. Pastikan file PDF adalah Form Checklist yang valid (Wireline atau Wireless).";
-                } else {
-                    $message = "❌ VALIDASI GAGAL: Jenis dokumen ({$detectedType}) tidak sesuai untuk upload Form Checklist.";
-                }
-            }
+        $upload = Document::find($this->uploadId);
+
+        if (!$upload) {
+            Log::error('Document not found for processing', ['id' => $this->uploadId]);
+            return;
         }
-        
-        return [
-            'valid' => $isValid,
-            'message' => $message,
-            'detected_type' => $detectedType
-        ];
-    }
 
-    /**
-     * Execute the job.
-     */
-    public function handle(JsonToDatabase $jsonToDatabase): void
-    {
-        $startTime = microtime(true);
-        
         try {
-            // ✅ 1. Ambil data upload
-            $upload = Document::find($this->uploadId);
-            
-            if (!$upload) {
-                Log::error('❌ Upload not found', ['upload_id' => $this->uploadId]);
-                return;
-            }
-
-            Log::info('🚀 JOB STARTED (OCR Mode with Validation)', [
-                'upload_id' => $upload->id_upload,
-                'file_name' => $upload->file_name,
-                'file_size' => $upload->file_size . ' bytes',
-                'current_status' => $upload->status,
-                'expected_category' => $this->expectedCategory,
-                'max_timeout' => '40 minutes',
-                'timestamp' => now()->format('Y-m-d H:i:s')
-            ]);
-
-            // ✅ 2. Update status → processing
+            // ========================================
+            // STEP 1: UPDATE STATUS KE PROCESSING
+            // ========================================
             $upload->update(['status' => 'processing']);
             
-            Log::info('📝 Status updated to PROCESSING', [
-                'upload_id' => $upload->id_upload,
-                'elapsed' => round(microtime(true) - $startTime, 2) . 's'
+            Log::info('🔄 Starting document processing', [
+                'id_upload' => $upload->id_upload,
+                'file_name' => $upload->file_name,
+                'expected_category' => $this->expectedCategory
             ]);
 
-            // ✅ 3. Validasi file exists
-            $fullPath = storage_path('app/public/' . $upload->file_path);
-
-            if (!file_exists($fullPath)) {
-                throw new \Exception('File not found: ' . $fullPath);
-            }
-
-            $fileSize = filesize($fullPath);
-            $fileSizeMB = round($fileSize / (1024 * 1024), 2);
-
-            Log::info('📤 Sending file to Python OCR API', [
-                'upload_id' => $upload->id_upload,
-                'file_path' => $fullPath,
-                'file_size' => $fileSizeMB . ' MB',
-                'python_url' => 'http://localhost:5000/process-pdf',
-                'estimated_time' => 'Could take 15-30 minutes for OCR processing'
-            ]);
-
-            // ✅ 4. Kirim ke Python API dengan EXTENDED TIMEOUT
-            // Timeout 35 menit (2100 detik) - lebih kecil dari job timeout
-            $response = Http::timeout(2100) // ⬅️ 35 menit untuk HTTP request
-                ->attach(
-                    'file',
-                    fopen($fullPath, 'r'),
-                    $upload->file_name
-                )
-                ->post('http://localhost:5000/process-pdf');
-
-            // ✅ 5. Handle response
-            if ($response->successful()) {
-                $result = $response->json();
-
-                $processingTime = round(microtime(true) - $startTime, 2);
-                $processingMinutes = round($processingTime / 60, 2);
-
-                Log::info('✅ Python OCR processing SUCCESSFUL', [
-                    'upload_id' => $upload->id_upload,
-                    'has_data' => isset($result['data']),
-                    'response_size' => strlen(json_encode($result)) . ' bytes',
-                    'processing_time' => $processingMinutes . ' minutes (' . $processingTime . 's)',
-                    'elapsed' => $processingTime . 's'
-                ]);
-
-                // ✅ 6. VALIDASI DOCUMENT TYPE (CRITICAL!)
-                // Cek struktur response dari Python
-                if (!isset($result['data']['parsed']['document_type'])) {
-                    Log::error('❌ Invalid Python response structure', [
-                        'upload_id' => $upload->id_upload,
-                        'response_keys' => array_keys($result),
-                        'data_keys' => isset($result['data']) ? array_keys($result['data']) : 'N/A',
-                        'parsed_keys' => isset($result['data']['parsed']) ? array_keys($result['data']['parsed']) : 'N/A'
-                    ]);
-                    
-                    throw new \Exception("Response dari Python tidak mengandung document_type. Struktur response tidak valid.");
-                }
-
-                $detectedType = $result['data']['parsed']['document_type'];
-                
-                Log::info('🔍 Validating Document Type', [
-                    'upload_id' => $upload->id_upload,
-                    'detected_type' => $detectedType,
-                    'expected_category' => $this->expectedCategory,
-                    'file_name' => $upload->file_name
-                ]);
-
-                $validation = $this->validateDocumentType($detectedType, $this->expectedCategory);
-
-                if (!$validation['valid']) {
-                    // ❌ VALIDASI GAGAL - Hapus file dan record
-                    Log::error('🚫 DOCUMENT TYPE VALIDATION FAILED', [
-                        'upload_id' => $upload->id_upload,
-                        'file_name' => $upload->file_name,
-                        'detected_type' => $detectedType,
-                        'expected_category' => $this->expectedCategory,
-                        'validation_message' => $validation['message'],
-                        'action' => 'Deleting file and database record'
-                    ]);
-
-                    // Hapus file dari storage
-                    if (Storage::exists('public/' . $upload->file_path)) {
-                        Storage::delete('public/' . $upload->file_path);
-                        Log::info('🗑️ File deleted from storage', [
-                            'file_path' => $upload->file_path
-                        ]);
-                    }
-
-                    // Hapus record dari database
-                    $upload->delete();
-                    Log::info('🗑️ Database record deleted', [
-                        'upload_id' => $upload->id_upload
-                    ]);
-
-                    // Throw exception dengan pesan yang jelas
-                    throw new \Exception($validation['message']);
-                }
-
-                Log::info('✅ Document type validation PASSED', [
-                    'upload_id' => $upload->id_upload,
-                    'detected_type' => $detectedType,
-                    'expected_category' => $this->expectedCategory,
-                    'validation_status' => 'VALID'
-                ]);
-
-                // ✅ 7. Simpan extracted data
-                $upload->update([
-                    'extracted_data' => $result,
-                ]);
-
-                Log::info('💾 Extracted data SAVED', [
-                    'upload_id' => $upload->id_upload,
-                    'elapsed' => round(microtime(true) - $startTime, 2) . 's'
-                ]);
-
-                // ✅ 8. Proses ke database (split data)
-                try {
-                    Log::info('🔄 Starting database split', [
-                        'upload_id' => $upload->id_upload
-                    ]);
-
-                    $jsonToDatabase->process($result, $upload->id_upload);
-
-                    // ✅ 9. Update status → completed
-                    $upload->update(['status' => 'completed']);
-
-                    $totalTime = round(microtime(true) - $startTime, 2);
-                    $totalMinutes = round($totalTime / 60, 2);
-
-                    Log::info('✅ JOB COMPLETED SUCCESSFULLY', [
-                        'upload_id' => $upload->id_upload,
-                        'file_name' => $upload->file_name,
-                        'document_type' => $detectedType,
-                        'category' => $this->expectedCategory,
-                        'total_duration' => $totalMinutes . ' minutes (' . $totalTime . 's)',
-                        'status' => 'completed'
-                    ]);
-
-                } catch (\Exception $e) {
-                    Log::error('❌ Database split FAILED', [
-                        'upload_id' => $upload->id_upload,
-                        'error' => $e->getMessage(),
-                        'file' => $e->getFile(),
-                        'line' => $e->getLine()
-                    ]);
-
-                    $upload->update(['status' => 'failed']);
-                    throw $e;
-                }
-
-            } else {
-                $errorBody = $response->body();
-                
-                Log::error('❌ Python OCR API ERROR', [
-                    'upload_id' => $upload->id_upload,
-                    'status_code' => $response->status(),
-                    'error_body' => substr($errorBody, 0, 500),
-                    'elapsed' => round(microtime(true) - $startTime, 2) . 's'
-                ]);
-
-                $upload->update(['status' => 'failed']);
-                throw new \Exception('Python API error: ' . $errorBody);
-            }
-
-        } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error('❌ CANNOT CONNECT to Python API', [
-                'upload_id' => $this->uploadId,
-                'error' => $e->getMessage(),
-                'python_url' => 'http://localhost:5000/process-pdf',
-                'suggestion' => 'Make sure Python Flask is running on port 5000'
-            ]);
-
-            Document::where('id_upload', $this->uploadId)
-                ->update(['status' => 'failed']);
-
-            throw $e;
-
-        } catch (\Illuminate\Http\Client\RequestException $e) {
-            $totalTime = round(microtime(true) - $startTime, 2);
-            $totalMinutes = round($totalTime / 60, 2);
+            // ========================================
+            // STEP 2: VALIDASI HALAMAN PERTAMA
+            // ========================================
+            $validationResult = $this->validateFirstPage($upload);
             
-            // Cek apakah timeout
-            if (strpos($e->getMessage(), 'timed out') !== false || 
-                strpos($e->getMessage(), 'timeout') !== false) {
-                
-                Log::error('⏱️ HTTP REQUEST TIMEOUT', [
-                    'upload_id' => $this->uploadId,
-                    'error' => $e->getMessage(),
-                    'processing_time' => $totalMinutes . ' minutes',
-                    'timeout_limit' => '35 minutes',
-                    'suggestion' => 'OCR took longer than expected. Consider increasing timeout or optimizing OCR process.'
-                ]);
-            } else {
-                Log::error('❌ HTTP REQUEST ERROR', [
-                    'upload_id' => $this->uploadId,
-                    'error' => $e->getMessage(),
-                    'processing_time' => $totalMinutes . ' minutes'
-                ]);
+            if (!$validationResult['success']) {
+                throw new \Exception($validationResult['message']);
             }
 
-            Document::where('id_upload', $this->uploadId)
-                ->update(['status' => 'failed']);
+            if (!$validationResult['is_valid_for_category']) {
+                throw new \Exception($validationResult['message']);
+            }
 
-            throw $e;
+            Log::info('✅ Validation passed', [
+                'document_type' => $validationResult['document_type'],
+                'confidence' => $validationResult['confidence']
+            ]);
+
+            // ========================================
+            // STEP 3: FULL PROCESSING (✨ UPDATED)
+            // ========================================
+            $processingResult = $this->processFullDocument($upload);
+
+            if (!$processingResult['success']) {
+                throw new \Exception($processingResult['message']);
+            }
+
+            // ========================================
+            // STEP 4: SIMPAN KE DATABASE
+            // ========================================
+            $jsonData = $processingResult['data'];
+            $jsonToDatabase->process($jsonData, $upload->id_upload);
+
+            // ========================================
+            // STEP 5: UPDATE STATUS KE COMPLETED
+            // ========================================
+            $upload->update([
+                'status' => 'completed',
+                'extracted_data' => $jsonData
+            ]);
+
+            Log::info('✅ Document processing completed', [
+                'id_upload' => $upload->id_upload,
+                'document_type' => $validationResult['document_type'],
+                'total_images' => count($jsonData['dokumentasi'] ?? [])
+            ]);
 
         } catch (\Exception $e) {
-            $totalTime = round(microtime(true) - $startTime, 2);
-            $totalMinutes = round($totalTime / 60, 2);
-            
-            Log::error('❌ JOB FAILED', [
-                'upload_id' => $this->uploadId,
-                'expected_category' => $this->expectedCategory,
+            Log::error('❌ Document processing failed', [
+                'id_upload' => $upload->id_upload,
                 'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'processing_time' => $totalMinutes . ' minutes (' . $totalTime . 's)',
-                'trace' => substr($e->getTraceAsString(), 0, 1000) // Limit trace length
+                'trace' => $e->getTraceAsString()
             ]);
 
-            Document::where('id_upload', $this->uploadId)
-                ->update(['status' => 'failed']);
+            $upload->update([
+                'status' => 'failed',
+                'extracted_data' => [
+                    'error' => $e->getMessage(),
+                    'failed_at' => now()->toDateTimeString()
+                ]
+            ]);
 
-            throw $e;
+            // Hapus file jika validasi gagal
+            if (str_contains($e->getMessage(), 'tidak sesuai') || 
+                str_contains($e->getMessage(), 'tidak dapat dideteksi')) {
+                
+                Log::info('🗑️ Deleting invalid document file', [
+                    'id_upload' => $upload->id_upload,
+                    'file_path' => $upload->file_path,
+                    'reason' => 'validation_failed'
+                ]);
+
+                if (Storage::exists('public/' . $upload->file_path)) {
+                    Storage::delete('public/' . $upload->file_path);
+                }
+            }
         }
     }
 
     /**
-     * Handle job failure
+     * ========================================
+     * VALIDASI HALAMAN PERTAMA
+     * ========================================
      */
-    public function failed(\Throwable $exception): void
+    private function validateFirstPage(Document $upload): array
     {
-        Log::error('❌ JOB FAILED PERMANENTLY', [
-            'upload_id' => $this->uploadId,
-            'expected_category' => $this->expectedCategory,
-            'error' => $exception->getMessage(),
-            'class' => get_class($exception),
-            'timestamp' => now()->format('Y-m-d H:i:s')
-        ]);
+        $filePath = storage_path('app/public/' . $upload->file_path);
 
-        Document::where('id_upload', $this->uploadId)
-            ->update(['status' => 'failed']);
+        if (!file_exists($filePath)) {
+            return [
+                'success' => false,
+                'message' => 'File tidak ditemukan di storage',
+                'is_valid_for_category' => false
+            ];
+        }
+
+        try {
+            Log::info('🔍 Validating first page via Python API', [
+                'file_path' => $filePath,
+                'expected_category' => $this->expectedCategory
+            ]);
+
+            $response = Http::timeout(30)
+                ->attach('file', file_get_contents($filePath), $upload->file_name)
+                ->post('http://127.0.0.1:5000/validate-first-page', [
+                    'expected_category' => $this->expectedCategory
+                ]);
+
+            if (!$response->successful()) {
+                $errorData = $response->json();
+                return [
+                    'success' => false,
+                    'message' => $errorData['message'] ?? 'Validasi gagal',
+                    'is_valid_for_category' => false
+                ];
+            }
+
+            return $response->json();
+
+        } catch (\Exception $e) {
+            Log::error('Validation API error', [
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Gagal berkomunikasi dengan API validasi: ' . $e->getMessage(),
+                'is_valid_for_category' => false
+            ];
+        }
+    }
+
+    /**
+     * ========================================
+     * FULL PROCESSING (✨ UPDATED dengan Laravel Storage Path)
+     * ========================================
+     */
+    private function processFullDocument(Document $upload): array
+    {
+        $filePath = storage_path('app/public/' . $upload->file_path);
+        $laravelStoragePath = storage_path('app/public');
+
+        try {
+            Log::info('📄 Full processing via Python API', [
+                'file_path' => $filePath,
+                'laravel_storage_path' => $laravelStoragePath
+            ]);
+
+            // ✅ FIX: Gunakan asMultipart() untuk kirim file + form field
+            $response = Http::timeout(300)
+                ->asMultipart()
+                ->attach('file', file_get_contents($filePath), $upload->file_name)
+                ->attach('laravel_storage_path', $laravelStoragePath)  // ← FIXED
+                ->post('http://127.0.0.1:5000/process-pdf');
+
+            if (!$response->successful()) {
+                return [
+                    'success' => false,
+                    'message' => 'Python API error: ' . $response->body()
+                ];
+            }
+
+            $result = $response->json();
+
+            $imageCount = count($result['data']['dokumentasi'] ?? []);
+            Log::info('✅ Python processing completed', [
+                'total_images' => $imageCount
+            ]);
+
+            if ($imageCount > 0) {
+                $sampleImage = $result['data']['dokumentasi'][0];
+                Log::info('📸 Sample image path', [
+                    'jenis' => $sampleImage['jenis'] ?? 'N/A',
+                    'patch_foto' => $sampleImage['patch_foto'] ?? 'N/A'
+                ]);
+            }
+
+            return [
+                'success' => true,
+                'data' => $result['data'] ?? []
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Processing API error', [
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Gagal memproses dokumen: ' . $e->getMessage()
+            ];
+        }
     }
 }
