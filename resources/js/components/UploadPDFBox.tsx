@@ -45,7 +45,7 @@ export default function UploadPDFBox() {
         if (hasStrictChecklistKeyword) {
             return {
                 valid: false,
-                blockReason: '🚫 File ini jelas adalah Form Checklist!\n\n' +
+                blockReason: 'File ini jelas adalah Form Checklist!\n\n' +
                            'Silakan upload di halaman "Form Checklist" yang terpisah.\n\n' +
                            'Halaman ini HANYA untuk dokumen SPK (Survey, Instalasi, Dismantle, Aktivasi).'
             };
@@ -55,14 +55,14 @@ export default function UploadPDFBox() {
         if (lowerName.includes('checklist') && !lowerName.includes('spk')) {
             return {
                 valid: false,
-                blockReason: '🚫 File ini sepertinya Form Checklist!\n\n' +
+                blockReason: 'File ini sepertinya Form Checklist!\n\n' +
                            'Jika ini memang Form Checklist, silakan upload di halaman "Form Checklist".\n\n' +
                            'Jika ini SPK, pastikan nama file mengandung kata "SPK".'
             };
         }
         
         // ✅ ALLOW: File dengan kata kunci SPK yang jelas
-        const spkKeywords = ['spk', 'survey', 'instalasi', 'dismantle', 'aktivasi'];
+        const spkKeywords = ['spk', 'survey', 'instalasi', 'dismantle', 'dismantl', 'aktivasi', 'aktifasi'];
         const hasSpkKeyword = spkKeywords.some(keyword => lowerName.includes(keyword));
         
         if (hasSpkKeyword) {
@@ -73,7 +73,7 @@ export default function UploadPDFBox() {
         // Tetap izinkan upload, tapi beri warning
         return {
             valid: true,
-            warning: '⚠️ Tidak dapat mendeteksi jenis dokumen dari nama file.\n\n' +
+            warning: 'Tidak dapat mendeteksi jenis dokumen dari nama file.\n\n' +
                     'Pastikan ini adalah dokumen SPK (Survey, Instalasi, Dismantle, atau Aktivasi).\n\n' +
                     'Jika ini Form Checklist, upload akan ditolak setelah diproses.'
         };
@@ -161,11 +161,11 @@ export default function UploadPDFBox() {
         router.post('/documents/pdf', formData, {
             forceFormData: true,
             onSuccess: () => {
-                toast.success('✅ Upload berhasil!\n\nDokumen sedang divalidasi oleh sistem...', {
+                toast.success('Upload berhasil! Dokumen sedang divalidasi oleh sistem...', {
                     duration: 4000,
                     classNames: {
                         toast: '!bg-gray-900 !border-2 !border-green-400',
-                        title: '!text-white !text-sm !whitespace-pre-line',
+                        title: '!text-white !text-sm !whitespace-pre-line text-center',
                         icon: '!text-green-500',
                     }
                 });

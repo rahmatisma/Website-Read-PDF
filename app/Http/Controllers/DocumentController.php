@@ -39,9 +39,7 @@ class DocumentController extends Controller
             case 'pdf':
                 // ✅ FIXED: PDF yang BUKAN form checklist (cek lewat relasi SPK)
                 $query->where('file_type', 'pdf')
-                    ->whereDoesntHave('spks', function($q) {
-                        $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
-                    });
+                    ->where('document_type', '!=', 'form_checklist');
                 break;
             case 'doc':
                 $query->whereIn('file_type', ['doc', 'docx']);
@@ -51,9 +49,7 @@ class DocumentController extends Controller
                 break;
             case 'form-checklist':
                 // ✅ FIXED: Ambil dokumen yang punya SPK dengan type form_checklist
-                $query->whereHas('spks', function($q) {
-                    $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
-                });
+                $query->where('document_type', 'form_checklist');
                 break;
             default:
                 abort(404);
