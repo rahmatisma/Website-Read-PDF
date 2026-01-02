@@ -26,8 +26,8 @@ class ChatbotService
      */
     public function chat(
         string $query,
-        array $conversationHistory = [],  // ← BARU
-        array $currentContext = [],        // ← BARU
+        array $conversationHistory = [],
+        array $currentContext = [],
         array $options = []
     ): array
     {
@@ -36,8 +36,27 @@ class ChatbotService
                 'query' => $query,
                 'has_history' => !empty($conversationHistory),
                 'has_context' => !empty($currentContext),
-                'context' => $currentContext
             ]);
+
+            // ================================
+            // STEP 0: OUT-OF-SCOPE DETECTION
+            // ================================
+            if (!$this->isDocumentRelatedQuery($query)) {
+                $answer = "Maaf, saya hanya dapat membantu menjawab pertanyaan terkait:\n\n" .
+                        "✅ Dokumen SPK (Surat Perintah Kerja)\n" .
+                        "✅ Form Checklist (Wireline & Wireless)\n" .
+                        "✅ Data Pelanggan dan Jaringan\n" .
+                        "✅ Informasi Teknisi dan Vendor\n" .
+                        "✅ Detail Pelaksanaan Pekerjaan\n\n" .
+                        "Silakan ajukan pertanyaan seputar dokumen-dokumen tersebut. 😊";
+                
+                return [
+                    'success' => true,
+                    'query' => $query,
+                    'answer' => $answer,
+                    'source' => 'out_of_scope',
+                ];
+            }
 
             // ================================
             // STEP 1: ENHANCE QUERY DENGAN CONTEXT
@@ -122,6 +141,82 @@ class ChatbotService
                 'error' => $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Deteksi apakah query terkait dokumen SPK/Checklist
+     */
+    private function isDocumentRelatedQuery(string $query): bool
+    {
+        $queryLower = strtolower($query);
+        
+        // ✅ Keywords yang menandakan query tentang dokumen
+        $documentKeywords = [
+            // SPK related
+            'spk', 'surat perintah kerja', 'nomor spk', 'no spk',
+            
+            // Jaringan related
+            'jaringan', 'nojar', 'nomor jaringan', 'pelanggan', 'customer',
+            
+            // Teknisi & Vendor
+            'teknisi', 'vendor', 'teknisi lapangan',
+            
+            // Lokasi & Instalasi
+            'pop', 'lokasi', 'alamat', 'gedung', 'instalasi', 'survey',
+            'dismantle', 'aktivasi', 'maintenance',
+            
+            // Checklist related
+            'checklist', 'form checklist', 'wireline', 'wireless',
+            
+            // Data teknis
+            'kecepatan', 'bandwidth', 'fiber', 'kabel', 'modem', 'router',
+            'antenna', 'perangkat', 'tegangan', 'grounding',
+            
+            // Dokumentasi
+            'foto', 'dokumentasi', 'berita acara', 'list item',
+            
+            // Waktu & Status
+            'tanggal', 'waktu', 'pelaksanaan', 'selesai', 'rfs',
+            
+            // Perizinan
+            'izin', 'perizinan', 'biaya', 'sewa',
+            
+            // General document queries
+            'dokumen', 'data', 'informasi', 'detail', 'list', 'daftar',
+            'berapa', 'siapa', 'dimana', 'kapan', 'apa saja', 'ada berapa'
+        ];
+        
+        // Cek apakah query mengandung salah satu keyword
+        foreach ($documentKeywords as $keyword) {
+            if (strpos($queryLower, $keyword) !== false) {
+                return true;
+            }
+        }
+        
+        // ❌ Keywords yang menandakan query OUT OF SCOPE
+        $outOfScopeKeywords = [
+            'laravel', 'php', 'python', 'javascript', 'programming',
+            'coding', 'database', 'mysql', 'framework', 'tutorial',
+            'cara membuat', 'how to', 'install', 'setup',
+            'berita', 'news', 'politik', 'olahraga', 'resep',
+            'cuaca', 'weather', 'film', 'musik', 'game'
+        ];
+        
+        foreach ($outOfScopeKeywords as $keyword) {
+            if (strpos($queryLower, $keyword) !== false) {
+                return false;
+            }
+        }
+        
+        // Default: anggap related jika tidak ada out-of-scope keyword
+        // Tapi query terlalu umum (< 3 kata) → reject
+        $wordCount = str_word_count($query);
+        if ($wordCount < 3 && !preg_match('/\d{10}/', $query)) {
+            // Kecuali ada nomor jaringan 10 digit
+            return false;
+        }
+        
+        return true;
     }
 
     /**
@@ -380,78 +475,96 @@ class ChatbotService
     /**
      * Similarity search dengan context awareness
      */
-    private function contextAwareSimilaritySearch(
+    /**
+     * Similarity search dengan context awareness - Query BOTH tables
+     */
+    public function contextAwareSimilaritySearch(
         array $queryEmbedding,
         array $context,
         array $options = []
     ): array {
         $topK = $options['top_k'] ?? 5;
         $minSimilarity = $options['min_similarity'] ?? 0.5;
+        $searchType = $options['search_type'] ?? 'both'; // 'jaringan', 'spk', or 'both'
 
-        $query = SpkEmbedding::query();
+        $allResults = [];
 
-        // PRIORITASKAN embedding yang match dengan context
-        if (!empty($context['last_nojar'])) {
-            // Cari yang mengandung nojar yang sedang dibahas
-            $nojarMatches = SpkEmbedding::where('content_text', 'LIKE', "%{$context['last_nojar']}%")->get();
-
-            if ($nojarMatches->isNotEmpty()) {
-                Log::info('Context match found', [
-                    'nojar' => $context['last_nojar'],
-                    'matches' => $nojarMatches->count()
-                ]);
-
-                // Gunakan ini sebagai kandidat utama
-                $spkEmbeddings = $nojarMatches;
-            } else {
-                $spkEmbeddings = SpkEmbedding::all();
-            }
-        } else {
-            $spkEmbeddings = SpkEmbedding::all();
-        }
-
-        if ($spkEmbeddings->isEmpty()) {
-            Log::warning('No SPK embeddings found in database');
-            return [];
-        }
-
-        $results = [];
-
-        foreach ($spkEmbeddings as $item) {
-            $embedding = $item->getEmbeddingArray();
-
-            if (empty($embedding)) {
-                continue;
-            }
-
-            $similarity = $this->cosineSimilarity($queryEmbedding, $embedding);
-
-            // Boost similarity jika match dengan context
-            if (!empty($context['last_nojar']) &&
-                strpos($item->content_text, $context['last_nojar']) !== false) {
-                $similarity *= 1.2; // Boost 20%
-                Log::info('Similarity boosted for context match', [
-                    'no_spk' => $item->no_spk,
-                    'original_similarity' => $similarity / 1.2,
-                    'boosted_similarity' => $similarity
-                ]);
-            }
-
-            if ($similarity >= $minSimilarity) {
-                $results[] = [
-                    'type' => 'spk',
-                    'id' => $item->id_embedding,
-                    'id_spk' => $item->id_spk,
-                    'no_spk' => $item->no_spk,
-                    'content_text' => $item->content_text,
-                    'similarity' => min($similarity, 1.0), // Cap at 1.0
-                ];
+        // ================================
+        // SEARCH 1: JARINGAN EMBEDDINGS
+        // ================================
+        if ($searchType === 'jaringan' || $searchType === 'both') {
+            $jaringanEmbeddings = \App\Models\JaringanEmbedding::all();
+            
+            if ($jaringanEmbeddings->isNotEmpty()) {
+                foreach ($jaringanEmbeddings as $item) {
+                    $embedding = $item->getEmbeddingArray();
+                    
+                    if (empty($embedding)) {
+                        continue;
+                    }
+                    
+                    $similarity = $this->cosineSimilarity($queryEmbedding, $embedding);
+                    
+                    // Boost jika match dengan context
+                    if (!empty($context['last_nojar']) &&
+                        strpos($item->content_text, $context['last_nojar']) !== false) {
+                        $similarity *= 1.2;
+                    }
+                    
+                    if ($similarity >= $minSimilarity) {
+                        $allResults[] = [
+                            'type' => 'jaringan',
+                            'id' => $item->id_embedding,
+                            'no_jaringan' => $item->no_jaringan,
+                            'content_text' => $item->content_text,
+                            'similarity' => min($similarity, 1.0),
+                        ];
+                    }
+                }
             }
         }
 
-        usort($results, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
+        // ================================
+        // SEARCH 2: SPK EMBEDDINGS
+        // ================================
+        if ($searchType === 'spk' || $searchType === 'both') {
+            $spkEmbeddings = \App\Models\SpkEmbedding::all();
+            
+            if ($spkEmbeddings->isNotEmpty()) {
+                foreach ($spkEmbeddings as $item) {
+                    $embedding = $item->getEmbeddingArray();
+                    
+                    if (empty($embedding)) {
+                        continue;
+                    }
+                    
+                    $similarity = $this->cosineSimilarity($queryEmbedding, $embedding);
+                    
+                    // Boost jika match dengan context
+                    if (!empty($context['last_spk']) &&
+                        strpos($item->content_text, $context['last_spk']) !== false) {
+                        $similarity *= 1.2;
+                    }
+                    
+                    if ($similarity >= $minSimilarity) {
+                        $allResults[] = [
+                            'type' => 'spk',
+                            'id' => $item->id_embedding,
+                            'id_spk' => $item->id_spk,
+                            'no_spk' => $item->no_spk,
+                            'content_text' => $item->content_text,
+                            'similarity' => min($similarity, 1.0),
+                        ];
+                    }
+                }
+            }
+        }
 
-        return array_slice($results, 0, $topK);
+        // Sort by similarity (highest first)
+        usort($allResults, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
+
+        // Return top K results
+        return array_slice($allResults, 0, $topK);
     }
 
     /**
@@ -488,7 +601,7 @@ class ChatbotService
     }
 
     /**
-     * Build context dari relevant data
+     * Build context dari relevant data (support both jaringan & spk)
      */
     private function buildContext(array $relevantData): string
     {
@@ -496,13 +609,22 @@ class ChatbotService
             return "Tidak ada data yang relevan ditemukan dalam database.";
         }
 
-        $contextParts = ["=== DATA SPK YANG RELEVAN ===\n"];
+        $contextParts = ["=== DATA YANG RELEVAN ===\n"];
 
         foreach ($relevantData as $index => $data) {
-            $contextParts[] = "\n--- SPK #" . ($index + 1) .
-                            " | No SPK: " . ($data['no_spk'] ?? 'N/A') .
-                            " | Similarity: " . number_format($data['similarity'], 4) . " ---";
-            $contextParts[] = $data['content_text'];
+            $type = $data['type'] ?? 'unknown';
+            $typeLabel = $type === 'jaringan' ? 'JARINGAN' : 'SPK';
+            
+            $contextParts[] = "\n--- {$typeLabel} #" . ($index + 1) . " ---";
+            
+            if ($type === 'jaringan') {
+                $contextParts[] = "No Jaringan: " . ($data['no_jaringan'] ?? 'N/A');
+            } else {
+                $contextParts[] = "No SPK: " . ($data['no_spk'] ?? 'N/A');
+            }
+            
+            $contextParts[] = "Similarity: " . number_format($data['similarity'], 4);
+            $contextParts[] = "\nContent:\n" . $data['content_text'];
             $contextParts[] = "";
         }
 

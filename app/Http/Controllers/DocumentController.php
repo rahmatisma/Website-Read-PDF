@@ -360,6 +360,9 @@ class DocumentController extends Controller
                 'timestamp' => now()
             ]);
             
+            // ========================================
+            // 1. HAPUS SPK DAN CEK JARINGAN
+            // ========================================
             $spks = SPK::where('id_upload', $upload->id_upload)->get();
             $noJaringanList = [];
             
@@ -375,19 +378,100 @@ class DocumentController extends Controller
                 }
             }
             
+            // ========================================
+            // 2. HAPUS FILE PDF ASLI
+            // ========================================
             if (Storage::exists('public/' . $upload->file_path)) {
                 Storage::delete('public/' . $upload->file_path);
-                Log::info('File fisik berhasil dihapus dari storage', [
+                Log::info('File PDF asli berhasil dihapus dari storage', [
                     'path' => $upload->file_path
                 ]);
             } else {
-                Log::warning('File fisik tidak ditemukan di storage', [
+                Log::warning('File PDF asli tidak ditemukan di storage', [
                     'path' => $upload->file_path
                 ]);
             }
             
+            // ========================================
+            // 3. HAPUS FOLDER HASIL EKSTRAKSI PYTHON
+            // ========================================
+            if ($upload->extracted_data && isset($upload->extracted_data['dokumentasi']) && is_array($upload->extracted_data['dokumentasi'])) {
+                $deletedFiles = 0;
+                $extractedFolder = null;
+                
+                foreach ($upload->extracted_data['dokumentasi'] as $doc) {
+                    if (isset($doc['patch_foto'])) {
+                        // Path dari database: output/extracted/spk/survey/survey_xxx/images/foto.jpg
+                        $relativePath = $doc['patch_foto'];
+                        
+                        // Full path: storage/app/public/output/extracted/...
+                        $fullPath = storage_path('app/public/' . $relativePath);
+                        
+                        if (file_exists($fullPath)) {
+                            unlink($fullPath);
+                            $deletedFiles++;
+                            
+                            Log::info('Gambar dokumentasi berhasil dihapus', [
+                                'relative_path' => $relativePath,
+                                'full_path' => $fullPath
+                            ]);
+                        } else {
+                            Log::warning('Gambar dokumentasi tidak ditemukan', [
+                                'relative_path' => $relativePath,
+                                'full_path' => $fullPath
+                            ]);
+                        }
+                        
+                        // Extract folder induk (survey_xxx)
+                        if (!$extractedFolder) {
+                            // output/extracted/spk/survey/survey_20241230_143022/images/foto.jpg
+                            // → output/extracted/spk/survey/survey_20241230_143022
+                            $pathParts = explode('/', $relativePath);
+                            if (count($pathParts) >= 5) {
+                                $extractedFolder = implode('/', array_slice($pathParts, 0, -2));
+                            }
+                        }
+                    }
+                }
+                
+                Log::info('Ringkasan penghapusan gambar dokumentasi', [
+                    'total_gambar_dihapus' => $deletedFiles,
+                    'extracted_folder' => $extractedFolder
+                ]);
+                
+                // ========================================
+                // 4. HAPUS FOLDER INDUK (survey_xxx, wireline_xxx, dll)
+                // ========================================
+                if ($extractedFolder) {
+                    $extractedFolderPath = storage_path('app/public/' . $extractedFolder);
+                    
+                    if (is_dir($extractedFolderPath)) {
+                        // Hapus semua isi folder (images, JSON, dll)
+                        $this->deleteDirectory($extractedFolderPath);
+                        
+                        Log::info('Folder extracted berhasil dihapus', [
+                            'folder_path' => $extractedFolder,
+                            'full_path' => $extractedFolderPath
+                        ]);
+                    } else {
+                        Log::warning('Folder extracted tidak ditemukan', [
+                            'folder_path' => $extractedFolder,
+                            'full_path' => $extractedFolderPath
+                        ]);
+                    }
+                }
+            } else {
+                Log::info('Tidak ada data dokumentasi untuk dihapus');
+            }
+            
+            // ========================================
+            // 5. HAPUS RECORD DATABASE
+            // ========================================
             $upload->delete();
             
+            // ========================================
+            // 6. HAPUS JARINGAN JIKA TIDAK ADA SPK LAGI
+            // ========================================
             if (!empty($noJaringanList)) {
                 $deletedJaringanCount = 0;
                 $skippedJaringanCount = 0;
@@ -423,14 +507,14 @@ class DocumentController extends Controller
             
             DB::commit();
             
-            Log::info('Dokumen, SPK, dan JARINGAN berhasil dihapus', [
+            Log::info('✅ SEMUA DATA BERHASIL DIHAPUS', [
                 'id_upload' => $id,
                 'jumlah_spk' => count($spks),
                 'jumlah_jaringan_dicek' => count($noJaringanList),
                 'success' => true
             ]);
             
-            return redirect()->back()->with('success', 'Dokumen dan semua data terkait berhasil dihapus! ✅');
+            return redirect()->back()->with('success', 'Dokumen, file PDF, folder ekstraksi, dan semua data terkait berhasil dihapus! ✅');
             
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::rollBack();
@@ -453,6 +537,30 @@ class DocumentController extends Controller
             
             return redirect()->back()->with('error', 'Gagal menghapus dokumen: ' . $e->getMessage() . ' ❌');
         }
+    }
+
+    /**
+     * Helper: Hapus direktori beserta isinya secara rekursif
+     */
+    private function deleteDirectory($dir)
+    {
+        if (!is_dir($dir)) {
+            return false;
+        }
+        
+        $files = array_diff(scandir($dir), ['.', '..']);
+        
+        foreach ($files as $file) {
+            $path = $dir . DIRECTORY_SEPARATOR . $file;
+            
+            if (is_dir($path)) {
+                $this->deleteDirectory($path);
+            } else {
+                unlink($path);
+            }
+        }
+        
+        return rmdir($dir);
     }
 
     /**

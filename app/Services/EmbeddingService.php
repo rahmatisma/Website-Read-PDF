@@ -88,6 +88,110 @@ class EmbeddingService
     }
 
     /**
+     * Generate embedding untuk Jaringan
+     */
+    public function generateJaringanEmbedding(string $noJaringan): void
+    {
+        try {
+            // Ambil data jaringan dengan relasi
+            $jaringan = \App\Models\Jaringan::where('no_jaringan', $noJaringan)
+                ->where('is_deleted', false)
+                ->first();
+
+            if (!$jaringan) {
+                throw new \Exception("Jaringan {$noJaringan} tidak ditemukan");
+            }
+
+            // Build content text
+            $contentText = $this->buildJaringanContentText($jaringan);
+
+            // Generate embedding
+            $embedding = $this->generateEmbedding($contentText);
+
+            // Delete existing embeddings untuk jaringan ini (jika force regenerate)
+            \App\Models\JaringanEmbedding::where('no_jaringan', $noJaringan)->delete();
+
+            // Save new embedding
+            \App\Models\JaringanEmbedding::create([
+                'no_jaringan' => $jaringan->no_jaringan,
+                'content_text' => $contentText,
+                'embedding' => $embedding,
+                'embedding_model' => $this->embeddingModel,
+                'embedding_dimension' => count($embedding)
+            ]);
+
+            Log::info('Jaringan embedding generated', [
+                'no_jaringan' => $noJaringan,
+                'content_length' => strlen($contentText),
+                'embedding_dimension' => count($embedding)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to generate Jaringan embedding', [
+                'no_jaringan' => $noJaringan,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Build content text untuk Jaringan
+     */
+    private function buildJaringanContentText($jaringan): string
+    {
+        $parts = [];
+
+        // Basic info
+        $parts[] = "Nomor Jaringan: {$jaringan->no_jaringan}";
+        $parts[] = "Nama Pelanggan: {$jaringan->nama_pelanggan}";
+        $parts[] = "Lokasi Pelanggan: {$jaringan->lokasi_pelanggan}";
+        $parts[] = "Jasa: {$jaringan->jasa}";
+        
+        if ($jaringan->media_akses) {
+            $parts[] = "Media Akses: {$jaringan->media_akses}";
+        }
+        
+        if ($jaringan->kecepatan) {
+            $parts[] = "Kecepatan: {$jaringan->kecepatan}";
+        }
+        
+        if ($jaringan->manage_router) {
+            $parts[] = "Manage Router: {$jaringan->manage_router}";
+        }
+        
+        if ($jaringan->opsi_router) {
+            $parts[] = "Opsi Router: {$jaringan->opsi_router}";
+        }
+        
+        if ($jaringan->ip_lan) {
+            $parts[] = "IP LAN: {$jaringan->ip_lan}";
+        }
+        
+        if ($jaringan->kode_jaringan) {
+            $parts[] = "Kode Jaringan: {$jaringan->kode_jaringan}";
+        }
+        
+        if ($jaringan->no_fmb) {
+            $parts[] = "No FMB: {$jaringan->no_fmb}";
+        }
+        
+        if ($jaringan->pop) {
+            $parts[] = "POP: {$jaringan->pop}";
+        }
+        
+        if ($jaringan->tgl_rfs_la) {
+            $parts[] = "Tanggal RFS LA: {$jaringan->tgl_rfs_la}";
+        }
+        
+        if ($jaringan->tgl_rfs_plg) {
+            $parts[] = "Tanggal RFS Pelanggan: {$jaringan->tgl_rfs_plg}";
+        }
+
+        return implode("\n", $parts);
+    }
+
+    /**
      * Build COMPREHENSIVE content text - SEMUA field penting untuk semantic search
      */
     private function buildComprehensiveSpkContent(Spk $spk): string

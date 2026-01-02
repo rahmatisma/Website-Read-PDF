@@ -11,15 +11,21 @@ import {
     Camera,
     CheckCircle2,
     ClipboardCheck,
+    Download,
     FileText,
     HardDrive,
     MapPin,
     Network,
     Package,
     Thermometer,
+    X,
     Zap,
+    ZoomIn,
+    ZoomOut,
 } from 'lucide-react';
+import React from 'react';
 import { useEffect, useState } from 'react';
+
 
 interface Upload {
     id_upload: number;
@@ -129,6 +135,9 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
     const [upload, setUpload] = useState(initialUpload);
     const [extractedData, setExtractedData] = useState(initialExtractedData);
     const [isPolling, setIsPolling] = useState(false);
+    const [lightboxOpen, setLightboxOpen] = React.useState(false);
+    const [lightboxImage, setLightboxImage] = React.useState<{ src: string; alt: string } | null>(null);
+    const [zoom, setZoom] = React.useState(1);
 
     useEffect(() => {
         if (upload.status === 'processing' || upload.status === 'uploaded') {
@@ -162,6 +171,22 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
         }
     }, [upload.status, upload.id_upload]);
 
+    React.useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') closeLightbox();
+        };
+        
+        if (lightboxOpen) {
+            window.addEventListener('keydown', handleEsc);
+            document.body.style.overflow = 'hidden';
+        }
+        
+        return () => {
+            window.removeEventListener('keydown', handleEsc);
+            document.body.style.overflow = 'unset';
+        };
+    }, [lightboxOpen]);
+
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('id-ID', {
@@ -188,9 +213,81 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
         router.visit(route('documents.filter', 'form-checklist'));
     };
 
+    const openLightbox = (src: string, alt: string) => {
+        setLightboxImage({ src, alt });
+        setLightboxOpen(true);
+        setZoom(1);
+    };
+
+    const closeLightbox = () => {
+        setLightboxOpen(false);
+        setLightboxImage(null);
+        setZoom(1);
+    };
+
+    const handleZoomIn = () => {
+        setZoom((prev) => Math.min(prev + 0.25, 3));
+    };
+
+    const handleZoomOut = () => {
+        setZoom((prev) => Math.max(prev - 0.25, 0.5));
+    };
+
+    const handleDownload = () => {
+        if (!lightboxImage) return;
+
+        const link = document.createElement('a');
+        link.href = lightboxImage.src;
+        link.download = lightboxImage.alt || 'image.jpg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const getImageUrl = (localPath: string) => {
-        const normalizedPath = localPath.replace(/\\/g, '/');
-        return `/storage/${normalizedPath}`;
+        const placeholderSVG =
+            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzI4MjgyOCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM2NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+
+        if (!localPath) {
+            return placeholderSVG;
+        }
+
+        let normalizedPath = localPath.replace(/\\/g, '/');
+        normalizedPath = normalizedPath.startsWith('/') ? normalizedPath.substring(1) : normalizedPath;
+
+        // Remove 'output/' prefix if exists
+        if (normalizedPath.startsWith('output/')) {
+            normalizedPath = normalizedPath.substring(7);
+        }
+
+        return `/output/${normalizedPath}`;
+    };
+
+    const ImageWithFallback = ({ src, alt, className }: { src: string; alt: string; className?: string }) => {
+        const [imgSrc, setImgSrc] = React.useState(src);
+        const [hasError, setHasError] = React.useState(false);
+
+        const placeholderSVG =
+            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iIzI4MjgyOCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM2NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkltYWdlIE5vdCBGb3VuZDwvdGV4dD48L3N2Zz4=';
+
+        const handleError = () => {
+            if (!hasError) {
+                console.error('Failed to load image:', src);
+                setHasError(true);
+                setImgSrc(placeholderSVG);
+            }
+        };
+
+        return (
+            <img
+                src={imgSrc}
+                alt={alt}
+                className={`${className} cursor-pointer transition-opacity hover:opacity-80`}
+                onError={handleError}
+                loading="lazy"
+                onClick={() => !hasError && openLightbox(imgSrc, alt)}
+            />
+        );
     };
 
     const DetailItem = ({ label, value }: { label: string; value: string | null | undefined }) => {
@@ -938,13 +1035,10 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
 
                                                 {/* Preview Gambar */}
                                                 <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
-                                                    <img
+                                                    <ImageWithFallback
                                                         src={getImageUrl(doc.patch_foto)}
                                                         alt={doc.jenis}
                                                         className="h-full w-full object-cover"
-                                                        onError={(e) => {
-                                                            e.currentTarget.src = '/placeholder-image.jpg';
-                                                        }}
                                                     />
                                                 </div>
                                             </div>
@@ -1054,6 +1148,80 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
                 {/* Content Area */}
                 <div>{renderContent()}</div>
             </div>
+
+            {lightboxOpen && lightboxImage && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={closeLightbox}>
+                    {/* Toolbar */}
+                    <div className="absolute top-4 right-4 z-10 flex gap-2">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleZoomOut();
+                            }}
+                            className="rounded-lg bg-white/10 p-2 backdrop-blur-sm transition-colors hover:bg-white/20"
+                            title="Zoom Out"
+                        >
+                            <ZoomOut className="h-5 w-5 text-white" />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleZoomIn();
+                            }}
+                            className="rounded-lg bg-white/10 p-2 backdrop-blur-sm transition-colors hover:bg-white/20"
+                            title="Zoom In"
+                        >
+                            <ZoomIn className="h-5 w-5 text-white" />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownload();
+                            }}
+                            className="rounded-lg bg-white/10 p-2 backdrop-blur-sm transition-colors hover:bg-white/20"
+                            title="Download"
+                        >
+                            <Download className="h-5 w-5 text-white" />
+                        </button>
+                        <button
+                            onClick={closeLightbox}
+                            className="rounded-lg bg-white/10 p-2 backdrop-blur-sm transition-colors hover:bg-white/20"
+                            title="Close"
+                        >
+                            <X className="h-5 w-5 text-white" />
+                        </button>
+                    </div>
+
+                    {/* Image Label */}
+                    <div className="absolute top-4 left-4 z-10">
+                        <div className="rounded-lg bg-white/10 px-4 py-2 backdrop-blur-sm">
+                            <p className="text-sm font-medium text-white">{lightboxImage.alt}</p>
+                        </div>
+                    </div>
+
+                    {/* Zoom Indicator */}
+                    <div className="absolute bottom-4 left-4 z-10">
+                        <div className="rounded-lg bg-white/10 px-3 py-1 backdrop-blur-sm">
+                            <p className="text-xs text-white">{Math.round(zoom * 100)}%</p>
+                        </div>
+                    </div>
+
+                    {/* Image Container */}
+                    <div className="relative max-h-[90vh] max-w-[90vw] overflow-auto" onClick={(e) => e.stopPropagation()}>
+                        <img
+                            src={lightboxImage.src}
+                            alt={lightboxImage.alt}
+                            className="h-auto w-auto object-contain transition-transform duration-200"
+                            style={{ transform: `scale(${zoom})` }}
+                        />
+                    </div>
+
+                    {/* Close hint */}
+                    <div className="absolute right-4 bottom-4">
+                        <p className="text-sm text-white/60">Klik di luar gambar atau tekan ESC untuk menutup</p>
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }

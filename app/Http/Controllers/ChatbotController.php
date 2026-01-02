@@ -140,26 +140,53 @@ class ChatbotController extends Controller
 
         return response()->stream(function () use ($flaskUrl, $query, $conversationHistory, $currentContext) {
             try {
-                // ✅ Build conversation history untuk Ollama
+                // ============================================
+                // ✅ STEP 1: LAKUKAN RAG SEARCH DULU!
+                // ============================================
+                
+                $contextString = '';
+                
+                try {
+                    // Generate embedding dari query
+                    $queryEmbedding = $this->embeddingService->generateEmbedding($query);
+                    
+                    // Similarity search
+                    $relevantData = $this->chatbotService->contextAwareSimilaritySearch(
+                        $queryEmbedding,
+                        $currentContext,
+                        ['top_k' => 5, 'min_similarity' => 0.5]
+                    );
+                    
+                    // Build context dari hasil search
+                    if (!empty($relevantData)) {
+                        $contextString = $this->buildContextString($relevantData);
+                        
+                        Log::info('RAG Context built for streaming', [
+                            'query' => $query,
+                            'context_length' => strlen($contextString),
+                            'relevant_data_count' => count($relevantData)
+                        ]);
+                    } else {
+                        Log::warning('No relevant data found for query', ['query' => $query]);
+                    }
+                    
+                } catch (\Exception $e) {
+                    Log::error('RAG search failed, continuing without context', [
+                        'error' => $e->getMessage()
+                    ]);
+                    // Lanjutkan tanpa context jika RAG gagal
+                }
+                
+                // ============================================
+                // ✅ STEP 2: BUILD CONVERSATION HISTORY
+                // ============================================
+                
                 $historyForOllama = [];
                 foreach ($conversationHistory as $msg) {
                     $historyForOllama[] = [
                         'role' => $msg['role'] ?? 'user',
                         'content' => $msg['content'] ?? '',
                     ];
-                }
-
-                // ✅ Build context string (optional - bisa dikosongkan jika pure streaming)
-                $contextString = '';
-                if (!empty($currentContext)) {
-                    $contextParts = [];
-                    if (isset($currentContext['last_nojar'])) {
-                        $contextParts[] = "Nojar: {$currentContext['last_nojar']}";
-                    }
-                    if (isset($currentContext['last_pelanggan'])) {
-                        $contextParts[] = "Pelanggan: {$currentContext['last_pelanggan']}";
-                    }
-                    $contextString = implode("\n", $contextParts);
                 }
 
                 // ✅ Call Flask streaming endpoint
@@ -325,5 +352,27 @@ class ChatbotController extends Controller
                 'error' => 'Gagal get stats: ' . $e->getMessage(),
             ], 200);
         }
+    }
+
+    /**
+     * Build context string dari relevant data untuk RAG
+     */
+    private function buildContextString(array $relevantData): string
+    {
+        if (empty($relevantData)) {
+            return '';
+        }
+
+        $contextParts = ["=== DATA SPK YANG RELEVAN ===\n"];
+
+        foreach ($relevantData as $index => $data) {
+            $contextParts[] = "\n--- SPK #" . ($index + 1) . " ---";
+            $contextParts[] = "No SPK: " . ($data['no_spk'] ?? 'N/A');
+            $contextParts[] = "Similarity: " . number_format($data['similarity'] ?? 0, 4);
+            $contextParts[] = "\nContent:\n" . ($data['content_text'] ?? '');
+            $contextParts[] = "";
+        }
+
+        return implode("\n", $contextParts);
     }
 }
