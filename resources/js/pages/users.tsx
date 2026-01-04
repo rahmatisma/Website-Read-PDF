@@ -1,3 +1,13 @@
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,6 +58,7 @@ interface Props {
 export default function Users({ users: initialUsers, statistics }: Props) {
     const [openDropdown, setOpenDropdown] = useState<number | null>(null);
     
+    // ✅ Gabungkan dialog state menjadi satu
     const [dialogState, setDialogState] = useState<{
         isOpen: boolean;
         mode: 'add' | 'edit';
@@ -58,8 +69,29 @@ export default function Users({ users: initialUsers, statistics }: Props) {
         editingUser: null,
     });
 
+    // ✅ Gabungkan confirmation dialog state menjadi satu
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        type: 'delete' | 'verify' | null;
+        user: User | null;
+    }>({
+        isOpen: false,
+        type: null,
+        user: null,
+    });
+
+
     // ✅ Gunakan Inertia useForm
-    const { data, setData, post, put, delete: destroy, processing, errors, reset } = useForm({
+    const {
+        data,
+        setData,
+        post,
+        put,
+        delete: destroy,
+        processing,
+        errors,
+        reset,
+    } = useForm({
         name: '',
         email: '',
         role: 'engineer' as 'admin' | 'engineer' | 'nms',
@@ -179,9 +211,28 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                 preserveScroll: true,
                 onSuccess: () => {
                     toast.success('Verification status updated');
+                    setConfirmDialog({ isOpen: false, type: null, user: null });
                 },
-            }
+                onError: () => {
+                    toast.error('Failed to update verification status');
+                    setConfirmDialog({ isOpen: false, type: null, user: null });
+                },
+            },
         );
+    };
+
+    const handleVerifyConfirm = (user: User) => {
+        setConfirmDialog({
+            isOpen: true,
+            type: 'verify',
+            user: user,
+        });
+    };
+
+    const confirmVerification = () => {
+        if (confirmDialog.user) {
+            toggleVerification(confirmDialog.user.id);
+        }
     };
 
     // ✅ Handle delete dengan Inertia
@@ -192,23 +243,32 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                 toast.success('User deleted successfully!', {
                     description: `${userName} has been removed from the system.`,
                 });
+                setConfirmDialog({ isOpen: false, type: null, user: null });
+            },
+            onError: () => {
+                toast.error('Failed to delete user. Please try again.');
+                setConfirmDialog({ isOpen: false, type: null, user: null });
             },
         });
     };
 
     const handleDeleteConfirm = (user: User) => {
-        toast.warning(`Delete ${user.name}?`, {
-            description: `Are you sure you want to delete "${user.name}"? This action cannot be undone.`,
-            action: {
-                label: 'Delete',
-                onClick: () => handleDelete(user.id, user.name),
-            },
-            cancel: {
-                label: 'Cancel',
-                onClick: () => toast.info('Delete cancelled'),
-            },
-            duration: 10000,
+        setConfirmDialog({
+            isOpen: true,
+            type: 'delete',
+            user: user,
         });
+    };
+
+    const confirmDelete = () => {
+        if (confirmDialog.user) {
+            handleDelete(confirmDialog.user.id, confirmDialog.user.name);
+        }
+    };
+
+    // ✅ Handler untuk menutup dialog
+    const closeConfirmDialog = () => {
+        setConfirmDialog({ isOpen: false, type: null, user: null });
     };
 
     return (
@@ -346,7 +406,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                                                                     className="mt-1 flex w-full cursor-pointer items-center rounded-sm px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                                                                     onClick={() => {
                                                                         setOpenDropdown(null);
-                                                                        toggleVerification(user.id);
+                                                                        handleVerifyConfirm(user); // ✅ PERBAIKI: Panggil handleVerifyConfirm bukan langsung toggleVerification
                                                                     }}
                                                                 >
                                                                     {user.is_verified_by_admin ? (
@@ -396,7 +456,6 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                     </CardContent>
                 </Card>
             </div>
-
             {/* Dialog Add/Edit */}
             <Dialog open={dialogState.isOpen} onOpenChange={closeDialog}>
                 <DialogContent className="sm:max-w-[500px]">
@@ -496,6 +555,50 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                     </form>
                 </DialogContent>
             </Dialog>
+            {/* Alert Dialog Gabungan untuk Toggle Verification & Delete User */}
+            <AlertDialog open={confirmDialog.isOpen} onOpenChange={closeConfirmDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {confirmDialog.type === 'delete' && `Delete ${confirmDialog.user?.name}?`}
+                            {confirmDialog.type === 'verify' && (confirmDialog.user?.is_verified_by_admin ? 'Revoke Verification?' : 'Verify User?')}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {confirmDialog.type === 'delete' && (
+                                <>
+                                    Are you sure you want to delete "{confirmDialog.user?.name}"? This action cannot be undone and will permanently remove the user from the system.
+                                </>
+                            )}
+                            {confirmDialog.type === 'verify' && confirmDialog.user?.is_verified_by_admin && (
+                                <>
+                                    Are you sure you want to revoke admin verification for "{confirmDialog.user?.name}"? This user will no longer be able to access the system until verified again.
+                                </>
+                            )}
+                            {confirmDialog.type === 'verify' && !confirmDialog.user?.is_verified_by_admin && (
+                                <>
+                                    Are you sure you want to verify "{confirmDialog.user?.name}"? This will grant them access to the system.
+                                </>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={closeConfirmDialog}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDialog.type === 'delete' ? confirmDelete : confirmVerification}
+                            className={`cursor-pointer ${
+                                confirmDialog.type === 'delete'
+                                    ? 'bg-red-600 text-white hover:bg-red-700'
+                                    : confirmDialog.user?.is_verified_by_admin
+                                    ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                        >
+                            {confirmDialog.type === 'delete' && 'Delete User'}
+                            {confirmDialog.type === 'verify' && (confirmDialog.user?.is_verified_by_admin ? 'Revoke Verification' : 'Verify User')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AppLayout>
     );
 }

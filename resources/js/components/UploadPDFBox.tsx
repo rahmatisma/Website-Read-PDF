@@ -237,7 +237,7 @@ export default function UploadPDFBox() {
             </div>
             
             {/* Enhanced Info Box */}
-            <div className="mt-4 w-full max-w-md rounded-lg bg-purple-900/30 border border-purple-400/30 p-4">
+            {/* <div className="mt-4 w-full max-w-md rounded-lg bg-purple-900/30 border border-purple-400/30 p-4">
                 <div className="mb-3">
                     <p className="text-xs font-semibold text-purple-200 mb-2">
                         📋 Dokumen yang BOLEH diupload di halaman ini:
@@ -256,7 +256,7 @@ export default function UploadPDFBox() {
                         Silakan gunakan halaman <strong>"Form Checklist"</strong>.
                     </p>
                 </div>
-            </div>
+            </div> */}
         </div>
     );
 }

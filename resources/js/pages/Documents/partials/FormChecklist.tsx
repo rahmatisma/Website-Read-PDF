@@ -1,8 +1,19 @@
 import DocumentTable from '@/components/DocumentTable';
 import SearchFilter from '@/components/SearchFilter';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import UploadChecklistBox from '@/components/UploadChecklistBox';
 import { Document } from '@/types/document';
 import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 interface PdfProps {
@@ -10,33 +21,28 @@ interface PdfProps {
 }
 
 export default function Checklist({ documents }: PdfProps) {
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
     const handleDelete = (id: number) => {
-        toast.warning('Hapus dokumen?', {
-            description: 'Dokumen yang dihapus tidak dapat dikembalikan.',
-            classNames: {
-                toast: '!bg-gray-900 !border-2 !border-purple-400',
-                title: '!text-white',
-                description: '!text-white',
-                icon: '!text-yellow-500',
-                actionButton: '!bg-gradient-to-r !from-red-500 !to-pink-500 hover:!brightness-110 !text-white !font-bold',
-                cancelButton: '!bg-gray-700 hover:!bg-gray-600 !text-white',
+        setDocumentToDelete(id);
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDelete = () => {
+        if (documentToDelete === null) {
+            return;
+        }
+
+        router.delete(route('documents.destroy', documentToDelete), {
+            onSuccess: () => {
+                toast.success('Dokumen form checklist berhasil dihapus!');
+                setDeleteDialogOpen(false);
+                setDocumentToDelete(null);
             },
-            action: {
-                label: 'Hapus',
-                onClick: () => {
-                    router.delete(route('documents.destroy', id), {
-                        onSuccess: () => {
-                            toast.success('Dokumen berhasil dihapus!');
-                        },
-                        onError: () => {
-                            toast.error('Gagal menghapus dokumen');
-                        },
-                    });
-                },
-            },
-            cancel: {
-                label: 'Batal',
-                onClick: () => {},
+            onError: () => {
+                toast.error('Gagal menghapus dokumen form checklist');
+                setDeleteDialogOpen(false);
+                setDocumentToDelete(null);
             },
         });
     };
@@ -60,6 +66,22 @@ export default function Checklist({ documents }: PdfProps) {
                     <DocumentTable documents={documents} type="pdf" onDelete={handleDelete} />
                 </div>
             </div>
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus dokumen Form Checklist?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Form Checklist yang dihapus tidak dapat dikembalikan. Tindakan ini bersifat permanen.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDocumentToDelete(null)}>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="cursor-pointer bg-red-500 text-white hover:brightness-110">
+                            Hapus
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

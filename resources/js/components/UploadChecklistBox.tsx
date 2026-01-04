@@ -243,7 +243,7 @@ export default function UploadChecklistBox() {
             </div>
 
             {/* Enhanced Info Box */}
-            <div className="mt-4 w-full max-w-md rounded-lg border border-emerald-400/30 bg-emerald-900/30 p-4">
+            {/* <div className="mt-4 w-full max-w-md rounded-lg border border-emerald-400/30 bg-emerald-900/30 p-4">
                 <div className="mb-3">
                     <p className="mb-2 text-xs font-semibold text-emerald-200">📋 Dokumen yang BOLEH diupload di halaman ini:</p>
                     <ul className="ml-4 space-y-1 text-xs text-emerald-300">
@@ -258,7 +258,7 @@ export default function UploadChecklistBox() {
                         Silakan gunakan halaman <strong>"Dokumen PDF"</strong>.
                     </p>
                 </div>
-            </div>
+            </div> */}
         </div>
     );
 }
