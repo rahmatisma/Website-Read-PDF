@@ -1,12 +1,22 @@
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
-import { Bot, MessageSquarePlus, Send, User, Database, Zap } from 'lucide-react';
+import { Bot, Database, MessageSquarePlus, Send, User, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 interface Message {
@@ -29,7 +39,7 @@ const STORAGE_KEY = 'chatbot_messages';
 let messageIdCounter = 0;
 
 const getInitialMessage = (): Message => ({
-    id: ++messageIdCounter,  // ✅ Unique ID
+    id: ++messageIdCounter, // ✅ Unique ID
     text: 'Halo! Saya adalah chatbot SPK Management System. Saya dapat membantu Anda dengan pertanyaan seputar data SPK, jaringan, pelanggan, dan informasi teknis lainnya. Ada yang bisa saya bantu?',
     sender: 'bot',
     timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -49,7 +59,7 @@ export default function Chatbot() {
                     if (parsed.length > 0) {
                         const messagesWithNewIds = parsed.map((msg: Message) => ({
                             ...msg,
-                            id: ++messageIdCounter  // ✅ Generate new unique ID
+                            id: ++messageIdCounter, // ✅ Generate new unique ID
                         }));
                         return messagesWithNewIds;
                     }
@@ -74,6 +84,7 @@ export default function Chatbot() {
     const [isLoading, setIsLoading] = useState(false);
     const [streamingText, setStreamingText] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
+    const [newChatDialogOpen, setNewChatDialogOpen] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -94,24 +105,26 @@ export default function Chatbot() {
     }, []);
 
     const handleNewChat = () => {
-        const confirmed = window.confirm('Apakah Anda yakin ingin memulai chat baru? Semua riwayat chat akan dihapus.');
-        if (confirmed) {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-            setIsStreaming(false);
-            setStreamingText('');
+        setNewChatDialogOpen(true);
+    };
 
-            // ✅ Reset counter saat new chat
-            messageIdCounter = 0;
-            setMessages([getInitialMessage()]);
-            setInputMessage('');
-            setCurrentContext({});
-
-            setTimeout(() => {
-                (document.querySelector('.chat-input') as HTMLInputElement)?.focus();
-            }, 50);
+    const confirmNewChat = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
         }
+        setIsStreaming(false);
+        setStreamingText('');
+
+        // Reset counter saat new chat
+        messageIdCounter = 0;
+        setMessages([getInitialMessage()]);
+        setInputMessage('');
+        setCurrentContext({});
+        setNewChatDialogOpen(false);
+
+        setTimeout(() => {
+            (document.querySelector('.chat-input') as HTMLInputElement)?.focus();
+        }, 50);
     };
 
     // ✅ FUNGSI RAG MODE DENGAN STREAMING REAL-TIME
@@ -124,19 +137,17 @@ export default function Chatbot() {
 
         try {
             // ✅ Build conversation history (10 messages terakhir)
-            const conversationHistory = messages
-                .slice(-10)
-                .map(msg => ({
-                    role: msg.sender === 'user' ? 'user' : 'assistant',
-                    content: msg.text,
-                    timestamp: msg.timestamp
-                }));
+            const conversationHistory = messages.slice(-10).map((msg) => ({
+                role: msg.sender === 'user' ? 'user' : 'assistant',
+                content: msg.text,
+                timestamp: msg.timestamp,
+            }));
 
             console.log('📤 Sending RAG streaming request:', {
                 query: messageToSend,
                 has_history: conversationHistory.length > 0,
                 has_context: Object.keys(currentContext).length > 0,
-                context: currentContext
+                context: currentContext,
             });
 
             // ✅ Get CSRF token - coba beberapa cara
@@ -156,7 +167,10 @@ export default function Chatbot() {
 
             if (!csrfToken) {
                 console.error('❌ CSRF token tidak ditemukan di DOM');
-                console.log('Available meta tags:', Array.from(document.querySelectorAll('meta')).map(m => m.getAttribute('name')));
+                console.log(
+                    'Available meta tags:',
+                    Array.from(document.querySelectorAll('meta')).map((m) => m.getAttribute('name')),
+                );
                 throw new Error('CSRF token tidak ditemukan. Pastikan meta tag CSRF ada di layout.');
             }
 
@@ -168,12 +182,12 @@ export default function Chatbot() {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'text/event-stream',
+                    Accept: 'text/event-stream',
                 },
                 body: JSON.stringify({
                     query: messageToSend,
-                    conversation_history: conversationHistory,  // ✅ RAG: conversation memory
-                    current_context: currentContext,            // ✅ RAG: extracted entities context
+                    conversation_history: conversationHistory, // ✅ RAG: conversation memory
+                    current_context: currentContext, // ✅ RAG: extracted entities context
                 }),
                 signal: abortControllerRef.current.signal,
             });
@@ -182,7 +196,7 @@ export default function Chatbot() {
                 console.error('❌ Response not OK:', {
                     status: response.status,
                     statusText: response.statusText,
-                    url: response.url
+                    url: response.url,
                 });
 
                 // Coba baca error message dari response
@@ -224,7 +238,7 @@ export default function Chatbot() {
                                 // 🔥 Terima token dari Ollama via Flask via Laravel
                                 if (data.token) {
                                     fullText += data.token;
-                                    setStreamingText(fullText);  // 🔥 Update UI real-time per token
+                                    setStreamingText(fullText); // 🔥 Update UI real-time per token
                                 }
 
                                 // ✅ Check jika streaming selesai
@@ -245,7 +259,7 @@ export default function Chatbot() {
 
             // ✅ Save complete message dengan unique ID
             const botMessage: Message = {
-                id: ++messageIdCounter,  // ✅ FIXED: Unique ID
+                id: ++messageIdCounter, // ✅ FIXED: Unique ID
                 text: fullText || 'Maaf, tidak ada respons.',
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -260,7 +274,6 @@ export default function Chatbot() {
             setStreamingText('');
 
             console.log('✅ Message saved to history');
-
         } catch (error: any) {
             setIsLoading(false);
             setIsStreaming(false);
@@ -275,7 +288,7 @@ export default function Chatbot() {
             const errorText = error.message || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
 
             const botMessage: Message = {
-                id: ++messageIdCounter,  // ✅ FIXED: Unique ID
+                id: ++messageIdCounter, // ✅ FIXED: Unique ID
                 text: errorText,
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -294,7 +307,7 @@ export default function Chatbot() {
         if (!inputMessage.trim() || isLoading || isStreaming) return;
 
         const userMessage: Message = {
-            id: ++messageIdCounter,  // ✅ FIXED: Unique ID
+            id: ++messageIdCounter, // ✅ FIXED: Unique ID
             text: inputMessage,
             sender: 'user',
             timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -397,22 +410,30 @@ export default function Chatbot() {
                                                 message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                                             }`}
                                         >
-                                            {message.sender === 'user' ? <User className="h-3 w-3 md:h-4 md:w-4" /> : <Bot className="h-3 w-3 md:h-4 md:w-4" />}
+                                            {message.sender === 'user' ? (
+                                                <User className="h-3 w-3 md:h-4 md:w-4" />
+                                            ) : (
+                                                <Bot className="h-3 w-3 md:h-4 md:w-4" />
+                                            )}
                                         </div>
-                                        <div className={`flex max-w-[75%] flex-col gap-1 md:max-w-[80%] ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                                        <div
+                                            className={`flex max-w-[75%] flex-col gap-1 md:max-w-[80%] ${message.sender === 'user' ? 'items-end' : 'items-start'}`}
+                                        >
                                             <div
                                                 className={`rounded-lg px-3 py-2 md:px-4 ${message.sender === 'user' ? 'bg-blue-700 text-white' : 'bg-muted'}`}
                                             >
-                                                <p className="whitespace-pre-line text-xs md:text-sm">{message.text}</p>
+                                                <p className="text-xs whitespace-pre-line md:text-sm">{message.text}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] text-muted-foreground md:text-xs">{message.timestamp}</span>
-                                                {message.sender === 'bot' && message.relevantDataCount !== undefined && message.relevantDataCount > 0 && (
-                                                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground md:text-xs">
-                                                        <Database className="h-2.5 w-2.5 md:h-3 md:w-3" />
-                                                        {message.relevantDataCount} data
-                                                    </span>
-                                                )}
+                                                {message.sender === 'bot' &&
+                                                    message.relevantDataCount !== undefined &&
+                                                    message.relevantDataCount > 0 && (
+                                                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground md:text-xs">
+                                                            <Database className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                                                            {message.relevantDataCount} data
+                                                        </span>
+                                                    )}
                                             </div>
                                         </div>
                                     </div>
@@ -440,12 +461,12 @@ export default function Chatbot() {
                                         </div>
                                         <div className="flex max-w-[75%] flex-col gap-1 md:max-w-[80%]">
                                             <div className="rounded-lg bg-muted px-3 py-2 md:px-4">
-                                                <p className="whitespace-pre-line text-xs md:text-sm">
+                                                <p className="text-xs whitespace-pre-line md:text-sm">
                                                     {streamingText}
                                                     <span className="animate-pulse">▊</span>
                                                 </p>
                                             </div>
-                                            <span className="text-[10px] text-muted-foreground md:text-xs flex items-center gap-1">
+                                            <span className="flex items-center gap-1 text-[10px] text-muted-foreground md:text-xs">
                                                 <Zap className="h-2.5 w-2.5 md:h-3 md:w-3" />
                                                 Streaming...
                                             </span>
@@ -459,7 +480,7 @@ export default function Chatbot() {
                     </CardContent>
                 </Card>
 
-                <div className="sticky bottom-0 z-50 md:px-2 transition-all duration-300 md:bottom-4">
+                <div className="sticky bottom-0 z-50 transition-all duration-300 md:bottom-4 md:px-2">
                     <div className="rounded-t-lg border-t bg-background p-3 shadow-xl md:mx-2 md:rounded-lg md:border md:bg-background/95 md:p-4 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
                         <div className="flex items-center gap-2">
                             <Input
@@ -487,6 +508,21 @@ export default function Chatbot() {
                     </div>
                 </div>
             </div>
+            {/* Alert Dialog untuk New Chat */}
+            <AlertDialog open={newChatDialogOpen} onOpenChange={setNewChatDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Mulai chat baru?</AlertDialogTitle>
+                        <AlertDialogDescription>Semua riwayat chat akan dihapus. Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmNewChat} className="cursor-pointer bg-blue-600 text-white hover:bg-blue-700">
+                            Mulai Chat Baru
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AppLayout>
     );
 }

@@ -276,7 +276,7 @@ export default function UploadPDFBox() {
             </div>
 
             {/* Enhanced Info Box */}
-            <div className="mt-4 w-full max-w-md rounded-lg border border-purple-400/30 bg-purple-900/30 p-4">
+            <div className="mt-4 w-full max-w-md rounded-lg bg-purple-900/30 border border-purple-400/30 p-4">
                 <div className="mb-3">
                     <p className="mb-2 text-xs font-semibold text-purple-200">📋 Dokumen yang BOLEH diupload di halaman ini:</p>
                     <ul className="ml-4 space-y-1 text-xs text-purple-300">
@@ -292,17 +292,6 @@ export default function UploadPDFBox() {
                         <br />
                         Silakan gunakan halaman <strong>"Form Checklist"</strong>.
                     </p>
-                </div>
-
-                {/* ✅ NEW: Validasi Info */}
-                <div className="mt-3 border-t border-purple-400/20 pt-3">
-                    <p className="mb-1 text-xs font-semibold text-purple-200">🔍 Proses Validasi:</p>
-                    <ol className="ml-4 list-decimal space-y-1 text-xs text-purple-300">
-                        <li>Upload file → Disimpan sementara</li>
-                        <li>Sistem scan halaman 1 (cepat!)</li>
-                        <li>Jika valid → Proses lengkap</li>
-                        <li>Jika tidak valid → Auto hapus + notifikasi</li>
-                    </ol>
                 </div>
             </div>
         </div>
