@@ -361,9 +361,9 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
     const DetailItem = ({ label, value }: { label: string; value: string | null | undefined }) => {
         if (!value) return null;
         return (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 wrap-break-word">
                 <span className="text-sm text-muted-foreground">{label}</span>
-                <span className="text-sm font-medium">{value}</span>
+                <span className="text-sm font-medium wrap-break-word">{value}</span>
             </div>
         );
     };

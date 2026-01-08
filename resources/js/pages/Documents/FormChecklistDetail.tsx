@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
+import FormChecklistPerangkatDetail from './FormChecklistPerangkatDetail';
 import axios from 'axios';
 import {
     AlertCircle,
@@ -107,6 +108,7 @@ interface ExtractedData {
                     };
                 };
                 indoor_area_checklist?: any;
+                outdoor_area_checklist?: any; // ✅ TAMBAHKAN INI
             };
             metadata?: {
                 parser_used: string;
@@ -196,9 +198,9 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
     const DetailItem = ({ label, value }: { label: string; value: string | null | undefined }) => {
         if (!value) return null;
         return (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 wrap-break-word">
                 <span className="text-sm text-muted-foreground">{label}</span>
-                <span className="text-sm font-medium">{value}</span>
+                <span className="text-sm font-medium wrap-break-word">{value}</span>
             </div>
         );
     };
@@ -684,236 +686,13 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
                             </>
                         )}
 
-                        {/* Indoor Area Checklist */}
-                        {parsedData.indoor_area_checklist && Object.keys(parsedData.indoor_area_checklist).length > 0 && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <ClipboardCheck className="h-5 w-5 text-emerald-500" />
-                                        Indoor Area Checklist
-                                    </CardTitle>
-                                    <CardDescription>Pengecekan perangkat indoor</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    {/* Section: Indikator Modem */}
-                                    {parsedData.indoor_area_checklist.indikator_modem && (
-                                        <div>
-                                            <h4 className="mt-3 mb-5 font-semibold text-emerald-400">Indikator Modem</h4>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b">
-                                                            <th className="pb-2 text-left">Item</th>
-                                                            <th className="pb-2 text-left">Standard</th>
-                                                            <th className="pb-2 text-left">On-Site Teknisi</th>
-                                                            <th className="pb-2 text-left">NMS Engineer</th>
-                                                            <th className="pb-2 text-left">Perbaikan</th>
-                                                            <th className="pb-2 text-left">Hasil Akhir</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {Object.entries(parsedData.indoor_area_checklist.indikator_modem).map(
-                                                            ([key, value]: [string, any]) => (
-                                                                <tr key={key} className="border-b">
-                                                                    <td className="py-2 font-medium">{key.replace(/_/g, ' ').toUpperCase()}</td>
-                                                                    <td className="py-2">{value.standard || '-'}</td>
-                                                                    <td className="py-2">{value.on_site_teknisi || '-'}</td>
-                                                                    <td className="py-2">{value.nms_engineer || '-'}</td>
-                                                                    <td className="py-2">{value.perbaikan || '-'}</td>
-                                                                    <td className="py-2">{value.hasil_akhir || '-'}</td>
-                                                                </tr>
-                                                            ),
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Section: Merek */}
-                                    {parsedData.indoor_area_checklist.merek && (
-                                        <div>
-                                            <h4 className="mb-5 font-semibold text-emerald-400">Merek</h4>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b">
-                                                            <th className="pb-2 text-left">Item</th>
-                                                            <th className="pb-2 text-left">Standard</th>
-                                                            <th className="pb-2 text-left">On-Site Teknisi</th>
-                                                            <th className="pb-2 text-left">NMS Engineer</th>
-                                                            <th className="pb-2 text-left">Perbaikan</th>
-                                                            <th className="pb-2 text-left">Hasil Akhir</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {Object.entries(parsedData.indoor_area_checklist.merek).map(([key, value]: [string, any]) => {
-                                                            // Handle nested objects like front_panel_display
-                                                            if (typeof value === 'object' && value !== null) {
-                                                                if (key === 'front_panel_display') {
-                                                                    return Object.entries(value).map(([subKey, subValue]: [string, any]) => (
-                                                                        <tr key={`${key}_${subKey}`} className="border-b">
-                                                                            <td className="py-2 font-medium">
-                                                                                {`${key.replace(/_/g, ' ')} - ${subKey.replace(/_/g, ' ')}`.toUpperCase()}
-                                                                            </td>
-                                                                            <td className="py-2">{subValue.standard || '-'}</td>
-                                                                            <td className="py-2">{subValue.on_site_teknisi || '-'}</td>
-                                                                            <td className="py-2">{subValue.nms_engineer || '-'}</td>
-                                                                            <td className="py-2">{subValue.perbaikan || '-'}</td>
-                                                                            <td className="py-2">{subValue.hasil_akhir || '-'}</td>
-                                                                        </tr>
-                                                                    ));
-                                                                }
-                                                                return (
-                                                                    <tr key={key} className="border-b">
-                                                                        <td className="py-2 font-medium">{key.replace(/_/g, ' ').toUpperCase()}</td>
-                                                                        <td className="py-2">{value.standard || '-'}</td>
-                                                                        <td className="py-2">{value.on_site_teknisi || '-'}</td>
-                                                                        <td className="py-2">{value.nms_engineer || '-'}</td>
-                                                                        <td className="py-2">{value.perbaikan || '-'}</td>
-                                                                        <td className="py-2">{value.hasil_akhir || '-'}</td>
-                                                                    </tr>
-                                                                );
-                                                            }
-                                                            return null;
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Section: Modem FO */}
-                                    {parsedData.indoor_area_checklist.modem_fo && (
-                                        <div>
-                                            <h4 className="mb-5 font-semibold text-emerald-400">Modem FO</h4>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b">
-                                                            <th className="pb-2 text-left">Item</th>
-                                                            <th className="pb-2 text-left">Standard</th>
-                                                            <th className="pb-2 text-left">On-Site Teknisi</th>
-                                                            <th className="pb-2 text-left">NMS Engineer</th>
-                                                            <th className="pb-2 text-left">Perbaikan</th>
-                                                            <th className="pb-2 text-left">Hasil Akhir</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {Object.entries(parsedData.indoor_area_checklist.modem_fo).map(
-                                                            ([key, value]: [string, any]) => (
-                                                                <tr key={key} className="border-b">
-                                                                    <td className="py-2 font-medium">{key.replace(/_/g, ' ').toUpperCase()}</td>
-                                                                    <td className="py-2">{value.standard || '-'}</td>
-                                                                    <td className="py-2">{value.on_site_teknisi || '-'}</td>
-                                                                    <td className="py-2">{value.nms_engineer || '-'}</td>
-                                                                    <td className="py-2">{value.perbaikan || '-'}</td>
-                                                                    <td className="py-2">{value.hasil_akhir || '-'}</td>
-                                                                </tr>
-                                                            ),
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Section: LC Signal Quality Checked by KOP */}
-                                    {parsedData.indoor_area_checklist.lc_signal_quality_checked_by_kop && (
-                                        <div>
-                                            <h4 className="mb-5 font-semibold text-emerald-400">LC Signal Quality (Checked by KOP)</h4>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b">
-                                                            <th className="pb-2 text-left">Item</th>
-                                                            <th className="pb-2 text-left">Standard</th>
-                                                            <th className="pb-2 text-left">On-Site Teknisi</th>
-                                                            <th className="pb-2 text-left">NMS Engineer</th>
-                                                            <th className="pb-2 text-left">Perbaikan</th>
-                                                            <th className="pb-2 text-left">Hasil Akhir</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {Object.entries(parsedData.indoor_area_checklist.lc_signal_quality_checked_by_kop).map(
-                                                            ([key, value]: [string, any]) => (
-                                                                <tr key={key} className="border-b">
-                                                                    <td className="py-2 font-medium">{key.replace(/_/g, ' ').toUpperCase()}</td>
-                                                                    <td className="py-2">{value.standard || '-'}</td>
-                                                                    <td className="py-2">{value.on_site_teknisi || '-'}</td>
-                                                                    <td className="py-2">{value.nms_engineer || '-'}</td>
-                                                                    <td className="py-2">{value.perbaikan || '-'}</td>
-                                                                    <td className="py-2">{value.hasil_akhir || '-'}</td>
-                                                                </tr>
-                                                            ),
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Section: LC Signal Quality Checked by AVO Meter */}
-                                    {parsedData.indoor_area_checklist.lc_signal_quality_checked_by_avo_meter && (
-                                        <div>
-                                            <h4 className="mb-3 font-semibold text-emerald-400">LC Signal Quality (Checked by AVO Meter)</h4>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b">
-                                                            <th className="pb-2 text-left">Item</th>
-                                                            <th className="pb-2 text-left">Standard</th>
-                                                            <th className="pb-2 text-left">On-Site Teknisi</th>
-                                                            <th className="pb-2 text-left">NMS Engineer</th>
-                                                            <th className="pb-2 text-left">Perbaikan</th>
-                                                            <th className="pb-2 text-left">Hasil Akhir</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {Object.entries(parsedData.indoor_area_checklist.lc_signal_quality_checked_by_avo_meter).map(
-                                                            ([key, value]: [string, any]) => (
-                                                                <tr key={key} className="border-b">
-                                                                    <td className="py-2 font-medium">{key.replace(/_/g, ' ').toUpperCase()}</td>
-                                                                    <td className="py-2">{value.standard || '-'}</td>
-                                                                    <td className="py-2">{value.on_site_teknisi || '-'}</td>
-                                                                    <td className="py-2">{value.nms_engineer || '-'}</td>
-                                                                    <td className="py-2">{value.perbaikan || '-'}</td>
-                                                                    <td className="py-2">{value.hasil_akhir || '-'}</td>
-                                                                </tr>
-                                                            ),
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Fallback: Show any other sections as JSON */}
-                                    {Object.entries(parsedData.indoor_area_checklist).map(([sectionKey, sectionValue]: [string, any]) => {
-                                        const knownSections = [
-                                            'indikator_modem',
-                                            'merek',
-                                            'modem_fo',
-                                            'lc_signal_quality_checked_by_kop',
-                                            'lc_signal_quality_checked_by_avo_meter',
-                                        ];
-                                        if (!knownSections.includes(sectionKey) && sectionValue && typeof sectionValue === 'object') {
-                                            return (
-                                                <div key={sectionKey}>
-                                                    <h4 className="mb-3 font-semibold text-emerald-400">
-                                                        {sectionKey.replace(/_/g, ' ').toUpperCase()}
-                                                    </h4>
-                                                    <pre className="max-h-64 overflow-auto rounded bg-muted p-4 text-xs">
-                                                        {JSON.stringify(sectionValue, null, 2)}
-                                                    </pre>
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })}
-                                </CardContent>
-                            </Card>
-                        )}
+                        {/* Indoor & Outdoor Area Checklist - Menggunakan komponen terpisah */}
+{(parsedData.indoor_area_checklist || parsedData.outdoor_area_checklist) && (
+    <FormChecklistPerangkatDetail
+        indoorAreaChecklist={parsedData.indoor_area_checklist}
+        outdoorAreaChecklist={parsedData.outdoor_area_checklist}
+    />
+)}
 
                         {/* Card Dokumentasi */}
                         {extractedData.data.dokumentasi && extractedData.data.dokumentasi.length > 0 && (
