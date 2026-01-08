@@ -20,7 +20,7 @@ interface Document {
 
 interface DocumentTableProps {
     documents: Document[];
-    type: 'pdf' | 'doc' | 'image';
+    type: 'spk' | "form-checklist" | "form-pm-pop";
     onDelete: (id: number) => void;
 }
 

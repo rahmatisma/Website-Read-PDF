@@ -4,37 +4,46 @@ import { Document } from '@/types/document';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
-import Pdf from './partials/Pdf';
-import FromChecklist from './partials/FormChecklist';
+import Spk from './partials/SPK'; // ✅ Ganti dari Pdf
+import FormChecklist from './partials/FormChecklist';
+// import FormPmPop from './partials/FormPMPOP';
 
 type PageProps = {
-    documents?: Document[]; // ✅ Ganti any[] dengan Document[]
-    activeTab?: 'pdf' | 'form-checklist';
+    documents?: Document[];
+    activeTab?: 'spk' | 'form-checklist' | 'form-pm-pop'; // ✅ Update
+    filters?: {
+        keyword?: string;
+        date_from?: string;
+        date_to?: string;
+    };
 };
 
 const toLabel = (v: string) => {
     switch (v.toLowerCase()) {
-        case 'pdf':
-            return 'PDF';
+        case 'spk':
+            return 'SPK';
         case 'form-checklist':
             return 'Form Checklist';
+        case 'form-pm-pop':
+            return 'Form PM POP';
         default:
-            return 'PDF';
+            return 'SPK';
     }
 };
 
 const toValue = (label: string) => {
     const map: Record<string, string> = {
-        PDF: 'pdf',
+        'SPK': 'spk',
         'Form Checklist': 'form-checklist',
+        'Form PM POP': 'form-pm-pop',
     };
-    return map[label] || 'pdf';
+    return map[label] || 'spk';
 };
 
 export default function Index() {
-    const { documents = [], activeTab = 'pdf' } = usePage<PageProps>().props;
+    const { documents = [], activeTab = 'spk', filters = {} } = usePage<PageProps>().props;
 
-    const tabs = ['PDF', 'Form Checklist'];
+    const tabs = ['SPK', 'Form Checklist', 'Form PM POP']; // ✅ Update tabs
     const [currentTab, setCurrentTab] = useState<string>(toLabel(activeTab));
 
     useEffect(() => {
@@ -44,17 +53,19 @@ export default function Index() {
     const handleTabChange = (label: string) => {
         setCurrentTab(label);
         const value = toValue(label);
-        router.get(`/documents/${value}`);
+        router.get(route('documents.filter', { type: value }));
     };
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'pdf':
-                return <Pdf documents={documents} />;
+            case 'spk':
+                return <Spk documents={documents} filters={filters} />;
             case 'form-checklist':
-                return <FromChecklist documents={documents} />;
+                return <FormChecklist documents={documents} filters={filters} />;
+            // case 'form-pm-pop':
+            //     return <FormPmPop documents={documents} filters={filters} />;
             default:
-                return <Pdf documents={documents} />;
+                return <Spk documents={documents} filters={filters} />;
         }
     };
 

@@ -4,10 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Calendar, AlertCircle, ClipboardCheck, File, FileCheck, Mail, Shield, ChevronRight } from 'lucide-react';
+import axios from 'axios';
+import { AlertCircle, Calendar, ChevronRight, ClipboardCheck, File, FileCheck, Mail, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import axios from 'axios';
 
 interface Document {
     id: number;
@@ -35,18 +35,19 @@ interface UploadTrend {
 }
 
 interface DashboardProps {
-    countPDF: number;
-    countDOC: number;
-    countIMG: number;
-    countChecklist: number;
-    countAll: number;
+    [key: string]: any;
     countUsersUnverified: number;
     countSPKTypes: number;
     countFormChecklist: number;
-    uploadTrend: UploadTrend[];
-    recentDocuments: Document[];
-    unverifiedUsers: User[];
-    [key: string]: any;
+    countFormPmPopGlobal: number;
+    uploadTrend: Array<{
+        date: string;
+        spk: number;
+        checklist: number;
+        pmPop: number;
+    }>;
+    recentDocuments: any[];
+    unverifiedUsers: any[];
 }
 
 export default function Dashboard() {
@@ -56,6 +57,8 @@ export default function Dashboard() {
     const [countUsersUnverified, setCountUsersUnverified] = useState(initialProps.countUsersUnverified);
     const [countSPKTypes, setCountSPKTypes] = useState(initialProps.countSPKTypes);
     const [countFormChecklist, setCountFormChecklist] = useState(initialProps.countFormChecklist);
+    const [countFormPmPop, setCountFormPmPop] = useState(initialProps.countFormPmPop);
+    const [countFormPmPopGlobal, setCountFormPmPopGlobal] = useState(initialProps.countFormPmPopGlobal);
     const [uploadTrend, setUploadTrend] = useState(initialProps.uploadTrend);
     const [localDocuments, setLocalDocuments] = useState<Document[]>(initialProps.recentDocuments);
     const [unverifiedUsers, setUnverifiedUsers] = useState(initialProps.unverifiedUsers);
@@ -70,16 +73,17 @@ export default function Dashboard() {
         const interval = setInterval(async () => {
             try {
                 console.log('📡 Fetching dashboard stats...');
-                
+
                 const response = await axios.get('/api/dashboard/stats');
                 const data = response.data;
-                
+
                 console.log('✅ Dashboard stats received:', data);
 
                 // Update semua state
                 setCountUsersUnverified(data.countUsersUnverified);
                 setCountSPKTypes(data.countSPKTypes);
                 setCountFormChecklist(data.countFormChecklist);
+                setCountFormPmPopGlobal(data.countFormPmPopGlobal);
                 setUploadTrend(data.uploadTrend);
                 setLocalDocuments(data.recentDocuments);
                 setUnverifiedUsers(data.unverifiedUsers);
@@ -154,15 +158,13 @@ export default function Dashboard() {
                     <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
                         <div className="flex items-center gap-3">
                             <div className="h-2 w-2 animate-pulse rounded-full bg-blue-400"></div>
-                            <span className="text-sm text-blue-400">
-                                🔄 Real-time monitoring active - Dashboard updates every 5 seconds
-                            </span>
+                            <span className="text-sm text-blue-400">🔄 Real-time monitoring active - Dashboard updates every 5 seconds</span>
                         </div>
                     </div>
                 )}
 
                 {/* Statistics Cards */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     {/* ✅ CHANGED: Unverified Users (bukan Verified) */}
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -198,7 +200,20 @@ export default function Dashboard() {
                             <p className="text-xs text-muted-foreground">Total form templates</p>
                         </CardContent>
                     </Card>
+
+                    {/* Total Form PM POP - BARU */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Form PM POP</CardTitle>
+                            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{countFormPmPopGlobal}</div>
+                            <p className="text-xs text-muted-foreground">Total PM POP forms</p>
+                        </CardContent>
+                    </Card>
                 </div>
+                
 
                 {/* Upload Trend Chart */}
                 <Card>
@@ -217,6 +232,10 @@ export default function Dashboard() {
                                     <linearGradient id="colorChecklist" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.5} />
                                         <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                                    </linearGradient>
+                                    <linearGradient id="colorPmPop" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.5} />
+                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -252,6 +271,15 @@ export default function Dashboard() {
                                     fill="url(#colorChecklist)"
                                     name="checklist"
                                 />
+                                <Area
+                                    type="monotone"
+                                    dataKey="pmPop"
+                                    stroke="#f59e0b"
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#colorPmPop)"
+                                    name="pmPop"
+                                />
                             </AreaChart>
                         </ResponsiveContainer>
 
@@ -264,6 +292,10 @@ export default function Dashboard() {
                             <div className="flex items-center gap-2">
                                 <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
                                 <span className="text-sm text-muted-foreground">Form Checklist</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="h-3 w-3 rounded-full bg-orange-500"></div>
+                                <span className="text-sm text-muted-foreground">Form PM POP</span>
                             </div>
                         </div>
                     </CardContent>

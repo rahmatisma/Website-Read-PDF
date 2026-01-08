@@ -1,45 +1,78 @@
-import { CalendarIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+// resources/js/components/SearchFilter.tsx
+import { useState, useEffect } from 'react';
+import { router } from '@inertiajs/react';
+import { Search, Calendar } from 'lucide-react';
 
 interface SearchFilterProps {
-    onSearch?: (query: string) => void;
-    onDateChange?: (start: string, end: string) => void;
+    onSearch?: (keyword: string, dateFrom: string, dateTo: string) => void;
 }
 
-export default function SearchFilter({ onSearch, onDateChange }: SearchFilterProps) {
+export default function SearchFilter({ onSearch }: SearchFilterProps) {
+    const [keyword, setKeyword] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+
+    // Debounce search
+    useEffect(() => {
+        const debounce = setTimeout(() => {
+            if (onSearch) {
+                onSearch(keyword, dateFrom, dateTo);
+            } else {
+                // Default: reload page dengan query params
+                const params = new URLSearchParams();
+                if (keyword) params.append('keyword', keyword);
+                if (dateFrom) params.append('date_from', dateFrom);
+                if (dateTo) params.append('date_to', dateTo);
+                
+                const queryString = params.toString();
+                router.get(
+                    window.location.pathname + (queryString ? `?${queryString}` : ''),
+                    {},
+                    { preserveState: true, preserveScroll: true }
+                );
+            }
+        }, 500);
+
+        return () => clearTimeout(debounce);
+    }, [keyword, dateFrom, dateTo]);
+
     return (
-        <div className="mb-6 flex items-center justify-between gap-6">
-            {/* 🔎 Search */}
-            <div className="relative w-1/3">
-                <MagnifyingGlassIcon className="absolute top-2.5 left-3 h-5 w-5 text-gray-400" />
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+            {/* Search Input */}
+            <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
                     type="text"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
                     placeholder="Search documents..."
-                    className="w-full rounded-full bg-gray-800 py-2 pr-4 pl-10 text-gray-200 placeholder-gray-400 shadow-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                    onChange={(e) => onSearch?.(e.target.value)}
+                    className="w-full rounded-lg border border-input bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
             </div>
 
-            {/* 📅 Date Filter */}
-            <div className="flex items-center gap-3">
-                {/* Start Date */}
-                <div className="relative">
-                    <CalendarIcon className="absolute top-2.5 left-3 h-5 w-5 text-gray-400" />
+            {/* Date From */}
+            <div className="relative sm:w-48">
+                <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    placeholder="dd/mm/yyyy"
+                    className="w-full rounded-lg border border-input bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+            </div>
+
+            {/* Date To */}
+            <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">to</span>
+                <div className="relative sm:w-48">
+                    <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                     <input
                         type="date"
-                        className="rounded-full bg-gray-800 py-2 pr-4 pl-10 text-gray-200 shadow-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                        onChange={(e) => onDateChange?.(e.target.value, '')}
-                    />
-                </div>
-
-                <span className="text-gray-400">to</span>
-
-                {/* End Date */}
-                <div className="relative">
-                    <CalendarIcon className="absolute top-2.5 left-3 h-5 w-5 text-gray-400" />
-                    <input
-                        type="date"
-                        className="rounded-full bg-gray-800 py-2 pr-4 pl-10 text-gray-200 shadow-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                        onChange={(e) => onDateChange?.('', e.target.value)}
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        placeholder="dd/mm/yyyy"
+                        className="w-full rounded-lg border border-input bg-background py-2.5 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                 </div>
             </div>

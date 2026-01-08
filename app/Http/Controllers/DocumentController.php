@@ -29,37 +29,91 @@ class DocumentController extends Controller
     }
 
     /**
-     * Filter dokumen berdasarkan tipe
+     * Filter dokumen berdasarkan tipe - WITH SPK RELATIONS
      */
-    public function filter(string $type)
+    public function filter(string $type, Request $request)
     {
         $query = Document::where('id_user', Auth::id());
 
         switch ($type) {
-            case 'pdf':
-                // ✅ FIXED: PDF yang BUKAN form checklist (cek lewat relasi SPK)
-                $query->where('file_type', 'pdf')
-                    ->where('document_type', '!=', 'form_checklist');
+            case 'spk':
+                // SPK: PDF yang document_type = 'spk' atau file_type PDF tapi bukan form checklist/pm
+                $query->where(function($q) {
+                    $q->where('document_type', 'spk')
+                    ->orWhere(function($q2) {
+                        $q2->where('file_type', 'pdf')
+                            ->whereNotIn('document_type', ['form_checklist', 'form_pm_pop']);
+                    });
+                });
                 break;
-            case 'doc':
-                $query->whereIn('file_type', ['doc', 'docx']);
-                break;
-            case 'gambar':
-                $query->whereIn('file_type', ['jpg', 'jpeg', 'png']);
-                break;
+                
             case 'form-checklist':
-                // ✅ FIXED: Ambil dokumen yang punya SPK dengan type form_checklist
-                $query->where('document_type', 'form_checklist');
+                // Form Checklist: Wireline & Wireless
+                $query->where('document_type', 'form_checklist')
+                    ->orWhereHas('spks', function($q) {
+                        $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
+                    });
                 break;
+                
+            case 'form-pm-pop':
+                // Form PM POP: document baru
+                $query->where('document_type', 'form_pm_pop');
+                break;
+                
             default:
                 abort(404);
         }
 
-        $documents = $query->orderBy('created_at', 'desc')->get();
+        // ⭐ SEARCH FILTERS
+        if ($keyword = $request->input('keyword')) {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('file_name', 'LIKE', "%{$keyword}%")
+                    ->orWhereHas('spks', function ($q) use ($keyword) {
+                        $q->where('no_spk', 'LIKE', "%{$keyword}%")
+                            ->orWhere('no_mr', 'LIKE', "%{$keyword}%")
+                            ->orWhere('no_fps', 'LIKE', "%{$keyword}%")
+                            ->orWhere('no_jaringan', 'LIKE', "%{$keyword}%");
+                    })
+                    ->orWhereHas('spks.jaringan', function ($q) use ($keyword) {
+                        $q->where('nama_pelanggan', 'LIKE', "%{$keyword}%")
+                            ->orWhere('lokasi_pelanggan', 'LIKE', "%{$keyword}%");
+                    })
+                    ->orWhereHas('spks.executionInfo', function ($q) use ($keyword) {
+                        $q->where('teknisi', 'LIKE', "%{$keyword}%")
+                            ->orWhere('nama_vendor', 'LIKE', "%{$keyword}%");
+                    });
+            });
+        }
+
+        if ($date_from = $request->input('date_from')) {
+            $query->whereDate('created_at', '>=', $date_from);
+        }
+        
+        if ($date_to = $request->input('date_to')) {
+            $query->whereDate('created_at', '<=', $date_to);
+        }
+
+        // ✅ LOAD RELASI SPK + JARINGAN + EXECUTION INFO
+        $documents = $query->with([
+            'spks' => function($q) {
+                $q->select('id_spk', 'no_spk', 'no_jaringan', 'jenis_spk', 'document_type', 'tanggal_spk', 'id_upload')
+                ->where('is_deleted', false)
+                ->orderBy('created_at', 'desc');
+            },
+            'spks.jaringan' => function($q) {
+                $q->select('no_jaringan', 'nama_pelanggan', 'lokasi_pelanggan', 'jasa');
+            },
+            'spks.executionInfo' => function($q) {
+                $q->select('id_execution', 'id_spk', 'teknisi', 'nama_vendor', 'pic_pelanggan');
+            }
+        ])
+        ->orderBy('created_at', 'desc')
+        ->get();
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
             'activeTab' => $type,
+            'filters' => $request->only(['keyword', 'date_from', 'date_to']),
         ]);
     }
 
@@ -129,26 +183,33 @@ class DocumentController extends Controller
         // ========================================
         // STATISTIK DOKUMEN USER
         // ========================================
-        // PDF yang BUKAN form checklist
-        $countPDF = Document::where('id_user', $userId)
-            ->where('file_type', 'pdf')
-            ->whereDoesntHave('spks', function($q) {
+        // SPK: dokumen dengan document_type = 'spk' atau PDF yang bukan form checklist/pm pop
+        $countSPK = Document::where('id_user', $userId)
+            ->where(function($q) {
+                $q->where('document_type', 'spk')
+                  ->orWhere(function($q2) {
+                      $q2->where('file_type', 'pdf')
+                          ->whereDoesntHave('spks', function($q3) {
+                              $q3->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless', 'form_pm_pop']);
+                          });
+                  });
+            })
+            ->count();
+        
+        // ✅ Form Checklist dari SPK
+        $countChecklist = Document::where('id_user', $userId)
+            ->whereHas('spks', function($q) {
                 $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
             })
             ->count();
 
-        $countDOC = Document::where('id_user', $userId)
-            ->whereIn('file_type', ['doc', 'docx'])
-            ->count();
-
-        $countIMG = Document::where('id_user', $userId)
-            ->whereIn('file_type', ['jpg', 'jpeg', 'png'])
-            ->count();
-        
-        // ✅ FIXED: Form Checklist dari SPK yang punya id_upload milik user ini
-        $countChecklist = Document::where('id_user', $userId)
-            ->whereHas('spks', function($q) {
-                $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
+        // ✅ Form PM POP
+        $countFormPmPop = Document::where('id_user', $userId)
+            ->where(function($q) {
+                $q->where('document_type', 'form_pm_pop')
+                  ->orWhereHas('spks', function($q2) {
+                      $q2->where('document_type', 'form_pm_pop');
+                  });
             })
             ->count();
 
@@ -171,21 +232,24 @@ class DocumentController extends Controller
         }
 
         // ========================================
-        // ✅ FIXED: STATISTIK SPK (Global - semua user)
+        // ✅ STATISTIK SPK (Global - semua user)
         // ========================================
         // Total jenis SPK yang unik
         $countSPKTypes = SPK::where('document_type', 'spk')
             ->distinct('jenis_spk')
             ->count('jenis_spk');
 
-        // ✅ FIXED: Total form checklist (wireline + wireless)
+        // ✅ Total form checklist (wireline + wireless)
         $countFormChecklist = SPK::whereIn('document_type', [
             'form_checklist_wireline', 
             'form_checklist_wireless'
         ])->count();
 
+        // ✅ Total form PM POP (global)
+        $countFormPmPopGlobal = SPK::where('document_type', 'form_pm_pop')->count();
+
         // ========================================
-        // ✅ FIXED: UPLOAD TREND (7 hari terakhir)
+        // ✅ UPLOAD TREND (7 hari terakhir)
         // ========================================
         $uploadTrend = [];
         
@@ -207,10 +271,21 @@ class DocumentController extends Controller
                 })
                 ->count();
             
+            // PM POP: Upload yang punya SPK dengan document_type = form_pm_pop
+            $pmPopCount = Document::whereDate('created_at', $date->toDateString())
+                ->where(function($q) {
+                    $q->where('document_type', 'form_pm_pop')
+                      ->orWhereHas('spks', function($q2) {
+                          $q2->where('document_type', 'form_pm_pop');
+                      });
+                })
+                ->count();
+            
             $uploadTrend[] = [
                 'date' => $dateStr,
                 'spk' => $spkCount,
                 'checklist' => $checklistCount,
+                'pmPop' => $pmPopCount,
             ];
         }
 
@@ -232,14 +307,17 @@ class DocumentController extends Controller
             });
 
         return Inertia::render('dashboard', [
-            'countPDF'  => $countPDF,
-            'countDOC'  => $countDOC,
-            'countIMG'  => $countIMG,
+            // ✅ User-specific stats (tambahkan ini)
+            'countSPK'  => $countSPK,
             'countChecklist' => $countChecklist,
+            'countFormPmPop' => $countFormPmPop,
             'countAll'  => $countAll,
+            
+            // ✅ Global stats
             'countUsersUnverified' => $countUsersUnverified,
             'countSPKTypes' => $countSPKTypes,
             'countFormChecklist' => $countFormChecklist,
+            'countFormPmPopGlobal' => $countFormPmPopGlobal,
             'uploadTrend' => $uploadTrend,
             'recentDocuments' => $recentDocuments,
             'unverifiedUsers' => $unverifiedUsers,
@@ -247,7 +325,7 @@ class DocumentController extends Controller
     }
     
     /**
-     * ✅ FIXED: GET DASHBOARD STATS (untuk real-time updates)
+     * ✅ GET DASHBOARD STATS (untuk real-time updates)
      */
     public function getDashboardStats()
     {
@@ -271,7 +349,7 @@ class DocumentController extends Controller
         }
 
         // ========================================
-        // ✅ FIXED: STATISTIK SPK
+        // ✅ STATISTIK SPK
         // ========================================
         $countSPKTypes = SPK::where('document_type', 'spk')
             ->distinct('jenis_spk')
@@ -282,8 +360,10 @@ class DocumentController extends Controller
             'form_checklist_wireless'
         ])->count();
 
+        $countFormPmPopGlobal = SPK::where('document_type', 'form_pm_pop')->count();
+
         // ========================================
-        // ✅ FIXED: UPLOAD TREND
+        // ✅ UPLOAD TREND
         // ========================================
         $uploadTrend = [];
         
@@ -303,10 +383,20 @@ class DocumentController extends Controller
                 })
                 ->count();
             
+            $pmPopCount = Document::whereDate('created_at', $date->toDateString())
+                ->where(function($q) {
+                    $q->where('document_type', 'form_pm_pop')
+                      ->orWhereHas('spks', function($q2) {
+                          $q2->where('document_type', 'form_pm_pop');
+                      });
+                })
+                ->count();
+            
             $uploadTrend[] = [
                 'date' => $dateStr,
                 'spk' => $spkCount,
                 'checklist' => $checklistCount,
+                'pmPop' => $pmPopCount,
             ];
         }
 
@@ -331,6 +421,7 @@ class DocumentController extends Controller
             'countUsersUnverified' => $countUsersUnverified,
             'countSPKTypes' => $countSPKTypes,
             'countFormChecklist' => $countFormChecklist,
+            'countFormPmPopGlobal' => $countFormPmPopGlobal,
             'uploadTrend' => $uploadTrend,
             'recentDocuments' => $recentDocuments,
             'unverifiedUsers' => $unverifiedUsers,
@@ -401,10 +492,7 @@ class DocumentController extends Controller
                 
                 foreach ($upload->extracted_data['dokumentasi'] as $doc) {
                     if (isset($doc['patch_foto'])) {
-                        // Path dari database: output/extracted/spk/survey/survey_xxx/images/foto.jpg
                         $relativePath = $doc['patch_foto'];
-                        
-                        // Full path: storage/app/public/output/extracted/...
                         $fullPath = storage_path('app/public/' . $relativePath);
                         
                         if (file_exists($fullPath)) {
@@ -422,10 +510,7 @@ class DocumentController extends Controller
                             ]);
                         }
                         
-                        // Extract folder induk (survey_xxx)
                         if (!$extractedFolder) {
-                            // output/extracted/spk/survey/survey_20241230_143022/images/foto.jpg
-                            // → output/extracted/spk/survey/survey_20241230_143022
                             $pathParts = explode('/', $relativePath);
                             if (count($pathParts) >= 5) {
                                 $extractedFolder = implode('/', array_slice($pathParts, 0, -2));
@@ -440,13 +525,12 @@ class DocumentController extends Controller
                 ]);
                 
                 // ========================================
-                // 4. HAPUS FOLDER INDUK (survey_xxx, wireline_xxx, dll)
+                // 4. HAPUS FOLDER INDUK
                 // ========================================
                 if ($extractedFolder) {
                     $extractedFolderPath = storage_path('app/public/' . $extractedFolder);
                     
                     if (is_dir($extractedFolderPath)) {
-                        // Hapus semua isi folder (images, JSON, dll)
                         $this->deleteDirectory($extractedFolderPath);
                         
                         Log::info('Folder extracted berhasil dihapus', [
@@ -564,7 +648,7 @@ class DocumentController extends Controller
     }
 
     /**
-     * ✅ DETAIL DOKUMEN - FIXED: Wrap extracted_data dengan "data"
+     * ✅ DETAIL DOKUMEN
      */
     public function detail($id)
     {
@@ -582,20 +666,17 @@ class DocumentController extends Controller
                 'user_id' => Auth::id()
             ]);
             
-            // ✅ FIXED: Transform extracted_data sesuai struktur yang diharapkan frontend
             $extractedData = null;
             if ($upload->extracted_data) {
                 $rawData = is_string($upload->extracted_data) 
                     ? json_decode($upload->extracted_data, true) 
                     : $upload->extracted_data;
                 
-                // ✅ Wrap dengan "data" agar sesuai dengan interface TypeScript
                 $extractedData = [
                     'data' => $rawData
                 ];
             }
 
-            // ✅ Check via relasi SPK
             $isChecklist = $upload->spks()
                 ->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless'])
                 ->exists();
@@ -613,7 +694,7 @@ class DocumentController extends Controller
                     'created_at' => $upload->created_at,
                     'updated_at' => $upload->updated_at,
                 ],
-                'extractedData' => $extractedData, // ✅ Sudah wrapped dengan "data"
+                'extractedData' => $extractedData,
             ]);
             
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {

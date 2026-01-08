@@ -4,7 +4,7 @@ import { router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-export default function UploadPDFBox() {
+export default function UploadSPKBox() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);

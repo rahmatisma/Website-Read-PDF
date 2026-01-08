@@ -5,84 +5,97 @@ use App\Http\Controllers\UploadController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\FormChecklistController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DokumenSearchController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// ========================================
+// PUBLIC ROUTES
+// ========================================
 Route::get('/', function () {
     return Inertia::render('auth/login');
 })->name('home');
 
+// ========================================
+// AUTHENTICATED ROUTES
+// ========================================
 Route::middleware(['auth', 'verified.admin'])->group(function () {
 
-    // Dashboard
+    // ========================================
+    // DASHBOARD
+    // ========================================
     Route::get('/dashboard', [DocumentController::class, 'dashboard'])->name('dashboard');
 
     // ========================================
     // DOCUMENTS ROUTES
     // ========================================
     Route::prefix('documents')->name('documents.')->group(function () {
-        // ✅ TAMBAHKAN: Route untuk halaman utama documents
-        Route::get('/', [DocumentController::class, 'index'])->name('index');
+        // Main documents page - redirect to SPK filter
+        Route::get('/', function() {
+            return redirect()->route('documents.filter', ['type' => 'spk']);
+        })->name('index');
 
-        // Upload dokumen
-        Route::post('/pdf', [UploadController::class, 'storePDF'])->name('store.pdf');
+        // Upload endpoints
+        Route::post('/spk', [UploadController::class, 'storeSPK'])->name('store.spk');
         Route::post('/checklist', [UploadController::class, 'storeChecklist'])->name('store.checklist');
 
-        // Detail dokumen
-        Route::get('/{id}/detail', [DocumentController::class, 'detail'])
+        // Search routes
+        Route::get('/search', [DokumenSearchController::class, 'index'])->name('search');
+        Route::get('/search/api/search', [DokumenSearchController::class, 'search']);
+        Route::get('/search/api/filter-options', [DokumenSearchController::class, 'getFilterOptions']);
+        Route::get('/search/api/customer-summary', [DokumenSearchController::class, 'getCustomerSummary']);
+
+        // Detail & Actions (specific routes before wildcard)
+        Route::get('/detail/{id}', [DocumentController::class, 'detail'])
             ->where('id', '[0-9]+')
             ->name('detail');
-
-        // Retry dokumen yang failed
-        Route::post('/{id}/retry', [UploadController::class, 'retry'])
+        Route::post('/retry/{id}', [UploadController::class, 'retry'])
             ->where('id', '[0-9]+')
             ->name('retry');
-
-        // Delete dokumen
         Route::delete('/{id}', [DocumentController::class, 'destroy'])
             ->where('id', '[0-9]+')
             ->name('destroy');
 
-        // Filter berdasarkan tipe (harus di paling bawah)
-        Route::get('/{type}', [DocumentController::class, 'filter'])
-            ->where('type', 'pdf|form-checklist')
+        // Filter by type (MUST BE LAST - catch-all route)
+        Route::get('/filter/{type}', [DocumentController::class, 'filter'])
+            ->where('type', 'spk|form-checklist|form-pm-pop') // ✅ Update regex
             ->name('filter');
     });
 
     // ========================================
-    // API ROUTES untuk AJAX/Polling
+    // SMART SEARCH SYSTEM (NEW)
     // ========================================
-    Route::prefix('api')->name('api.')->group(function () {
-        Route::post('/documents/check-status', [DocumentController::class, 'checkStatus'])
-            ->name('documents.checkStatus');
-
-        Route::get('/dashboard/stats', [DocumentController::class, 'getDashboardStats'])
-            ->name('dashboard.stats');
-
-        Route::get('/documents/{id}/status', [DocumentController::class, 'getStatus'])
-            ->where('id', '[0-9]+')
-            ->name('documents.getStatus');
+    Route::prefix('search')->name('search.')->group(function () {
+        // Main search page
+        Route::get('/', [DokumenSearchController::class, 'index'])->name('index');
+        
+        // API Endpoints (AJAX)
+        Route::get('/api/search', [DokumenSearchController::class, 'search'])->name('api.search');
+        Route::get('/api/filter-options', [DokumenSearchController::class, 'getFilterOptions'])->name('api.filter-options');
+        Route::get('/api/customer-summary', [DokumenSearchController::class, 'getCustomerSummary'])->name('api.customer-summary');
+        Route::get('/api/stats', [DokumenSearchController::class, 'getQuickStats'])->name('api.stats');
+        Route::get('/api/export', [DokumenSearchController::class, 'export'])->name('api.export');
     });
 
-    // Form Checklist
-    Route::prefix('form-checklist')->group(function () {
-        Route::post('/process/{uploadId}', [FormChecklistController::class, 'processUpload']);
-        Route::get('/wireline/{idFcw}', [FormChecklistController::class, 'getWireline']);
-        Route::get('/wireless/{idFcwl}', [FormChecklistController::class, 'getWireless']);
+    // ========================================
+    // FORM CHECKLIST
+    // ========================================
+    Route::prefix('form-checklist')->name('form-checklist.')->group(function () {
+        Route::post('/process/{uploadId}', [FormChecklistController::class, 'processUpload'])->name('process');
+        Route::get('/wireline/{idFcw}', [FormChecklistController::class, 'getWireline'])->name('wireline');
+        Route::get('/wireless/{idFcwl}', [FormChecklistController::class, 'getWireless'])->name('wireless');
     });
 
-    // Chatbot Page
+    // ========================================
+    // CHATBOT (Legacy)
+    // ========================================
     Route::get('/test', function() {
         return Inertia::render('chatbot');
     })->name('chatbot');
 
-    // ========================================
-    // CHATBOT API ENDPOINTS (RAG System)
-    // ========================================
     Route::prefix('chatbot')->name('chatbot.')->group(function () {
         Route::post('/chat', [ChatbotController::class, 'chat'])->name('chat');
-        Route::post('/generate-embedding', [ChatbotController::class, 'generateEmbedding'])
-            ->name('generate.embedding');
+        Route::post('/generate-embedding', [ChatbotController::class, 'generateEmbedding'])->name('generate.embedding');
         Route::get('/health', [ChatbotController::class, 'health'])->name('health');
         Route::post('/chat-stream', [ChatbotController::class, 'chatStream'])->name('chat.stream');
         Route::get('/stats', [ChatbotController::class, 'stats'])->name('stats');
@@ -90,11 +103,28 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
         Route::post('/stream', [ChatbotController::class, 'sendMessageStream'])->name('stream');
     });
 
-    // Send to Python
-    Route::post('/send-to-python', [DocumentController::class, 'sendToPython'])
-        ->name('send.to.python');
+    // ========================================
+    // API ENDPOINTS (for AJAX/Polling)
+    // ========================================
+    Route::prefix('api')->name('api.')->group(function () {
+        // Documents
+        Route::post('/documents/check-status', [DocumentController::class, 'checkStatus'])->name('documents.checkStatus');
+        Route::get('/documents/{id}/status', [DocumentController::class, 'getStatus'])
+            ->where('id', '[0-9]+')
+            ->name('documents.getStatus');
+        
+        // Dashboard
+        Route::get('/dashboard/stats', [DocumentController::class, 'getDashboardStats'])->name('dashboard.stats');
+    });
 
-    // Test Ollama
+    // ========================================
+    // PYTHON INTEGRATION
+    // ========================================
+    Route::post('/send-to-python', [DocumentController::class, 'sendToPython'])->name('send.to.python');
+
+    // ========================================
+    // TEST ENDPOINTS
+    // ========================================
     Route::get('/test-ollama', function() {
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(600)
@@ -114,10 +144,10 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
                 'error' => $e->getMessage()
             ]);
         }
-    });
+    })->name('test.ollama');
 
     // ========================================
-    // USERS MANAGEMENT ROUTES (ADMIN ONLY)
+    // USER MANAGEMENT (ADMIN ONLY)
     // ========================================
     Route::prefix('users')
         ->name('users.')
@@ -127,11 +157,12 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
             Route::post('/', [UserController::class, 'store'])->name('store');
             Route::put('/{user}', [UserController::class, 'update'])->name('update');
             Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
-            Route::patch('/{user}/toggle-admin-verification',
-                [UserController::class, 'toggleAdminVerification']
-            )->name('toggleAdminVerification');
+            Route::patch('/{user}/toggle-admin-verification', [UserController::class, 'toggleAdminVerification'])->name('toggleAdminVerification');
         });
 });
 
+// ========================================
+// ADDITIONAL ROUTE FILES
+// ========================================
 require __DIR__ . '/settings.php';
 require __DIR__ . '/auth.php';

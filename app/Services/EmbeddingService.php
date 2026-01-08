@@ -109,7 +109,16 @@ class EmbeddingService
             $embedding = $this->generateEmbedding($contentText);
 
             // Delete existing embeddings untuk jaringan ini (jika force regenerate)
-            \App\Models\JaringanEmbedding::where('no_jaringan', $noJaringan)->delete();
+            // ✅ Cek dulu apakah sudah ada embedding
+            $existingCount = \App\Models\JaringanEmbedding::where('no_jaringan', $noJaringan)->count();
+
+            if ($existingCount > 0) {
+                Log::info('Jaringan embedding already exists, skipping', [
+                    'no_jaringan' => $noJaringan,
+                    'existing_count' => $existingCount
+                ]);
+                return; // ✅ Skip tanpa error
+            }
 
             // Save new embedding
             \App\Models\JaringanEmbedding::create([
