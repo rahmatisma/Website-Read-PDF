@@ -1,4 +1,4 @@
-// resources/js/Pages/Documents/partials/FormChecklist.tsx
+// resources/js/Pages/Documents/partials/SPK.tsx
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import DocumentTable from '@/components/DocumentTable';
@@ -12,13 +12,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import UploadChecklistBox from '@/components/UploadChecklistBox';
+import UploadSPKBox from '@/components/UploadSPKBox';
 import { Document } from '@/types/document';
 import { Head } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { Search } from 'lucide-react';
 
-interface FormChecklistProps {
+interface SPKProps {
     documents: Document[];
     filters?: {
         keyword?: string;
@@ -27,7 +27,7 @@ interface FormChecklistProps {
     };
 }
 
-export default function FormChecklist({ documents, filters = {} }: FormChecklistProps) {
+export default function SPK({ documents, filters = {} }: SPKProps) {
     const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -41,12 +41,12 @@ export default function FormChecklist({ documents, filters = {} }: FormChecklist
         
         router.delete(route('documents.destroy', documentToDelete), {
             onSuccess: () => {
-                toast.success('Form Checklist berhasil dihapus');
+                toast.success('Dokumen SPK berhasil dihapus');
                 setDeleteDialogOpen(false);
                 setDocumentToDelete(null);
             },
             onError: () => {
-                toast.error('Gagal menghapus Form Checklist');
+                toast.error('Gagal menghapus dokumen SPK');
                 setDeleteDialogOpen(false);
                 setDocumentToDelete(null);
             },
@@ -59,17 +59,17 @@ export default function FormChecklist({ documents, filters = {} }: FormChecklist
 
     return (
         <>
-            <Head title="Form Checklist" />
+            <Head title="Daftar Dokumen SPK" />
 
             <div className="space-y-6 p-6">
                 {/* Upload Box */}
-                <UploadChecklistBox />
+                <UploadSPKBox />
 
                 {/* Header with Search Button */}
                 <div className="mt-6">
                     <div className="mb-4 flex items-center justify-between">
                         <div>
-                            <h2 className="text-xl font-semibold text-white">Daftar Form Checklist</h2>
+                            <h2 className="text-xl font-semibold text-white">Daftar Dokumen SPK</h2>
                             <p className="text-sm text-gray-400 mt-1">
                                 {documents.length} dokumen tersedia
                             </p>
@@ -88,7 +88,7 @@ export default function FormChecklist({ documents, filters = {} }: FormChecklist
                     {/* Document Table */}
                     <DocumentTable 
                         documents={documents} 
-                        type="form-checklist" 
+                        type="spk" 
                         onDelete={handleDelete} 
                     />
                 </div>
@@ -98,9 +98,9 @@ export default function FormChecklist({ documents, filters = {} }: FormChecklist
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Hapus Form Checklist?</AlertDialogTitle>
+                        <AlertDialogTitle>Hapus dokumen SPK?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Form Checklist yang dihapus tidak dapat dikembalikan. Tindakan ini bersifat permanen.
+                            SPK yang dihapus tidak dapat dikembalikan. Tindakan ini bersifat permanen.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

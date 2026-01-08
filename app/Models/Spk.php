@@ -166,6 +166,65 @@ class SPK extends Model
         return $this->hasOne(FormChecklistWireless::class, 'id_spk', 'id_spk');
     }
 
+    /**
+     * Relasi ke SpkEmbedding (one-to-one)
+     */
+    public function embedding()
+    {
+        return $this->hasOne(SpkEmbedding::class, 'id_spk', 'id_spk');
+    }
+
+    /**
+     * Method helper untuk generate text yang akan di-embed
+     */
+    public function getEmbeddableText(): string
+    {
+        $text = [];
+        
+        // Data dasar SPK
+        $text[] = 'No SPK: ' . $this->no_spk;
+        $text[] = 'No Jaringan: ' . $this->no_jaringan;
+        $text[] = 'Jenis SPK: ' . $this->jenis_spk;
+        $text[] = 'Document Type: ' . $this->document_type;
+        
+        if ($this->tanggal_spk) {
+            $text[] = 'Tanggal SPK: ' . $this->tanggal_spk->format('Y-m-d');
+        }
+        
+        if ($this->no_mr) {
+            $text[] = 'No MR: ' . $this->no_mr;
+        }
+        
+        if ($this->no_fps) {
+            $text[] = 'No FPS: ' . $this->no_fps;
+        }
+        
+        // Data dari relasi Jaringan
+        if ($this->jaringan) {
+            $text[] = 'Nama Pelanggan: ' . $this->jaringan->nama_pelanggan;
+            $text[] = 'Lokasi: ' . $this->jaringan->lokasi_pelanggan;
+            $text[] = 'Jasa: ' . $this->jaringan->jasa;
+        }
+        
+        // Data dari relasi lainnya (opsional)
+        if ($this->pelaksanaan) {
+            if ($this->pelaksanaan->nama_pelaksana) {
+                $text[] = 'Pelaksana: ' . $this->pelaksanaan->nama_pelaksana;
+            }
+        }
+        
+        if ($this->informasiGedung) {
+            if ($this->informasiGedung->nama_gedung) {
+                $text[] = 'Gedung: ' . $this->informasiGedung->nama_gedung;
+            }
+            if ($this->informasiGedung->alamat_gedung) {
+                $text[] = 'Alamat Gedung: ' . $this->informasiGedung->alamat_gedung;
+            }
+        }
+        
+        return implode(' ', array_filter($text));
+    }
+
     // ========================================
     // SCOPES
     // ========================================

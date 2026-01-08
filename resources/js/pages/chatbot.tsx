@@ -34,8 +34,94 @@ interface Message {
 }
 
 const STORAGE_KEY = 'chatbot_messages';
+const extractEntitiesFromBotResponse = (
+    botText: string,
+): {
+    last_nojar?: string;
+    last_pelanggan?: string;
+    last_spk?: string;
+    last_pop?: string;
+} => {
+    const entities: any = {};
 
-// ✅ Message ID counter untuk generate unique ID
+    console.log('🔍 Extracting entities from bot text...');
+
+    // ========================================
+    // 1. Extract Nomor Jaringan (HANYA 10 digit pure number)
+    // ========================================
+    const nojarMatch =
+        botText.match(/\bnojar[:\s]*(\d{10})\b/i) || botText.match(/nomor\s+jaringan[:\s]*(\d{10})\b/i) || botText.match(/\b(\d{10})\b/); // Fallback: any 10-digit
+
+    if (nojarMatch) {
+        const candidate = nojarMatch[1] || nojarMatch[0];
+        // Validate: must be exactly 10 digits
+        if (/^\d{10}$/.test(candidate)) {
+            entities.last_nojar = candidate;
+            console.log('✅ Found nojar:', entities.last_nojar);
+        }
+    }
+
+    // ========================================
+    // 2. Extract Pelanggan (setelah keyword, dalam UPPERCASE)
+    // ========================================
+    // Pattern 1: "Pelanggan dari ... adalah NAMA PELANGGAN"
+    let pelangganMatch = botText.match(
+        /pelanggan\s+(?:dari|dengan|untuk)?.{0,50}?\s+adalah\s+([A-Z][A-Z\s&\.\(\)0-9]+?)(?:\.|,|\n|Lokasi|POP|berada)/i,
+    );
+
+    // Pattern 2: "Nama Pelanggan: NAMA"
+    if (!pelangganMatch) {
+        pelangganMatch = botText.match(/(?:Nama\s+)?Pelanggan[\s:]+([A-Z][A-Z\s&\.\(\)0-9]{5,}?)(?:\.|,|\n|POP|Lokasi|$)/i);
+    }
+
+    // Pattern 3: Bold/strong pelanggan name **NAMA**
+    if (!pelangganMatch) {
+        pelangganMatch = botText.match(/\*\*([A-Z][A-Z\s&\.\(\)0-9]{5,}?)\*\*/);
+    }
+
+    if (pelangganMatch) {
+        let name = pelangganMatch[1].trim();
+        // Clean up: remove trailing words yang bukan nama
+        name = name.replace(/\s+(di|pada|untuk|berada|berlokasi).*/i, '');
+
+        // Validate: minimal 5 karakter, mayoritas uppercase
+        if (name.length >= 5 && /[A-Z]/.test(name)) {
+            entities.last_pelanggan = name;
+            console.log('✅ Found pelanggan:', entities.last_pelanggan);
+        }
+    }
+
+    // ========================================
+    // 3. Extract SPK (format: huruf-angka atau full numeric)
+    // ========================================
+    const spkMatch = botText.match(/(?:SPK|No\.?\s*SPK|Nomor\s+SPK)[\s:#]*([A-Z0-9\/\-]{5,})/i);
+
+    if (spkMatch) {
+        const candidate = spkMatch[1].trim();
+        // Validate: bukan kata umum
+        if (!/^(terkait|dengan|tersebut|untuk|dari)$/i.test(candidate)) {
+            entities.last_spk = candidate;
+            console.log('✅ Found SPK:', entities.last_spk);
+        }
+    }
+
+    // ========================================
+    // 4. Extract POP
+    // ========================================
+    const popMatch = botText.match(/(?:POP|Point\s+of\s+Presence)[\s:]+([A-Z][A-Z0-9\s\-\_\/\.\(\)]{2,30}?)(?:\n|$|dan|dengan)/i);
+
+    if (popMatch) {
+        entities.last_pop = popMatch[1].trim();
+        console.log('✅ Found POP:', entities.last_pop);
+    }
+
+    console.log('🎯 Total entities extracted:', Object.keys(entities).length);
+    console.log('📦 Final entities:', entities);
+
+    return entities;
+};
+
+// ✅ messageIdCounter ada DI BAWAH function ini
 let messageIdCounter = 0;
 
 const getInitialMessage = (): Message => ({
@@ -150,6 +236,11 @@ export default function Chatbot() {
                 context: currentContext,
             });
 
+            // 🔥 TAMBAHKAN LOG INI
+            console.log('🔍 FULL CONTEXT DETAIL:', JSON.stringify(currentContext, null, 2));
+            console.log('📝 Query:', messageToSend);
+            console.log('💬 Conversation History Length:', conversationHistory.length);
+
             // ✅ Get CSRF token - coba beberapa cara
             let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
@@ -199,16 +290,81 @@ export default function Chatbot() {
                     url: response.url,
                 });
 
-                // Coba baca error message dari response
                 const errorText = await response.text();
                 console.error('Error body:', errorText);
 
                 throw new Error(`Request failed: ${response.status} ${response.statusText}`);
             }
 
+            // 🔥 CEK CONTENT-TYPE SEBELUM APAPUN!
+            const contentType = response.headers.get('content-type');
+            console.log('📦 Response Content-Type:', contentType);
+
+            // ========================================
+            // HANDLE JSON RESPONSE (Direct SQL)
+            // ========================================
+            if (contentType && contentType.includes('application/json')) {
+                console.log('🎯 JSON response detected, handling Direct SQL result...');
+
+                const jsonData = await response.json();
+
+                setIsLoading(false);
+                setIsStreaming(false);
+
+                console.log('✅ Direct SQL response:', jsonData);
+
+                if (!jsonData.success || !jsonData.answer) {
+                    throw new Error(jsonData.error || 'Invalid response from server');
+                }
+
+                // Save bot message langsung
+                const botMessage: Message = {
+                    id: ++messageIdCounter,
+                    text: jsonData.answer,
+                    sender: 'bot',
+                    timestamp: new Date().toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    }),
+                };
+
+                setMessages((prev) => [...prev, botMessage]);
+
+                // Extract entities dari response
+                const extractedEntities = extractEntitiesFromBotResponse(jsonData.answer);
+
+                console.log('🔍 Extraction result from Direct SQL:', {
+                    found: Object.keys(extractedEntities).length,
+                    entities: extractedEntities,
+                });
+
+                if (Object.keys(extractedEntities).length > 0) {
+                    console.log('🎯 Will update context with:', extractedEntities);
+                    console.log('🧠 Current context BEFORE update:', currentContext);
+
+                    setCurrentContext((prevContext) => {
+                        const newContext = {
+                            ...prevContext,
+                            ...extractedEntities,
+                        };
+
+                        console.log('✅ NEW context after merge:', newContext);
+                        return newContext;
+                    });
+                }
+
+                console.log('✅ Direct SQL message saved');
+                return; // ✅ PENTING: STOP EXECUTION, JANGAN LANJUT KE STREAMING!
+            }
+
+            // ========================================
+            // HANDLE STREAMING RESPONSE (RAG)
+            // ========================================
+            console.log('🌊 Starting streaming mode for RAG response...');
+
             setIsLoading(false);
 
-            // ✅ Read streaming response token by token
+            // Read streaming response token by token
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let fullText = '';
@@ -272,6 +428,25 @@ export default function Chatbot() {
 
             setMessages((prev) => [...prev, botMessage]);
             setStreamingText('');
+
+            // 🔥 TAMBAHKAN KODE INI DI SINI (setelah setMessages, sebelum console.log)
+            // Extract entities dari response bot dan update context
+            const extractedEntities = extractEntitiesFromBotResponse(fullText);
+
+            if (Object.keys(extractedEntities).length > 0) {
+                console.log('🎯 Extracted entities from bot response:', extractedEntities);
+
+                // Update context dengan entities yang baru ditemukan
+                setCurrentContext((prevContext) => ({
+                    ...prevContext,
+                    ...extractedEntities, // Merge dengan context sebelumnya
+                }));
+
+                console.log('✅ Context updated to:', {
+                    ...currentContext,
+                    ...extractedEntities,
+                });
+            }
 
             console.log('✅ Message saved to history');
         } catch (error: any) {

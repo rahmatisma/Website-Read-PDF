@@ -29,7 +29,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Documents',
-        href: '/documents/pdf',
+        href: '/documents/filter/spk',
         icon: FileText,
     },
     {
