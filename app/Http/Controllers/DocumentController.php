@@ -651,70 +651,141 @@ class DocumentController extends Controller
      * ✅ DETAIL DOKUMEN
      */
     public function detail($id)
-    {
-        try {
-            $upload = Document::findOrFail($id);
+{
+    try {
+        $upload = Document::findOrFail($id);
+        
+        if ($upload->id_user !== Auth::id()) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini');
+        }
+        
+        Log::info('Mengakses detail dokumen', [
+            'id_upload' => $upload->id_upload,
+            'file_name' => $upload->file_name,
+            'status' => $upload->status,
+            'user_id' => Auth::id(),
+            'has_extracted_data' => !empty($upload->extracted_data)
+        ]);
+        
+        // ========================================
+        // PREPARE EXTRACTED DATA - SMART STRUCTURE DETECTION
+        // ========================================
+        $extractedData = null;
+        if ($upload->extracted_data) {
+            $rawData = is_string($upload->extracted_data) 
+                ? json_decode($upload->extracted_data, true) 
+                : $upload->extracted_data;
             
-            if ($upload->id_user !== Auth::id()) {
-                abort(403, 'Anda tidak memiliki akses ke dokumen ini');
-            }
-            
-            Log::info('Mengakses detail dokumen', [
+            // Log untuk debugging
+            Log::info('Raw extracted_data structure', [
                 'id_upload' => $upload->id_upload,
-                'file_name' => $upload->file_name,
-                'status' => $upload->status,
-                'user_id' => Auth::id()
+                'has_parsed' => isset($rawData['parsed']),
+                'has_data' => isset($rawData['data']),
+                'has_data_parsed' => isset($rawData['data']['parsed']),
+                'top_level_keys' => array_keys($rawData ?? [])
             ]);
             
-            $extractedData = null;
-            if ($upload->extracted_data) {
-                $rawData = is_string($upload->extracted_data) 
-                    ? json_decode($upload->extracted_data, true) 
-                    : $upload->extracted_data;
+            // ✅ SMART DETECTION: Handle berbagai format dari Python
+            if (isset($rawData['data']['parsed'])) {
+                // Format: {data: {parsed: {...}, dokumentasi: [...]}}
+                // Sudah sesuai, langsung pakai
+                $extractedData = $rawData;
                 
+                Log::info('Using format: data.parsed (already correct)', [
+                    'id_upload' => $upload->id_upload
+                ]);
+                
+            } elseif (isset($rawData['parsed'])) {
+                // Format: {parsed: {...}, dokumentasi: [...]}
+                // Wrap dengan 'data'
                 $extractedData = [
                     'data' => $rawData
                 ];
+                
+                Log::info('Using format: parsed (wrapped with data)', [
+                    'id_upload' => $upload->id_upload
+                ]);
+                
+            } else {
+                // Format lama atau unknown
+                // Assume rawData sudah berisi data yang benar
+                $extractedData = [
+                    'data' => [
+                        'parsed' => $rawData,
+                        'dokumentasi' => $rawData['dokumentasi'] ?? []
+                    ]
+                ];
+                
+                Log::info('Using format: fallback (wrap everything)', [
+                    'id_upload' => $upload->id_upload
+                ]);
             }
-
-            $isChecklist = $upload->spks()
-                ->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless'])
-                ->exists();
             
-            $component = $isChecklist ? 'Documents/FormChecklistDetail' : 'Documents/Detail';
-            
-            return Inertia::render($component, [
-                'upload' => [
+            // ✅ Log final structure untuk debug
+            if ($extractedData) {
+                Log::info('Final extracted data structure', [
                     'id_upload' => $upload->id_upload,
-                    'file_name' => $upload->file_name,
-                    'file_path' => $upload->file_path,
-                    'file_size' => $upload->file_size,
-                    'document_type' => $upload->document_type,
-                    'status' => $upload->status,
-                    'created_at' => $upload->created_at,
-                    'updated_at' => $upload->updated_at,
-                ],
-                'extractedData' => $extractedData,
-            ]);
-            
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::error('Dokumen tidak ditemukan', [
-                'id_upload' => $id,
-                'error' => $e->getMessage()
-            ]);
-            
-            abort(404, 'Dokumen tidak ditemukan');
-            
-        } catch (\Exception $e) {
-            Log::error('Gagal memuat detail dokumen', [
-                'id_upload' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            abort(500, 'Terjadi kesalahan saat memuat detail dokumen');
+                    'has_data' => isset($extractedData['data']),
+                    'has_data_parsed' => isset($extractedData['data']['parsed']),
+                    'has_data_parsed_data' => isset($extractedData['data']['parsed']['data']),
+                    'has_dokumentasi' => isset($extractedData['data']['dokumentasi']),
+                    'document_type' => $extractedData['data']['parsed']['document_type'] ?? 
+                                      $extractedData['data']['parsed']['data']['document_type'] ?? 
+                                      'not_found'
+                ]);
+            }
         }
+
+        // ========================================
+        // COMPONENT ROUTING LOGIC
+        // ========================================
+        
+        // Check if Checklist Document
+        $isChecklist = $upload->spks()
+            ->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless'])
+            ->exists();
+        
+        if ($isChecklist) {
+            Log::info('Routing to FormChecklistDetail', ['id_upload' => $upload->id_upload]);
+        } else {
+            Log::info('Routing to Detail (SPK)', ['id_upload' => $upload->id_upload]);
+        }
+        
+        $component = $isChecklist ? 'Documents/FormChecklistDetail' : 'Documents/Detail';
+        
+        return Inertia::render($component, [
+            'upload' => [
+                'id_upload' => $upload->id_upload,
+                'file_name' => $upload->file_name,
+                'file_path' => $upload->file_path,
+                'file_size' => $upload->file_size,
+                'document_type' => $upload->document_type,
+                'status' => $upload->status,
+                'created_at' => $upload->created_at,
+                'updated_at' => $upload->updated_at,
+            ],
+            'extractedData' => $extractedData,
+        ]);
+        
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        Log::error('Dokumen tidak ditemukan', [
+            'id_upload' => $id,
+            'error' => $e->getMessage()
+        ]);
+        
+        abort(404, 'Dokumen tidak ditemukan');
+        
+    } catch (\Exception $e) {
+        Log::error('Gagal memuat detail dokumen', [
+            'id_upload' => $id,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
+        return redirect()->route('documents.filter', 'pdf')
+            ->with('error', 'Gagal memuat detail dokumen: ' . $e->getMessage());
     }
+}
     
     /**
      * ✅ GET STATUS SINGLE DOCUMENT

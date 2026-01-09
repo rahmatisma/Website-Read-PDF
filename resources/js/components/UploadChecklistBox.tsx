@@ -287,24 +287,6 @@ export default function UploadPDFBox() {
                     </>
                 )}
             </div>
-
-            {/* Enhanced Info Box */}
-            <div className="mt-4 w-full max-w-md rounded-lg border border-emerald-400/30 bg-emerald-900/30 p-4">
-                <div className="mb-3">
-                    <p className="mb-2 text-xs font-semibold text-emerald-200">📋 Dokumen yang BOLEH diupload di halaman ini:</p>
-                    <ul className="ml-4 space-y-1 text-xs text-emerald-300">
-                        <li>✅ Form Checklist Wireline</li>
-                        <li>✅ Form Checklist Wireless</li>
-                    </ul>
-                </div>
-                <div className="border-t border-emerald-400/20 pt-3">
-                    <p className="text-xs text-emerald-300">
-                        ❌ <strong>SPK</strong> tidak bisa diupload di halaman ini.
-                        <br />
-                        Silakan gunakan halaman <strong>"SPK"</strong>.
-                    </p>
-                </div>
-            </div>
         </div>
     );
 }

@@ -274,26 +274,6 @@ export default function UploadSPKBox() {
                     </>
                 )}
             </div>
-
-            {/* Enhanced Info Box */}
-            <div className="mt-4 w-full max-w-md rounded-lg bg-purple-900/30 border border-purple-400/30 p-4">
-                <div className="mb-3">
-                    <p className="mb-2 text-xs font-semibold text-purple-200">📋 Dokumen yang BOLEH diupload di halaman ini:</p>
-                    <ul className="ml-4 space-y-1 text-xs text-purple-300">
-                        <li>✅ SPK Survey</li>
-                        <li>✅ SPK Instalasi</li>
-                        <li>✅ SPK Dismantle</li>
-                        <li>✅ SPK Aktivasi</li>
-                    </ul>
-                </div>
-                <div className="border-t border-purple-400/20 pt-3">
-                    <p className="text-xs text-purple-300">
-                        ❌ <strong>Form Checklist</strong> tidak bisa diupload di halaman ini.
-                        <br />
-                        Silakan gunakan halaman <strong>"Form Checklist"</strong>.
-                    </p>
-                </div>
-            </div>
         </div>
     );
 }
