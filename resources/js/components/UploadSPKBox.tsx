@@ -155,7 +155,7 @@ export default function UploadSPKBox() {
             },
         });
 
-        router.post('/documents/pdf', formData, {
+        router.post('/documents/spk', formData, {
             forceFormData: true,
             onSuccess: (page) => {
                 // ✅ Update toast menjadi success

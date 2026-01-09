@@ -68,7 +68,7 @@ class UploadController extends Controller
      * UPLOAD SPK - DENGAN BACKGROUND JOB + VALIDASI
      * ========================================
      */
-    public function storePDF(Request $request)
+    public function storespk(Request $request)
     {
         $request->validate([
             'file' => 'required|mimes:pdf|max:10240', // 10MB
