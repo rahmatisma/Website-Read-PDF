@@ -2,197 +2,90 @@
 
 **Advanced Document Management & OCR Processing System**
 
-[Features](#features) • [Installation](#installation) • [Usage](#usage) • [Tech Stack](#tech-stack) • [Backend Repository](#backend-repository)
+Sistem manajemen dokumen berbasis web yang terintegrasi dengan teknologi OCR (Optical Character Recognition) dan AI untuk memproses, menganalisis, dan mengelola dokumen PDF secara otomatis.
 
 ---
 
-## 📋 Table of Contents
+## Backend Repository
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [System Architecture](#system-architecture)
-- [Backend Repository](#backend-repository)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Project Structure](#project-structure)
-- [API Documentation](#api-documentation)
-- [Contributing](#contributing)
-- [License](#license)
+**IMPORTANT**: This project requires a separate Python backend for OCR processing.
 
----
-
-## 🎯 Overview
-
-**Website Read PDF** adalah sistem manajemen dokumen berbasis web yang terintegrasi dengan teknologi OCR (Optical Character Recognition) dan AI untuk memproses, menganalisis, dan mengelola dokumen PDF secara otomatis. Sistem ini dirancang khusus untuk menangani berbagai jenis dokumen teknis seperti SPK (Surat Perintah Kerja), Form Checklist, dan Form PM POP.
-
-### Key Highlights
-
-- **Automatic Document Processing**: Upload PDF dan sistem akan otomatis mengekstrak data menggunakan OCR
-- **Intelligent Document Classification**: AI-powered document type detection
-- **Smart Search & Filter**: Pencarian cerdas dengan multiple filter options
-- **Interactive Data Visualization**: Charts dan graphs untuk data battery monitoring
-- **Real-time Status Updates**: Live polling untuk tracking progress processing
-- **Responsive UI**: Modern interface built with React, TypeScript, dan Tailwind CSS
-
----
-
-## ✨ Features
-
-### 📄 Document Management
-
-- **Multi-Type Document Support**
-  - SPK (Surat Perintah Kerja)
-  - Form Checklist (Wireline & Wireless)
-  - Form PM POP (Preventive Maintenance)
-  
-- **Intelligent Processing Pipeline**
-  - Automatic OCR extraction
-  - Document type detection
-  - Structured data parsing
-  - Image extraction from PDFs
-
-### 🔍 Smart Search System
-
-- Advanced filtering by:
-  - Document type
-  - Upload date range
-  - Status (completed, processing, failed)
-  - Location
-  - Customer name
-- Full-text search capability
-- Export results to CSV/Excel
-
-### 📊 Data Visualization
-
-- **Battery Monitoring Dashboard**
-  - Voltage charts per cell
-  - State of Health (SoH) visualization
-  - Battery bank comparison
-  - Health status indicators
-  
-- **Form PM POP Analytics**
-  - Equipment inventory tracking
-  - Performance metrics
-  - Maintenance history
-
-### 🔐 User Management
-
-- Role-based access control (Admin/User)
-- User verification system
-- Activity logging
-- Secure authentication with Laravel Sanctum
-
-### 🤖 AI Integration
-
-- Chatbot for document querying
-- Semantic search using embeddings
-- Natural language processing for data extraction
-
----
-
-## 🛠️ Tech Stack
-
-### Frontend
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| React | 18.x | UI Framework |
-| TypeScript | 5.x | Type Safety |
-| Inertia.js | 1.x | SPA without API |
-| Tailwind CSS | 3.x | Styling |
-| Shadcn/ui | Latest | Component Library |
-| Recharts | 2.x | Data Visualization |
-| Axios | 1.x | HTTP Client |
-
-### Backend
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Laravel | 11.x | Backend Framework |
-| PHP | 8.2+ | Server Language |
-| MySQL | 8.0+ | Database |
-| Redis | 7.x | Caching & Queues |
-
-### Additional Tools
-
-- **Vite**: Frontend build tool
-- **Composer**: PHP dependency manager
-- **NPM**: Node package manager
-- **Laravel Queue**: Background job processing
-
----
-
-## 🏗️ System Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         Frontend                            │
-│  React + TypeScript + Inertia.js + Tailwind CSS            │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        │ HTTP/HTTPS
-                        │
-┌───────────────────────▼─────────────────────────────────────┐
-│                    Laravel Backend                          │
-│  Routes → Controllers → Services → Models → Database        │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        │ HTTP API
-                        │
-┌───────────────────────▼─────────────────────────────────────┐
-│                 Python OCR Backend                          │
-│  FastAPI + PyMuPDF + Tesseract OCR + OpenAI                │
-│  Repository: OCR-and-Read-document                         │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🔗 Backend Repository
-
-**IMPORTANT**: This project requires the Python OCR backend to function properly.
-
-### OCR & Document Processing Backend
-
-🔗 **Repository**: [OCR-and-Read-document](https://github.com/rahmatisma/OCR-and-Read-document.git)
+**Python OCR Backend Repository**: [https://github.com/rahmatisma/OCR-and-Read-document.git](https://github.com/rahmatisma/OCR-and-Read-document.git)
 
 The backend handles:
 - PDF to image conversion
 - OCR text extraction using Tesseract
 - Intelligent document parsing
-- Structure data extraction
+- Structured data extraction
 - Image processing and optimization
 
-**You must clone and run the backend repository separately for this application to work.**
-
-### Quick Backend Setup
-
-```bash
-# Clone the backend repository
-git clone https://github.com/rahmatisma/OCR-and-Read-document.git
-
-# Follow the installation instructions in that repository
-cd OCR-and-Read-document
-# ... (refer to backend README for detailed setup)
-```
+**You must clone and setup the backend repository separately for this application to work.**
 
 ---
 
-## 📦 Installation
+## Tech Stack
 
-### Prerequisites
+### Backend
+- **Laravel**: 12.x
+- **PHP**: 8.2+
+- **Database**: MySQL 8.0+ / PostgreSQL 13+
+- **Queue**: Redis 7.x (optional)
 
-- PHP >= 8.2
-- Composer
-- Node.js >= 18.x
-- NPM or Yarn
-- MySQL >= 8.0
-- Redis (optional, for queues)
-- Python Backend (see [Backend Repository](#backend-repository))
+### Frontend
+- **React**: 18.3
+- **TypeScript**: 5.7
+- **Inertia.js**: 2.2
+- **Vite**: 7.0
+- **Tailwind CSS**: 4.0
+- **Radix UI**: Various components
+- **Recharts**: 3.6 (for data visualization)
+- **Lucide React**: 0.475 (icons)
 
-### Step 1: Clone Repository
+### Development Tools
+- **Laravel Pint**: Code styling
+- **Pest PHP**: Testing framework
+- **ESLint**: JavaScript linting
+- **Prettier**: Code formatting
+
+---
+
+## System Requirements
+
+### Required Software
+
+1. **PHP** >= 8.2
+   - Extensions required:
+     - BCMath
+     - Ctype
+     - Fileinfo
+     - JSON
+     - Mbstring
+     - OpenSSL
+     - PDO
+     - Tokenizer
+     - XML
+     - cURL
+     - GD or Imagick
+
+2. **Composer** >= 2.0
+
+3. **Node.js** >= 18.x (recommended: 20.x LTS)
+
+4. **NPM** >= 9.x or **Yarn** >= 1.22
+
+5. **Database**: MySQL >= 8.0 or PostgreSQL >= 13
+
+6. **Redis** >= 7.x (optional, for queues and caching)
+
+7. **Git**
+
+8. **Python Backend**: See [OCR-and-Read-document](https://github.com/rahmatisma/OCR-and-Read-document.git) repository
+
+---
+
+## Installation
+
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/rahmatisma/Website-Read-PDF.git
@@ -205,376 +98,481 @@ cd Website-Read-PDF
 composer install
 ```
 
-### Step 3: Install Node Dependencies
+This will install:
+- Laravel Framework 12.x
+- Inertia.js Laravel adapter
+- Guzzle HTTP client
+- Laravel Tinker
+- Ziggy (route helper for JavaScript)
+- And all development dependencies (Pest, Pint, Sail, etc.)
+
+### Step 3: Install Node.js Dependencies
 
 ```bash
 npm install
-# or
-yarn install
 ```
 
-### Step 4: Environment Setup
+This will install:
+- React 18.3 and React DOM
+- TypeScript 5.7
+- Vite 7.0 and Laravel Vite Plugin
+- Inertia.js React adapter
+- Tailwind CSS 4.0
+- Radix UI components
+- Recharts for data visualization
+- Lucide React for icons
+- All development tools (ESLint, Prettier, etc.)
+
+### Step 4: Environment Configuration
 
 ```bash
-# Copy environment file
+# Copy the example environment file
 cp .env.example .env
 
 # Generate application key
 php artisan key:generate
 ```
 
-### Step 5: Configure Environment
+### Step 5: Configure Environment Variables
 
-Edit `.env` file:
+Edit the `.env` file with your configuration:
 
 ```env
+# Application
 APP_NAME="Website Read PDF"
 APP_ENV=local
 APP_DEBUG=true
+APP_TIMEZONE=UTC
 APP_URL=http://localhost:8000
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+APP_MAINTENANCE_DRIVER=file
+APP_MAINTENANCE_STORE=database
 
+# Database Configuration
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=your_database_name
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
+DB_DATABASE=website_read_pdf
+DB_USERNAME=root
+DB_PASSWORD=
 
-# Python Backend URL
-PYTHON_API_URL=http://localhost:8000
+# For PostgreSQL (alternative)
+# DB_CONNECTION=pgsql
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_DATABASE=website_read_pdf
+# DB_USERNAME=postgres
+# DB_PASSWORD=
 
-# Queue Configuration (optional)
-QUEUE_CONNECTION=redis
+# Queue Configuration (optional but recommended)
+QUEUE_CONNECTION=database
+# If using Redis:
+# QUEUE_CONNECTION=redis
+
+# Redis Configuration (optional)
+REDIS_CLIENT=phpredis
 REDIS_HOST=127.0.0.1
 REDIS_PASSWORD=null
 REDIS_PORT=6379
+
+# Session & Cache
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+CACHE_STORE=database
+# If using Redis:
+# SESSION_DRIVER=redis
+# CACHE_STORE=redis
+
+# Python Backend API
+PYTHON_API_URL=http://localhost:8000
+# Adjust this to match your Python backend URL
+
+# Mail Configuration (optional)
+MAIL_MAILER=log
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
 ```
 
-### Step 6: Database Migration
+### Step 6: Create Database
+
+Create a new database for the application:
+
+**MySQL:**
+```bash
+mysql -u root -p
+CREATE DATABASE website_read_pdf CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
+```
+
+**PostgreSQL:**
+```bash
+psql -U postgres
+CREATE DATABASE website_read_pdf;
+\q
+```
+
+### Step 7: Run Database Migrations
 
 ```bash
-# Run migrations
 php artisan migrate
+```
 
-# (Optional) Seed database with sample data
+This will create all necessary tables:
+- users
+- documents/uploads
+- spk (Surat Perintah Kerja)
+- form_checklist (wireline & wireless)
+- form_pm_pop (various types)
+- battery_bank_metadata
+- battery_measurements
+- inspections
+- equipment
+- locations
+- And many more...
+
+### Step 8: Seed Database (Optional)
+
+If you want sample data for testing:
+
+```bash
 php artisan db:seed
 ```
 
-### Step 7: Storage Link
+### Step 9: Create Storage Symlink
 
 ```bash
 php artisan storage:link
 ```
 
-### Step 8: Build Frontend Assets
+This creates a symbolic link from `public/storage` to `storage/app/public`.
 
+### Step 10: Build Frontend Assets
+
+**For Development:**
 ```bash
-# Development
 npm run dev
+```
 
-# Production
+**For Production:**
+```bash
 npm run build
 ```
 
-### Step 9: Start Development Server
+### Step 11: Setup Python Backend
+
+**Important**: Follow the installation instructions in the Python backend repository:
 
 ```bash
-# Terminal 1: Laravel Server
-php artisan serve
+# Clone the Python backend (in a separate directory)
+cd ..
+git clone https://github.com/rahmatisma/OCR-and-Read-document.git
+cd OCR-and-Read-document
 
-# Terminal 2: Vite Dev Server (if using npm run dev)
-npm run dev
-
-# Terminal 3: Queue Worker (optional)
-php artisan queue:work
+# Follow the setup instructions in that repository's README
+# Install Python dependencies, Tesseract OCR, etc.
+# Start the Python backend service
 ```
 
-### Step 10: Setup Python Backend
-
-Follow the instructions in the [OCR-and-Read-document](https://github.com/rahmatisma/OCR-and-Read-document.git) repository to start the Python backend service.
+Make sure the Python backend is running before using the document upload features.
 
 ---
 
-## ⚙️ Configuration
+## Running the Application
 
-### File Storage
+### Development Mode
 
-Configure storage paths in `config/filesystems.php`:
+**Option 1: Using Composer Script (Recommended)**
 
-```php
-'disks' => [
-    'public' => [
-        'driver' => 'local',
-        'root' => storage_path('app/public'),
-        'url' => env('APP_URL').'/storage',
-        'visibility' => 'public',
-    ],
-],
+This will start Laravel server, queue worker, and Vite dev server simultaneously:
+
+```bash
+composer dev
 ```
+
+**Option 2: Manual (3 separate terminals)**
+
+Terminal 1 - Laravel Server:
+```bash
+php artisan serve
+```
+
+Terminal 2 - Queue Worker (for background jobs):
+```bash
+php artisan queue:work
+```
+
+Terminal 3 - Vite Dev Server:
+```bash
+npm run dev
+```
+
+**Option 3: Using Laravel Sail (Docker)**
+
+If you prefer Docker:
+```bash
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan queue:work
+npm run dev
+```
+
+### Production Mode
+
+```bash
+# Build frontend assets
+npm run build
+
+# Clear caches
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Start queue worker as a daemon (use supervisor)
+php artisan queue:work --daemon
+
+# Use a process manager like Supervisor to keep it running
+# Configure your web server (Nginx/Apache) to serve the application
+```
+
+---
+
+## Accessing the Application
+
+After starting the servers, open your browser:
+
+- **Application URL**: http://localhost:8000
+- **Python Backend URL**: http://localhost:8000 (or the port you configured)
+
+Default admin credentials (if using seeder):
+- Email: admin@example.com
+- Password: password
+
+---
+
+## Additional Configuration
 
 ### Queue Configuration
 
-For background processing, configure queues:
+For better performance, use Redis for queues:
+
+1. Install Redis:
+```bash
+# Ubuntu/Debian
+sudo apt-get install redis-server
+
+# macOS
+brew install redis
+```
+
+2. Update `.env`:
+```env
+QUEUE_CONNECTION=redis
+CACHE_STORE=redis
+SESSION_DRIVER=redis
+```
+
+3. Install PHP Redis extension:
+```bash
+# Ubuntu/Debian
+sudo apt-get install php-redis
+
+# macOS
+pecl install redis
+```
+
+### File Upload Configuration
+
+If you need to upload large files, update `php.ini`:
+
+```ini
+upload_max_filesize = 100M
+post_max_size = 100M
+max_execution_time = 300
+memory_limit = 512M
+```
+
+### Storage Directories
+
+Ensure these directories are writable:
 
 ```bash
-# Start queue worker
-php artisan queue:work
-
-# Or use supervisor for production
-```
-
-### Python Backend Integration
-
-Update the Python API endpoint in your `.env`:
-
-```env
-PYTHON_API_URL=http://localhost:8000
+chmod -R 775 storage
+chmod -R 775 bootstrap/cache
 ```
 
 ---
 
-## 🚀 Usage
+## Useful Commands
 
-### Uploading Documents
+### Laravel Artisan
 
-1. Navigate to the Documents page
-2. Select document type (SPK, Checklist, or PM POP)
-3. Upload your PDF file
-4. Wait for automatic processing
-5. View extracted data
+```bash
+# Clear all caches
+php artisan optimize:clear
 
-### Searching Documents
+# Generate IDE helper (for better autocomplete)
+php artisan ide-helper:generate
+php artisan ide-helper:models
+php artisan ide-helper:meta
 
-1. Go to Search page
-2. Use filters:
-   - Document Type
-   - Date Range
-   - Status
-   - Location
-3. Enter search keywords
-4. Export results if needed
+# Run tests
+php artisan test
+# or
+composer test
 
-### Viewing Battery Data
+# Code formatting
+./vendor/bin/pint
 
-1. Upload Form PM POP Battery document
-2. Wait for processing completion
-3. View interactive charts:
-   - Voltage per cell
-   - State of Health (SoH)
-   - Battery bank comparison
-   - Health status summary
+# Check routes
+php artisan route:list
 
-### User Management (Admin Only)
+# Tinker (Laravel REPL)
+php artisan tinker
+```
 
-1. Navigate to Users page
-2. Add/Edit/Delete users
-3. Assign roles and permissions
-4. Toggle admin verification
+### NPM Scripts
+
+```bash
+# Development with hot reload
+npm run dev
+
+# Build for production
+npm run build
+
+# Build with SSR support
+npm run build:ssr
+
+# Code formatting
+npm run format
+
+# Check formatting
+npm run format:check
+
+# Run linter
+npm run lint
+
+# Type checking
+npm run types
+```
+
+### Composer Scripts
+
+```bash
+# Start all services (server + queue + vite)
+composer dev
+
+# Start with SSR support
+composer dev:ssr
+
+# Run tests
+composer test
+```
 
 ---
 
-## 📁 Project Structure
+## Troubleshooting
+
+### Common Issues
+
+1. **"Vite manifest not found"**
+   ```bash
+   npm run build
+   ```
+
+2. **Database connection error**
+   - Check database credentials in `.env`
+   - Ensure database server is running
+   - Verify database exists
+
+3. **Storage permission errors**
+   ```bash
+   chmod -R 775 storage
+   chmod -R 775 bootstrap/cache
+   ```
+
+4. **Queue not processing**
+   ```bash
+   php artisan queue:restart
+   php artisan queue:work
+   ```
+
+5. **Python backend not responding**
+   - Check if Python backend is running
+   - Verify `PYTHON_API_URL` in `.env`
+   - Check Python backend logs
+
+6. **Class not found errors**
+   ```bash
+   composer dump-autoload
+   php artisan optimize:clear
+   ```
+
+---
+
+## Project Structure
 
 ```
 Website-Read-PDF/
 ├── app/
-│   ├── Console/
-│   │   └── Commands/          # Artisan commands
-│   ├── Http/
-│   │   ├── Controllers/       # Request handlers
-│   │   ├── Middleware/        # HTTP middleware
-│   │   └── Requests/          # Form requests
-│   ├── Models/                # Eloquent models
-│   ├── Services/              # Business logic
-│   └── Providers/             # Service providers
-├── config/                    # Configuration files
+│   ├── Http/Controllers/     # Request handlers
+│   ├── Models/               # Eloquent models
+│   ├── Services/             # Business logic
+│   └── Console/Commands/     # Artisan commands
 ├── database/
-│   ├── migrations/            # Database migrations
-│   └── seeders/               # Database seeders
-├── public/                    # Public assets
+│   ├── migrations/           # Database migrations
+│   └── seeders/              # Database seeders
 ├── resources/
-│   ├── css/                   # Stylesheets
-│   ├── js/
-│   │   ├── components/        # React components
-│   │   ├── layouts/           # Layout components
-│   │   ├── pages/             # Page components
-│   │   └── types/             # TypeScript types
-│   └── views/                 # Blade templates
+│   ├── js/                   # React/TypeScript files
+│   │   ├── components/       # React components
+│   │   ├── pages/            # Inertia pages
+│   │   ├── layouts/          # Layout components
+│   │   └── types/            # TypeScript types
+│   └── css/                  # Stylesheets
 ├── routes/
-│   ├── web.php               # Web routes
-│   ├── api.php               # API routes
-│   └── auth.php              # Auth routes
+│   ├── web.php              # Web routes
+│   └── api.php              # API routes
 ├── storage/
-│   └── app/
-│       └── public/
-│           ├── checklists/   # Uploaded checklists
-│           ├── pmpop/        # Uploaded PM POP forms
-│           ├── uploads/      # General uploads
-│           └── output/       # Processed outputs
-├── tests/                    # Test files
-├── .env.example             # Environment template
-├── composer.json            # PHP dependencies
-├── package.json             # Node dependencies
-├── tsconfig.json            # TypeScript config
+│   └── app/public/
+│       ├── uploads/          # Uploaded files
+│       ├── checklists/       # Checklist PDFs
+│       ├── pmpop/            # PM POP PDFs
+│       └── output/           # Processed outputs
+├── public/                   # Public assets
+├── .env                      # Environment config
+├── composer.json             # PHP dependencies
+├── package.json              # Node dependencies
 └── vite.config.ts           # Vite configuration
 ```
 
 ---
 
-## 📚 API Documentation
+## Related Repositories
 
-### Document Endpoints
-
-#### Upload Document
-
-```http
-POST /documents/spk
-POST /documents/checklist
-POST /documents/pmpop
-```
-
-**Request:**
-```json
-{
-  "file": "binary",
-  "document_type": "string"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Document uploaded successfully",
-  "data": {
-    "id_upload": 1,
-    "file_name": "example.pdf",
-    "status": "uploaded"
-  }
-}
-```
-
-#### Get Document Status
-
-```http
-GET /api/documents/{id}/status
-```
-
-**Response:**
-```json
-{
-  "status": "completed",
-  "updated_at": "2026-02-02T10:30:00Z"
-}
-```
-
-### Battery Data Endpoints
-
-#### Get Battery Chart Data
-
-```http
-GET /api/battery/chart-data-by-upload/{uploadId}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "voltage_chart": [...],
-    "soh_chart": [...],
-    "bank_summary": [...],
-    "metadata": {
-      "total_banks": 2,
-      "total_cells": 40
-    }
-  }
-}
-```
-
-### Search Endpoints
-
-#### Search Documents
-
-```http
-GET /search/api/search
-```
-
-**Query Parameters:**
-- `query`: Search keywords
-- `type`: Document type filter
-- `status`: Status filter
-- `date_from`: Start date
-- `date_to`: End date
+**Backend OCR Service**: [OCR-and-Read-document](https://github.com/rahmatisma/OCR-and-Read-document.git)
 
 ---
 
-## 🤝 Contributing
+## Support
 
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-### Coding Standards
-
-- Follow PSR-12 for PHP code
-- Use ESLint and Prettier for TypeScript/React
-- Write meaningful commit messages
-- Add tests for new features
+For issues or questions:
+- Open an issue on [GitHub Issues](https://github.com/rahmatisma/Website-Read-PDF/issues)
+- For backend-related issues: [Backend Issues](https://github.com/rahmatisma/OCR-and-Read-document/issues)
 
 ---
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Author
+## Author
 
 **Rahmat Isma**
-
 - GitHub: [@rahmatisma](https://github.com/rahmatisma)
-- Repository: [Website-Read-PDF](https://github.com/rahmatisma/Website-Read-PDF)
-- Backend Repository: [OCR-and-Read-document](https://github.com/rahmatisma/OCR-and-Read-document)
 
 ---
 
-## 🙏 Acknowledgments
+## License
 
-- [Laravel](https://laravel.com) - The PHP Framework
-- [React](https://reactjs.org) - JavaScript Library
-- [Inertia.js](https://inertiajs.com) - Modern Monolith Framework
-- [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS
-- [Shadcn/ui](https://ui.shadcn.com) - Re-usable Components
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) - OCR Engine
-
----
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-
-1. Check the [Issues](https://github.com/rahmatisma/Website-Read-PDF/issues) page
-2. Create a new issue with detailed description
-3. For backend-related issues, check the [OCR Backend Issues](https://github.com/rahmatisma/OCR-and-Read-document/issues)
-
----
-
-## 🔄 Related Repositories
-
-- **Backend OCR Service**: [OCR-and-Read-document](https://github.com/rahmatisma/OCR-and-Read-document.git)
-
----
-
-<div align="center">
-
-**Built with ❤️ using Laravel, React, and TypeScript**
-
-⭐ Star this repository if you find it helpful!
-
-</div>
+This project is licensed under the MIT License.
