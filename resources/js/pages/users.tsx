@@ -24,32 +24,32 @@ import { Calendar, CheckCircle2, Mail, MoreHorizontal, Pencil, Shield, Trash2, U
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-// ✅ Update interface User
+//  Update interface User
 interface User {
     id: number;
     name: string;
     email: string;
-    role: 'admin' | 'engineer' | 'nms'; // ✅ Update roles
+    role: 'admin' | 'engineer' | 'nms'; //  Update roles
     avatar?: string;
     email_verified_at: string | null;
-    is_verified_by_admin: boolean; // ✅ Tambah
-    verified_by: number | null; // ✅ Tambah
-    verified_at: string | null; // ✅ Tambah
+    is_verified_by_admin: boolean; //  Tambah
+    verified_by: number | null; //  Tambah
+    verified_at: string | null; //  Tambah
     created_at: string;
     updated_at: string;
 }
 
-// ✅ Update interface Statistics
+//  Update interface Statistics
 interface Statistics {
     total: number;
     verified: number;
-    pending: number; // ✅ Tambah
+    pending: number; //  Tambah
     admins: number;
-    engineers: number; // ✅ Tambah
-    nms: number; // ✅ Tambah
+    engineers: number; //  Tambah
+    nms: number; //  Tambah
 }
 
-// ✅ Props dari backend
+//  Props dari backend
 interface Props {
     users: User[];
     statistics: Statistics;
@@ -58,7 +58,7 @@ interface Props {
 export default function Users({ users: initialUsers, statistics }: Props) {
     const [openDropdown, setOpenDropdown] = useState<number | null>(null);
     
-    // ✅ Gabungkan dialog state menjadi satu
+    //  Gabungkan dialog state menjadi satu
     const [dialogState, setDialogState] = useState<{
         isOpen: boolean;
         mode: 'add' | 'edit';
@@ -69,7 +69,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
         editingUser: null,
     });
 
-    // ✅ Gabungkan confirmation dialog state menjadi satu
+    //  Gabungkan confirmation dialog state menjadi satu
     const [confirmDialog, setConfirmDialog] = useState<{
         isOpen: boolean;
         type: 'delete' | 'verify' | null;
@@ -81,7 +81,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
     });
 
 
-    // ✅ Gunakan Inertia useForm
+    //  Gunakan Inertia useForm
     const {
         data,
         setData,
@@ -108,7 +108,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
             .slice(0, 2);
     };
 
-    // ✅ Update badge variant untuk role baru
+    //  Update badge variant untuk role baru
     const getRoleBadgeVariant = (role: string) => {
         switch (role) {
             case 'admin':
@@ -163,7 +163,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
         reset();
     };
 
-    // ✅ Handle submit dengan Inertia
+    //  Handle submit dengan Inertia
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -202,7 +202,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
         }
     };
 
-    // ✅ Toggle admin verification
+    //  Toggle admin verification
     const toggleVerification = (userId: number) => {
         router.patch(
             route('users.toggleAdminVerification', userId),
@@ -235,7 +235,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
         }
     };
 
-    // ✅ Handle delete dengan Inertia
+    //  Handle delete dengan Inertia
     const handleDelete = (userId: number, userName: string) => {
         destroy(route('users.destroy', userId), {
             preserveScroll: true,
@@ -266,7 +266,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
         }
     };
 
-    // ✅ Handler untuk menutup dialog
+    //  Handler untuk menutup dialog
     const closeConfirmDialog = () => {
         setConfirmDialog({ isOpen: false, type: null, user: null });
     };
@@ -287,7 +287,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                         </Button>
                     </CardHeader>
                     <CardContent>
-                        {/* ✅ Statistics dengan data dari backend */}
+                        {/*  Statistics dengan data dari backend */}
                         <div className="mt-6 grid gap-4 md:grid-cols-4">
                             <Card>
                                 <CardHeader className="pb-3">
@@ -359,7 +359,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                {/* ✅ Update: Tampilkan admin verification status */}
+                                                {/*  Update: Tampilkan admin verification status */}
                                                 {user.is_verified_by_admin ? (
                                                     <div className="flex items-center gap-2">
                                                         <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -401,12 +401,12 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                                                                     Actions
                                                                 </div>
 
-                                                                {/* ✅ Toggle Verification Button */}
+                                                                {/*  Toggle Verification Button */}
                                                                 <button
                                                                     className="mt-1 flex w-full cursor-pointer items-center rounded-sm px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                                                                     onClick={() => {
                                                                         setOpenDropdown(null);
-                                                                        handleVerifyConfirm(user); // ✅ PERBAIKI: Panggil handleVerifyConfirm bukan langsung toggleVerification
+                                                                        handleVerifyConfirm(user); //  PERBAIKI: Panggil handleVerifyConfirm bukan langsung toggleVerification
                                                                     }}
                                                                 >
                                                                     {user.is_verified_by_admin ? (
@@ -529,7 +529,7 @@ export default function Users({ users: initialUsers, statistics }: Props) {
                                 </Select>
                                 {errors.role && <p className="text-sm text-red-500">{errors.role}</p>}
                             </div>
-                            {/* ✅ Admin Verification Switch (hanya untuk Add) */}
+                            {/*  Admin Verification Switch (hanya untuk Add) */}
                             {dialogState.mode === 'add' && (
                                 <div className="flex items-center justify-between rounded-lg border p-4">
                                     <div className="space-y-0.5">

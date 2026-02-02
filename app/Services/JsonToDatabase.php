@@ -37,60 +37,197 @@ class JsonToDatabase
             $documentType = null;
             $jenisSpk = null;
             
-            // Cek struktur JSON
+            // ============================================
+            // 🔧 FIX: Support multiple JSON structures
+            // ============================================
+            
+            Log::info('🔍 DEBUGGING JSON STRUCTURE', [
+                'upload_id' => $uploadId,
+                'top_level_keys' => array_keys($jsonData),
+                'has_data_key' => isset($jsonData['data']),
+                'has_parsed_key' => isset($jsonData['parsed']),
+            ]);
+            
+            // STRUCTURE 1: SPK & Form Checklist (nested dalam 'data')
+            // {
+            //   "data": {
+            //     "parsed": {
+            //       "document_type": "...",
+            //       "data": { ... }
+            //     },
+            //     "dokumentasi": [ ... ]
+            //   }
+            // }
             if (isset($jsonData['data']['parsed']['data'])) {
                 $parsedData = $jsonData['data']['parsed']['data'];
                 $dokumentasi = $jsonData['data']['dokumentasi'] ?? [];
                 $documentType = $jsonData['data']['parsed']['document_type'] ?? 'unknown';
-                $jenisSpk = $jsonData['data']['parsed']['jenis_spk'] ?? 'survey';
-            } elseif (isset($jsonData['parsed']['data'])) {
+                $jenisSpk = $jsonData['data']['parsed']['jenis_spk'] ?? null;
+                
+                Log::info(' JSON Structure 1: SPK/Form Checklist (data.parsed.data)', [
+                    'upload_id' => $uploadId,
+                    'document_type' => $documentType,
+                    'jenis_spk' => $jenisSpk
+                ]);
+            }
+            // STRUCTURE 4: SPK with nested parsed (data.parsed.parsed)
+            // {
+            //   "data": {
+            //     "parsed": {
+            //       "document_type": "spk_survey",
+            //       "metadata": {...},
+            //       "parsed": {        // ← Data asli di sini!
+            //         "spk": {...},
+            //         "pelanggan": {...}
+            //       }
+            //     },
+            //     "dokumentasi": [...]
+            //   }
+            // }
+            elseif (isset($jsonData['data']['parsed']['parsed'])) {
+                $parsedData = $jsonData['data']['parsed']['parsed']; //  Ambil dari data.parsed.parsed
+                $dokumentasi = $jsonData['data']['dokumentasi'] ?? [];
+                $documentType = $jsonData['data']['parsed']['document_type'] ?? 'unknown';
+                $jenisSpk = $this->inferJenisSpk($documentType); // Infer dari document_type
+                
+                Log::info(' JSON Structure 4: SPK (data.parsed.parsed)', [
+                    'upload_id' => $uploadId,
+                    'document_type' => $documentType,
+                    'jenis_spk' => $jenisSpk,
+                    'inferred' => true
+                ]);
+            }
+            // STRUCTURE 2: Form PM POP (flat structure)
+            // {
+            //   "parsed": {
+            //     "document_type": "form_pm_battery",
+            //     "parsed": {
+            //       "header": { ... },
+            //       "informasi_umum": { ... },
+            //       ...
+            //     }
+            //   },
+            //   "dokumentasi": [ ... ]
+            // }
+            elseif (isset($jsonData['parsed']['parsed'])) {
+                $parsedData = $jsonData['parsed']['parsed']; //  Ambil dari parsed.parsed
+                $dokumentasi = $jsonData['dokumentasi'] ?? [];
+                $documentType = $jsonData['parsed']['document_type'] ?? 'unknown';
+                $jenisSpk = null; // Form PM POP tidak punya jenis_spk
+                
+                Log::info(' JSON Structure: Form PM POP (flat)', [
+                    'upload_id' => $uploadId,
+                    'document_type' => $documentType
+                ]);
+            }
+            // STRUCTURE 3: Legacy (backward compatibility)
+            // {
+            //   "parsed": {
+            //     "data": { ... }
+            //   }
+            // }
+            elseif (isset($jsonData['parsed']['data'])) {
                 $parsedData = $jsonData['parsed']['data'];
                 $dokumentasi = $jsonData['dokumentasi'] ?? [];
                 $documentType = $jsonData['parsed']['document_type'] ?? 'unknown';
-                $jenisSpk = $jsonData['parsed']['jenis_spk'] ?? 'survey';
-            } else {
-                Log::error('Invalid JSON structure', [
+                $jenisSpk = $jsonData['parsed']['jenis_spk'] ?? null;
+                
+                Log::info(' JSON Structure: Legacy', [
                     'upload_id' => $uploadId,
-                    'json_keys' => array_keys($jsonData)
+                    'document_type' => $documentType,
+                    'jenis_spk' => $jenisSpk
                 ]);
-                throw new Exception('Invalid JSON structure: parsed.data not found');
+            }
+            else {
+                // Invalid structure - Debug lebih detail
+                $debugInfo = [
+                    'upload_id' => $uploadId,
+                    'json_keys' => array_keys($jsonData),
+                ];
+                
+                if (isset($jsonData['data'])) {
+                    $debugInfo['data_keys'] = array_keys($jsonData['data']);
+                    if (isset($jsonData['data']['parsed'])) {
+                        $debugInfo['data_parsed_keys'] = array_keys($jsonData['data']['parsed']);
+                    }
+                }
+                
+                if (isset($jsonData['parsed'])) {
+                    $debugInfo['parsed_keys'] = array_keys($jsonData['parsed']);
+                }
+                
+                Log::error('Invalid JSON structure', $debugInfo);
+                throw new Exception('Invalid JSON structure: Unable to locate parsed data. Check logs for details.');
             }
             
-            Log::info('Processing JSON to Database', [
+            Log::info(' Processing JSON to Database', [
                 'upload_id' => $uploadId,
                 'document_type' => $documentType,
-                'jenis_spk' => $jenisSpk
+                'jenis_spk' => $jenisSpk,
+                'has_data' => !empty($parsedData),
+                'data_keys' => is_array($parsedData) ? array_keys($parsedData) : 'not_array'
             ]);
             
-            // ✅ ROUTE BERDASARKAN DOCUMENT TYPE
+            //  ROUTE BERDASARKAN DOCUMENT TYPE
             switch ($documentType) {
                 case 'spk_survey':
                 case 'spk_instalasi':
                 case 'spk_dismantle':
                 case 'spk_aktivasi':
                     // Process SPK
-                    $result = $this->processSPK($jsonData, $uploadId);
+                    Log::info('📄 Routing to SPK processing', ['document_type' => $documentType]);
+                    $result = $this->processSPK($parsedData, $dokumentasi, $jenisSpk, $uploadId);
                     DB::commit();
                     return $result;
                 
                 case 'checklist_wireline':
                     // Process Form Checklist Wireline
-                    $result = $this->processFormChecklistWireline($jsonData, $uploadId);
+                    Log::info('Routing to Form Checklist Wireline processing');
+                    $result = $this->processFormChecklistWireline($parsedData, $uploadId);
                     DB::commit();
                     return $result;
                 
                 case 'checklist_wireless':
                     // Process Form Checklist Wireless
-                    $result = $this->processFormChecklistWireless($jsonData, $uploadId);
+                    Log::info('Routing to Form Checklist Wireless processing');
+                    $result = $this->processFormChecklistWireless($parsedData, $uploadId);
                     DB::commit();
                     return $result;
                 
-                default:
-                    // Fallback ke SPK processing untuk backward compatibility
-                    Log::warning('Unknown document type, fallback to SPK processing', [
+                //  NEW: Form PM POP types (untuk next phase)
+                case 'form_pm_battery':
+                case 'form_pm_1phase_ups':
+                case 'form_pm_3phase_ups':
+                case 'form_pm_rectifier':
+                case 'form_pm_inverter':
+                case 'form_pm_ruang_shelter':
+                case 'form_pm_petir_grounding':
+                case 'form_pm_instalasi_kabel':
+                case 'form_pm_pole_tower':
+                case 'form_pm_ac':
+                case 'form_pm_dokumentasi_perangkat':
+                case 'form_pm_permohonan_tindak_lanjut':
+                    // Process Form PM POP (placeholder for now)
+                    Log::info('🔋 Form PM POP detected (not yet implemented)', [
                         'document_type' => $documentType
                     ]);
-                    $result = $this->processSPK($jsonData, $uploadId);
+
+                    $pmService = new FormPmPopService();
+                    $result = $pmService->process($parsedData, $uploadId);
+                    
+                    DB::commit();
+                    return [
+                        'success' => true,
+                        'message' => 'Form PM POP processing not yet implemented',
+                        'document_type' => $documentType
+                    ];
+                
+                default:
+                    // Fallback ke SPK processing untuk backward compatibility
+                    Log::warning('⚠️ Unknown document type, fallback to SPK processing', [
+                        'document_type' => $documentType
+                    ]);
+                    $result = $this->processSPK($parsedData, $dokumentasi, $jenisSpk ?? 'survey', $uploadId);
                     DB::commit();
                     return $result;
             }
@@ -102,7 +239,8 @@ class JsonToDatabase
                 'upload_id' => $uploadId,
                 'error' => $e->getMessage(),
                 'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
             ]);
             
             throw $e;
@@ -110,15 +248,11 @@ class JsonToDatabase
     }
     
     // ============================================
-    // PROCESS SPK (existing logic)
+    // PROCESS SPK (updated to accept direct parameters)
     // ============================================
-    private function processSPK(array $jsonData, int $uploadId)
+    private function processSPK(array $parsedData, array $dokumentasi, string $jenisSpk, int $uploadId)
     {
-        $parsedData = $jsonData['data']['parsed']['data'] ?? $jsonData['parsed']['data'];
-        $dokumentasi = $jsonData['data']['dokumentasi'] ?? $jsonData['dokumentasi'] ?? [];
-        $jenisSpk = $jsonData['data']['parsed']['jenis_spk'] ?? $jsonData['parsed']['jenis_spk'] ?? 'survey';
-        
-        Log::info('Processing SPK document', [
+        Log::info('📄 Processing SPK document', [
             'upload_id' => $uploadId,
             'jenis_spk' => $jenisSpk
         ]);
@@ -201,7 +335,7 @@ class JsonToDatabase
         
         event(new \App\Events\SPKDataSaved($idSpk, $noJaringan));
         
-        Log::info('SPK successfully processed to database', [
+        Log::info(' SPK successfully processed to database', [
             'upload_id' => $uploadId,
             'id_spk' => $idSpk,
             'no_jaringan' => $noJaringan
@@ -215,32 +349,53 @@ class JsonToDatabase
     }
     
     // ============================================
-    // PROCESS FORM CHECKLIST WIRELINE
+    // PROCESS FORM CHECKLIST WIRELINE (updated)
     // ============================================
-    private function processFormChecklistWireline(array $jsonData, int $uploadId)
+    private function processFormChecklistWireline(array $parsedData, int $uploadId)
     {
-        $parsedData = $jsonData['data']['parsed']['data'] ?? $jsonData['parsed']['data'];
-        
         Log::info('Processing Form Checklist Wireline', [
             'upload_id' => $uploadId
         ]);
         
-        // ✅ Ambil no_jaringan dari data_remote (support both field names)
+        //  FIX: Validasi parsed data
+        if (empty($parsedData)) {
+            throw new Exception('Parsed data is empty. Document parsing failed completely.');
+        }
+        
+        //  FIX: Check apakah minimal data_remote ada
+        if (!isset($parsedData['data_remote']) || empty($parsedData['data_remote'])) {
+            Log::error('data_remote not found in parsed data', [
+                'upload_id' => $uploadId,
+                'available_keys' => array_keys($parsedData),
+            ]);
+            
+            throw new Exception('Failed to extract basic information from document. The document may be heavily distorted or OCR quality is too low.');
+        }
+        
+        //  Ambil no_jaringan dengan fallback
         $noJaringan = $parsedData['data_remote']['no_jaringan'] 
             ?? $parsedData['data_remote']['nomor_jaringan']
+            ?? $parsedData['data_remote']['Nomor Jaringan']  // Case variation
             ?? null;
         
         if (!$noJaringan) {
-            throw new Exception('no_jaringan or nomor_jaringan is required for Form Checklist Wireline');
+            //  Debug: Log semua keys di data_remote
+            Log::error('no_jaringan not found in data_remote', [
+                'upload_id' => $uploadId,
+                'data_remote_keys' => array_keys($parsedData['data_remote']),
+                'data_remote_values' => $parsedData['data_remote'],
+            ]);
+            
+            throw new Exception('no_jaringan or nomor_jaringan is required for Form Checklist Wireline but not found in extracted data. Please check if the PDF is readable.');
         }
         
-        // ✅ Ambil no_spk
+        // Rest of the code remains the same...
         $noSpk = $parsedData['data_remote']['no_spk'] ?? null;
         if (!$noSpk) {
             throw new Exception('no_spk is required for Form Checklist Wireline');
         }
         
-        // ✅ Cek apakah SPK sudah ada, jika belum create
+        //  Cek apakah SPK sudah ada, jika belum create
         $spk = Spk::where('no_spk', $noSpk)->first();
         
         if (!$spk) {
@@ -263,11 +418,21 @@ class JsonToDatabase
             ]);
         }
         
-        // ✅ Call FormChecklistWirelineService
+        //  Call FormChecklistWirelineService
         $fcwService = new FormChecklistWirelineService();
-        $result = $fcwService->process($jsonData, $spk->id_spk, $uploadId);
         
-        Log::info('Form Checklist Wireline successfully processed', [
+        // Build jsonData structure that service expects
+        $jsonDataForService = [
+            'data' => [
+                'parsed' => [
+                    'data' => $parsedData
+                ]
+            ]
+        ];
+        
+        $result = $fcwService->process($jsonDataForService, $spk->id_spk, $uploadId);
+        
+        Log::info(' Form Checklist Wireline successfully processed', [
             'upload_id' => $uploadId,
             'id_spk' => $spk->id_spk,
             'id_fcw' => $result['id_fcw']
@@ -282,17 +447,15 @@ class JsonToDatabase
     }
     
     // ============================================
-    // PROCESS FORM CHECKLIST WIRELESS
+    // PROCESS FORM CHECKLIST WIRELESS (updated)
     // ============================================
-    private function processFormChecklistWireless(array $jsonData, int $uploadId)
+    private function processFormChecklistWireless(array $parsedData, int $uploadId)
     {
-        $parsedData = $jsonData['data']['parsed']['data'] ?? $jsonData['parsed']['data'];
-        
         Log::info('Processing Form Checklist Wireless', [
             'upload_id' => $uploadId
         ]);
         
-        // ✅ Ambil no_jaringan dari data_remote (support both field names)
+        //  Ambil no_jaringan dari data_remote (support both field names)
         $noJaringan = $parsedData['data_remote']['no_jaringan'] 
             ?? $parsedData['data_remote']['nomor_jaringan']
             ?? null;
@@ -301,13 +464,13 @@ class JsonToDatabase
             throw new Exception('no_jaringan or nomor_jaringan is required for Form Checklist Wireless');
         }
         
-        // ✅ Ambil no_spk
+        //  Ambil no_spk
         $noSpk = $parsedData['data_remote']['no_spk'] ?? null;
         if (!$noSpk) {
             throw new Exception('no_spk is required for Form Checklist Wireless');
         }
         
-        // ✅ Cek apakah SPK sudah ada, jika belum create
+        //  Cek apakah SPK sudah ada, jika belum create
         $spk = Spk::where('no_spk', $noSpk)->first();
         
         if (!$spk) {
@@ -330,11 +493,21 @@ class JsonToDatabase
             ]);
         }
         
-        // ✅ Call FormChecklistWirelessService
+        //  Call FormChecklistWirelessService
         $fcwlService = new FormChecklistWirelessService();
-        $result = $fcwlService->process($jsonData, $spk->id_spk, $uploadId);
         
-        Log::info('Form Checklist Wireless successfully processed', [
+        // Build jsonData structure that service expects
+        $jsonDataForService = [
+            'data' => [
+                'parsed' => [
+                    'data' => $parsedData
+                ]
+            ]
+        ];
+        
+        $result = $fcwlService->process($jsonDataForService, $spk->id_spk, $uploadId);
+        
+        Log::info(' Form Checklist Wireless successfully processed', [
             'upload_id' => $uploadId,
             'id_spk' => $spk->id_spk,
             'id_fcwl' => $result['id_fcwl']
@@ -388,7 +561,7 @@ class JsonToDatabase
     
     private function processJaringan(array $jaringanData, array $pelangganData)
     {
-        // ✅ FIX: Support both no_jaringan and nomor_jaringan
+        //  FIX: Support both no_jaringan and nomor_jaringan
         $noJaringan = $jaringanData['no_jaringan'] 
             ?? $jaringanData['nomor_jaringan']
             ?? null;
@@ -618,6 +791,7 @@ class JsonToDatabase
             'info_lain_lain_jika_ada' => $data['info_lain___lain_jika_ada'] ?? null,
         ]);
     }
+    
     private function processKawasanUmum(array $data, int $idSpk)
     {
         if (empty($data)) return;
@@ -900,5 +1074,18 @@ class JsonToDatabase
         if (empty($latLongString) || $latLongString === 'null') return null;
         $parts = explode(',', $latLongString);
         return isset($parts[1]) ? trim($parts[1]) : null;
+    }
+
+    /**
+     * Infer jenis_spk from document_type
+     */
+    private function inferJenisSpk(string $documentType): string
+    {
+        // Extract jenis from document_type (e.g., "spk_survey" → "survey")
+        if (strpos($documentType, 'spk_') === 0) {
+            return str_replace('spk_', '', $documentType);
+        }
+        
+        return 'survey'; // default
     }
 }

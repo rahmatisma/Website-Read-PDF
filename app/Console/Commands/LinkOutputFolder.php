@@ -18,7 +18,7 @@ class LinkOutputFolder extends Command
         // Pastikan folder target exists
         if (!File::exists($target)) {
             File::makeDirectory($target, 0755, true);
-            $this->info("✅ Created directory: {$target}");
+            $this->info(" Created directory: {$target}");
         }
 
         // Hapus symlink lama kalau ada
@@ -27,7 +27,7 @@ class LinkOutputFolder extends Command
                 unlink($link);
                 $this->info("🗑️ Removed old symlink");
             } else {
-                $this->error("❌ {$link} already exists and is not a symlink!");
+                $this->error("{$link} already exists and is not a symlink!");
                 return 1;
             }
         }
@@ -40,19 +40,19 @@ class LinkOutputFolder extends Command
             exec("mklink /D \"{$link}\" \"{$target}\"", $output, $returnCode);
             
             if ($returnCode === 0) {
-                $this->info("✅ Symlink created: {$link} -> {$target}");
+                $this->info(" Symlink created: {$link} -> {$target}");
                 return 0;
             } else {
-                $this->error("❌ Failed to create symlink. Run as Administrator!");
+                $this->error("Failed to create symlink. Run as Administrator!");
                 return 1;
             }
         } else {
             // Linux/Mac: gunakan symlink()
             if (symlink($target, $link)) {
-                $this->info("✅ Symlink created: {$link} -> {$target}");
+                $this->info(" Symlink created: {$link} -> {$target}");
                 return 0;
             } else {
-                $this->error("❌ Failed to create symlink!");
+                $this->error("Failed to create symlink!");
                 return 1;
             }
         }

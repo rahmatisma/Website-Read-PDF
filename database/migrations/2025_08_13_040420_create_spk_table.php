@@ -43,7 +43,7 @@ return new class extends Migration
             $table->string('no_mr', 100)->nullable();
             $table->string('no_fps', 100)->nullable();
 
-            // ✅ TAMBAHAN: Link ke tabel uploads
+            //  TAMBAHAN: Link ke tabel uploads
             $table->unsignedBigInteger('id_upload')->nullable();
 
             // Soft Delete Fields
@@ -60,7 +60,7 @@ return new class extends Migration
             $table->index('jenis_spk');
             $table->index('tanggal_spk');
             $table->index('is_deleted');
-            $table->index('id_upload'); // ✅ TAMBAHAN: Index untuk id_upload
+            $table->index('id_upload'); //  TAMBAHAN: Index untuk id_upload
             $table->index(['is_deleted', 'jenis_spk', 'tanggal_spk']);
 
             // Foreign Keys
@@ -70,7 +70,7 @@ return new class extends Migration
                 ->onDelete('restrict')
                 ->onUpdate('cascade');
 
-            // ✅ TAMBAHAN: Foreign key ke uploads dengan CASCADE DELETE
+            //  TAMBAHAN: Foreign key ke uploads dengan CASCADE DELETE
             // Artinya: Kalau upload dihapus, SPK ini ikut terhapus
             $table->foreign('id_upload')
                 ->references('id_upload')

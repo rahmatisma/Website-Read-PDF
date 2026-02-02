@@ -68,7 +68,7 @@ class Document extends Model
     }
 
     /**
-     * ✅ NEW: Relasi ke SPK (1 upload bisa punya banyak SPK)
+     *  NEW: Relasi ke SPK (1 upload bisa punya banyak SPK)
      * Contoh: 1 PDF bisa berisi data untuk beberapa SPK
      */
     public function spks()
@@ -104,7 +104,7 @@ class Document extends Model
     }
 
     /**
-     * ✅ NEW: Scope untuk dokumen SPK (bukan form checklist)
+     *  NEW: Scope untuk dokumen SPK (bukan form checklist)
      */
     public function scopeIsSPK($query)
     {
@@ -114,7 +114,7 @@ class Document extends Model
     }
 
     /**
-     * ✅ NEW: Scope untuk dokumen Form Checklist
+     *  NEW: Scope untuk dokumen Form Checklist
      */
     public function scopeIsFormChecklist($query)
     {
@@ -124,7 +124,7 @@ class Document extends Model
     }
 
     /**
-     * ✅ NEW: Scope untuk dokumen Form Checklist Wireline
+     *  NEW: Scope untuk dokumen Form Checklist Wireline
      */
     public function scopeIsFormChecklistWireline($query)
     {
@@ -134,7 +134,7 @@ class Document extends Model
     }
 
     /**
-     * ✅ NEW: Scope untuk dokumen Form Checklist Wireless
+     *  NEW: Scope untuk dokumen Form Checklist Wireless
      */
     public function scopeIsFormChecklistWireless($query)
     {
@@ -171,7 +171,7 @@ class Document extends Model
     }
 
     /**
-     * ✅ NEW: Cek apakah dokumen ini adalah SPK
+     *  NEW: Cek apakah dokumen ini adalah SPK
      */
     public function isSPKDocument(): bool
     {
@@ -179,7 +179,7 @@ class Document extends Model
     }
 
     /**
-     * ✅ NEW: Cek apakah dokumen ini adalah Form Checklist
+     *  NEW: Cek apakah dokumen ini adalah Form Checklist
      */
     public function isFormChecklistDocument(): bool
     {
@@ -189,7 +189,7 @@ class Document extends Model
     }
 
     /**
-     * ✅ NEW: Get tipe form checklist (wireline/wireless)
+     *  NEW: Get tipe form checklist (wireline/wireless)
      */
     public function getFormChecklistType(): ?string
     {

@@ -129,7 +129,7 @@ class AnswerValidatorService
             ];
         }
 
-        Log::info('✅ Answer validation passed', [
+        Log::info(' Answer validation passed', [
             'minor_issues' => count($issues)
         ]);
 
@@ -230,7 +230,7 @@ class AnswerValidatorService
             $exists = $count > 0;
             
             if (!$exists) {
-                Log::warning('❌ Entity not found in database', [
+                Log::warning('Entity not found in database', [
                     'type' => $type,
                     'value' => $value
                 ]);

@@ -16,7 +16,7 @@ return new class extends Migration
         // ============================================
         Schema::create('jaringan_embeddings', function (Blueprint $table) {
             $table->id('id_embedding');
-            $table->string('no_jaringan', 100); // ✅ HAPUS ->unique()
+            $table->string('no_jaringan', 100); //  HAPUS ->unique()
             
             // Content text yang di-embed (untuk reference)
             $table->text('content_text');

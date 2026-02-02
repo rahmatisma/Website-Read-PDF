@@ -404,7 +404,7 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
     };
 
     const goBack = () => {
-        router.visit(route('documents.filter', 'pdf'));
+        router.visit(route('documents.index'));
     };
 
     const getImageUrl = (localPath: string) => {
@@ -422,7 +422,7 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
         // Remove leading slash if exists
         normalizedPath = normalizedPath.startsWith('/') ? normalizedPath.substring(1) : normalizedPath;
 
-        // ✅ FIX: Remove 'output/' prefix if exists (prevent double /output/output/)
+        // FIX: Remove 'output/' prefix if exists (prevent double /output/output/)
         // Path dari Python bisa jadi:
         // - "output/extracted/spk/survey/..." atau
         // - "extracted/spk/survey/..."
@@ -488,7 +488,7 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                     <div className="py-12 text-center">
                         <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-yellow-500 border-t-transparent"></div>
                         <p className="text-muted-foreground">Dokumen sedang diproses oleh Python...</p>
-                        {isPolling && <p className="mt-2 text-sm text-muted-foreground">✅ Mengecek status otomatis setiap 3 detik</p>}
+                        {isPolling && <p className="mt-2 text-sm text-muted-foreground"> Mengecek status otomatis setiap 3 detik</p>}
                     </div>
                 );
 
@@ -1075,7 +1075,7 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                                                     </Badge>
                                                 </div>
 
-                                                {/* ✅ Preview Gambar dengan Error Handling */}
+                                                {/*  Preview Gambar dengan Error Handling */}
                                                 <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
                                                     <ImageWithFallback
                                                         src={getImageUrl(doc.patch_foto)}
@@ -1084,7 +1084,7 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                                                     />
                                                 </div>
 
-                                                {/* ✅ Optional: Show path for debugging */}
+                                                {/*  Optional: Show path for debugging */}
                                                 {process.env.NODE_ENV === 'development' && (
                                                     <p className="truncate text-xs text-muted-foreground" title={doc.patch_foto}>
                                                         Path: {doc.patch_foto}
@@ -1099,7 +1099,7 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
 
                         {/* Raw JSON Toggle (Optional - untuk debugging) */}
                         <details className="group">
-                            <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">📋 Lihat Raw JSON Data</summary>
+                            <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">Lihat Raw JSON Data</summary>
                             <Card className="mt-2">
                                 <CardContent className="pt-6">
                                     <pre className="max-h-96 overflow-auto rounded bg-muted p-4 text-xs">
@@ -1162,22 +1162,22 @@ export default function Detail({ upload: initialUpload, extractedData: initialEx
                                 <div>
                                     {upload.status === 'completed' && (
                                         <Badge variant="outline" className="border-green-500 text-green-600">
-                                            ✅ Selesai Diproses
+                                            Selesai Diproses
                                         </Badge>
                                     )}
                                     {upload.status === 'processing' && (
                                         <Badge variant="outline" className="animate-pulse border-yellow-500 text-yellow-600">
-                                            ⏳ Sedang Diproses
+                                            Sedang Diproses
                                         </Badge>
                                     )}
                                     {upload.status === 'uploaded' && (
                                         <Badge variant="outline" className="animate-pulse border-blue-500 text-blue-600">
-                                            📤 Menunggu Proses
+                                            Menunggu Proses
                                         </Badge>
                                     )}
                                     {upload.status === 'failed' && (
                                         <Badge variant="outline" className="border-red-500 text-red-600">
-                                            ❌ Gagal Diproses
+                                            Gagal Diproses
                                         </Badge>
                                     )}
                                 </div>

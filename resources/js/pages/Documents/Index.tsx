@@ -4,13 +4,13 @@ import { Document } from '@/types/document';
 import { Head, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
-import Spk from './partials/SPK'; // ✅ Ganti dari Pdf
+import Spk from './partials/SPK'; //  Ganti dari Pdf
 import FormChecklist from './partials/FormChecklist';
-// import FormPmPop from './partials/FormPMPOP';
+import FormPmPop from './partials/FormPMPOP';
 
 type PageProps = {
     documents?: Document[];
-    activeTab?: 'spk' | 'form-checklist' | 'form-pm-pop'; // ✅ Update
+    activeTab?: 'spk' | 'form-checklist' | 'form-pm-pop'; //  Update
     filters?: {
         keyword?: string;
         date_from?: string;
@@ -43,7 +43,7 @@ const toValue = (label: string) => {
 export default function Index() {
     const { documents = [], activeTab = 'spk', filters = {} } = usePage<PageProps>().props;
 
-    const tabs = ['SPK', 'Form Checklist', 'Form PM POP']; // ✅ Update tabs
+    const tabs = ['SPK', 'Form Checklist', 'Form PM POP']; //  Update tabs
     const [currentTab, setCurrentTab] = useState<string>(toLabel(activeTab));
 
     useEffect(() => {
@@ -62,8 +62,8 @@ export default function Index() {
                 return <Spk documents={documents} filters={filters} />;
             case 'form-checklist':
                 return <FormChecklist documents={documents} filters={filters} />;
-            // case 'form-pm-pop':
-            //     return <FormPmPop documents={documents} filters={filters} />;
+            case 'form-pm-pop':
+                return <FormPmPop documents={documents} filters={filters} />;
             default:
                 return <Spk documents={documents} filters={filters} />;
         }

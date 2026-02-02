@@ -57,7 +57,7 @@ const extractEntitiesFromBotResponse = (
         // Validate: must be exactly 10 digits
         if (/^\d{10}$/.test(candidate)) {
             entities.last_nojar = candidate;
-            console.log('✅ Found nojar:', entities.last_nojar);
+            console.log(' Found nojar:', entities.last_nojar);
         }
     }
 
@@ -87,7 +87,7 @@ const extractEntitiesFromBotResponse = (
         // Validate: minimal 5 karakter, mayoritas uppercase
         if (name.length >= 5 && /[A-Z]/.test(name)) {
             entities.last_pelanggan = name;
-            console.log('✅ Found pelanggan:', entities.last_pelanggan);
+            console.log(' Found pelanggan:', entities.last_pelanggan);
         }
     }
 
@@ -101,7 +101,7 @@ const extractEntitiesFromBotResponse = (
         // Validate: bukan kata umum
         if (!/^(terkait|dengan|tersebut|untuk|dari)$/i.test(candidate)) {
             entities.last_spk = candidate;
-            console.log('✅ Found SPK:', entities.last_spk);
+            console.log(' Found SPK:', entities.last_spk);
         }
     }
 
@@ -112,7 +112,7 @@ const extractEntitiesFromBotResponse = (
 
     if (popMatch) {
         entities.last_pop = popMatch[1].trim();
-        console.log('✅ Found POP:', entities.last_pop);
+        console.log(' Found POP:', entities.last_pop);
     }
 
     console.log('🎯 Total entities extracted:', Object.keys(entities).length);
@@ -121,11 +121,11 @@ const extractEntitiesFromBotResponse = (
     return entities;
 };
 
-// ✅ messageIdCounter ada DI BAWAH function ini
+//  messageIdCounter ada DI BAWAH function ini
 let messageIdCounter = 0;
 
 const getInitialMessage = (): Message => ({
-    id: ++messageIdCounter, // ✅ Unique ID
+    id: ++messageIdCounter, //  Unique ID
     text: 'Halo! Saya adalah chatbot SPK Management System. Saya dapat membantu Anda dengan pertanyaan seputar data SPK, jaringan, pelanggan, dan informasi teknis lainnya. Ada yang bisa saya bantu?',
     sender: 'bot',
     timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -141,17 +141,17 @@ export default function Chatbot() {
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
-                    // ✅ Re-assign unique IDs untuk semua messages dari localStorage
+                    //  Re-assign unique IDs untuk semua messages dari localStorage
                     if (parsed.length > 0) {
                         const messagesWithNewIds = parsed.map((msg: Message) => ({
                             ...msg,
-                            id: ++messageIdCounter, // ✅ Generate new unique ID
+                            id: ++messageIdCounter, //  Generate new unique ID
                         }));
                         return messagesWithNewIds;
                     }
                 } catch (e) {
                     console.error('Error parsing saved messages:', e);
-                    // ✅ Clear corrupted localStorage
+                    //  Clear corrupted localStorage
                     localStorage.removeItem(STORAGE_KEY);
                 }
             }
@@ -213,7 +213,7 @@ export default function Chatbot() {
         }, 50);
     };
 
-    // ✅ FUNGSI RAG MODE DENGAN STREAMING REAL-TIME
+    //  FUNGSI RAG MODE DENGAN STREAMING REAL-TIME
     const handleSendMessageRAG = async (messageToSend: string) => {
         setIsLoading(true);
         setStreamingText('');
@@ -222,14 +222,14 @@ export default function Chatbot() {
         abortControllerRef.current = new AbortController();
 
         try {
-            // ✅ Build conversation history (10 messages terakhir)
+            //  Build conversation history (10 messages terakhir)
             const conversationHistory = messages.slice(-10).map((msg) => ({
                 role: msg.sender === 'user' ? 'user' : 'assistant',
                 content: msg.text,
                 timestamp: msg.timestamp,
             }));
 
-            console.log('📤 Sending RAG streaming request:', {
+            console.log('Sending RAG streaming request:', {
                 query: messageToSend,
                 has_history: conversationHistory.length > 0,
                 has_context: Object.keys(currentContext).length > 0,
@@ -241,7 +241,7 @@ export default function Chatbot() {
             console.log('📝 Query:', messageToSend);
             console.log('💬 Conversation History Length:', conversationHistory.length);
 
-            // ✅ Get CSRF token - coba beberapa cara
+            //  Get CSRF token - coba beberapa cara
             let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
             // Fallback: cari di meta tag lain
@@ -257,7 +257,7 @@ export default function Chatbot() {
             console.log('🔍 CSRF Token found:', !!csrfToken);
 
             if (!csrfToken) {
-                console.error('❌ CSRF token tidak ditemukan di DOM');
+                console.error('CSRF token tidak ditemukan di DOM');
                 console.log(
                     'Available meta tags:',
                     Array.from(document.querySelectorAll('meta')).map((m) => m.getAttribute('name')),
@@ -267,7 +267,7 @@ export default function Chatbot() {
 
             console.log('🔑 CSRF Token:', csrfToken.substring(0, 20) + '...');
 
-            // ✅ Call Laravel streaming endpoint dengan RAG context
+            //  Call Laravel streaming endpoint dengan RAG context
             const response = await fetch('/chatbot/chat-stream', {
                 method: 'POST',
                 headers: {
@@ -277,14 +277,14 @@ export default function Chatbot() {
                 },
                 body: JSON.stringify({
                     query: messageToSend,
-                    conversation_history: conversationHistory, // ✅ RAG: conversation memory
-                    current_context: currentContext, // ✅ RAG: extracted entities context
+                    conversation_history: conversationHistory, //  RAG: conversation memory
+                    current_context: currentContext, //  RAG: extracted entities context
                 }),
                 signal: abortControllerRef.current.signal,
             });
 
             if (!response.ok) {
-                console.error('❌ Response not OK:', {
+                console.error('Response not OK:', {
                     status: response.status,
                     statusText: response.statusText,
                     url: response.url,
@@ -311,7 +311,7 @@ export default function Chatbot() {
                 setIsLoading(false);
                 setIsStreaming(false);
 
-                console.log('✅ Direct SQL response:', jsonData);
+                console.log(' Direct SQL response:', jsonData);
 
                 if (!jsonData.success || !jsonData.answer) {
                     throw new Error(jsonData.error || 'Invalid response from server');
@@ -348,13 +348,13 @@ export default function Chatbot() {
                             ...extractedEntities,
                         };
 
-                        console.log('✅ NEW context after merge:', newContext);
+                        console.log(' NEW context after merge:', newContext);
                         return newContext;
                     });
                 }
 
-                console.log('✅ Direct SQL message saved');
-                return; // ✅ PENTING: STOP EXECUTION, JANGAN LANJUT KE STREAMING!
+                console.log(' Direct SQL message saved');
+                return; //  PENTING: STOP EXECUTION, JANGAN LANJUT KE STREAMING!
             }
 
             // ========================================
@@ -374,7 +374,7 @@ export default function Chatbot() {
                     const { done, value } = await reader.read();
 
                     if (done) {
-                        console.log('✅ Streaming completed, total length:', fullText.length);
+                        console.log(' Streaming completed, total length:', fullText.length);
                         break;
                     }
 
@@ -397,7 +397,7 @@ export default function Chatbot() {
                                     setStreamingText(fullText); // 🔥 Update UI real-time per token
                                 }
 
-                                // ✅ Check jika streaming selesai
+                                //  Check jika streaming selesai
                                 if (data.done) {
                                     console.log('🏁 Stream done signal received');
                                     break;
@@ -413,9 +413,9 @@ export default function Chatbot() {
 
             setIsStreaming(false);
 
-            // ✅ Save complete message dengan unique ID
+            //  Save complete message dengan unique ID
             const botMessage: Message = {
-                id: ++messageIdCounter, // ✅ FIXED: Unique ID
+                id: ++messageIdCounter, //  FIXED: Unique ID
                 text: fullText || 'Maaf, tidak ada respons.',
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -442,13 +442,13 @@ export default function Chatbot() {
                     ...extractedEntities, // Merge dengan context sebelumnya
                 }));
 
-                console.log('✅ Context updated to:', {
+                console.log(' Context updated to:', {
                     ...currentContext,
                     ...extractedEntities,
                 });
             }
 
-            console.log('✅ Message saved to history');
+            console.log(' Message saved to history');
         } catch (error: any) {
             setIsLoading(false);
             setIsStreaming(false);
@@ -458,12 +458,12 @@ export default function Chatbot() {
                 return;
             }
 
-            console.error('❌ RAG Streaming error:', error);
+            console.error('RAG Streaming error:', error);
 
             const errorText = error.message || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
 
             const botMessage: Message = {
-                id: ++messageIdCounter, // ✅ FIXED: Unique ID
+                id: ++messageIdCounter, //  FIXED: Unique ID
                 text: errorText,
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -477,12 +477,12 @@ export default function Chatbot() {
         }
     };
 
-    // ✅ MAIN HANDLER - Langsung pakai RAG Streaming
+    //  MAIN HANDLER - Langsung pakai RAG Streaming
     const handleSendMessage = async () => {
         if (!inputMessage.trim() || isLoading || isStreaming) return;
 
         const userMessage: Message = {
-            id: ++messageIdCounter, // ✅ FIXED: Unique ID
+            id: ++messageIdCounter, //  FIXED: Unique ID
             text: inputMessage,
             sender: 'user',
             timestamp: new Date().toLocaleTimeString('id-ID', {
@@ -534,7 +534,7 @@ export default function Chatbot() {
                                         Mode RAG Streaming: Jawaban real-time dari database SPK
                                     </CardDescription>
 
-                                    {/* ✅ CONTEXT INDICATOR */}
+                                    {/*  CONTEXT INDICATOR */}
                                     {Object.keys(currentContext).length > 0 && (
                                         <div className="mt-1 flex flex-wrap gap-1">
                                             {currentContext.last_nojar && (

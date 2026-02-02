@@ -44,7 +44,7 @@ class ChatbotService
             Log::info('🤖 Chatbot query received', [
                 'query' => $query,
                 'has_history' => !empty($conversationHistory),
-                'incoming_context' => $currentContext,  // ✅ Context sudah benar dari controller
+                'incoming_context' => $currentContext,  //  Context sudah benar dari controller
             ]);
 
             // STEP 0: Out-of-scope detection
@@ -67,22 +67,22 @@ class ChatbotService
                 'entities_from_intent' => $intent['entities'] ?? []
             ]);
 
-            // ✅✅✅ STEP 2: MERGE CONTEXT (SIMPLIFIED) ✅✅✅
+            //  STEP 2: MERGE CONTEXT (SIMPLIFIED) 
             // Merge entities dari intent ke current context
             if (!empty($intent['entities'])) {
                 $currentContext = array_merge($currentContext, array_filter($intent['entities']));
                 
-                Log::info('✅ Context merged with intent entities', [
+                Log::info(' Context merged with intent entities', [
                     'final_context' => $currentContext
                 ]);
             }
-            // ✅✅✅ END OF SIMPLIFICATION ✅✅✅
+            //  END OF SIMPLIFICATION 
 
             // STEP 3: SMART EXECUTION
             $executionResult = $this->executeByStrategy(
                 $query,
                 $intent,
-                $currentContext,  // ✅ Context sudah final dan benar
+                $currentContext,  //  Context sudah final dan benar
                 $conversationHistory
             );
 
@@ -105,13 +105,13 @@ class ChatbotService
                 $executionResult['data'] ?? []
             );
 
-            // ✅ TAMBAHAN: Merge untuk final context
+            //  TAMBAHAN: Merge untuk final context
             $finalContext = array_merge($currentContext, array_filter($extractedEntities));
 
-            Log::info('✅ Chatbot response generated', [
+            Log::info(' Chatbot response generated', [
                 'source' => $finalAnswer['source'],
                 'strategy' => $intent['strategy'],
-                'final_context' => $finalContext  // ✅ TAMBAHAN: Log final
+                'final_context' => $finalContext  //  TAMBAHAN: Log final
             ]);
 
             return [
@@ -121,12 +121,12 @@ class ChatbotService
                 'source' => $finalAnswer['source'],
                 'strategy' => $intent['strategy'],
                 'query_type' => $intent['type'],
-                'extracted_entities' => $finalContext,  // ✅ UBAH: Return merged context
+                'extracted_entities' => $finalContext,  //  UBAH: Return merged context
                 'data' => $executionResult['data'] ?? null,
             ];
 
         } catch (Exception $e) {
-            Log::error('❌ Chatbot error', [
+            Log::error('Chatbot error', [
                 'query' => $query,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -197,7 +197,7 @@ class ChatbotService
                 ];
             }
 
-            Log::info('✅ SQL Strategy succeeded', [
+            Log::info(' SQL Strategy succeeded', [
                 'sql' => $sqlResult['sql'],
                 'row_count' => $execResult['count']
             ]);
@@ -210,7 +210,7 @@ class ChatbotService
             ];
 
         } catch (Exception $e) {
-            Log::error('❌ SQL Strategy failed', [
+            Log::error('SQL Strategy failed', [
                 'error' => $e->getMessage()
             ]);
 
@@ -248,7 +248,7 @@ class ChatbotService
             // Call LLM
             $answer = $this->callFlaskChatbot($enhancedQuery, $contextString, $history);
 
-            Log::info('✅ RAG Strategy succeeded', [
+            Log::info(' RAG Strategy succeeded', [
                 'relevant_data_count' => count($relevantData)
             ]);
 
@@ -260,7 +260,7 @@ class ChatbotService
             ];
 
         } catch (Exception $e) {
-            Log::error('❌ RAG Strategy failed', [
+            Log::error('RAG Strategy failed', [
                 'error' => $e->getMessage()
             ]);
 
@@ -293,7 +293,7 @@ class ChatbotService
                 'rag_data' => $ragResult['data'] ?? [],
             ];
 
-            Log::info('✅ Hybrid Strategy succeeded');
+            Log::info(' Hybrid Strategy succeeded');
 
             return [
                 'success' => true,
@@ -303,7 +303,7 @@ class ChatbotService
             ];
 
         } catch (Exception $e) {
-            Log::error('❌ Hybrid Strategy failed', [
+            Log::error('Hybrid Strategy failed', [
                 'error' => $e->getMessage()
             ]);
 
@@ -517,11 +517,11 @@ class ChatbotService
     private function getOutOfScopeMessage(): string
     {
         return "Maaf, saya hanya dapat membantu menjawab pertanyaan terkait:\n\n" .
-            "✅ Dokumen SPK (Surat Perintah Kerja)\n" .
-            "✅ Form Checklist (Wireline & Wireless)\n" .
-            "✅ Data Pelanggan dan Jaringan\n" .
-            "✅ Informasi Teknisi dan Vendor\n" .
-            "✅ Detail Pelaksanaan Pekerjaan\n\n" .
+            " Dokumen SPK (Surat Perintah Kerja)\n" .
+            " Form Checklist (Wireline & Wireless)\n" .
+            " Data Pelanggan dan Jaringan\n" .
+            " Informasi Teknisi dan Vendor\n" .
+            " Detail Pelaksanaan Pekerjaan\n\n" .
             "Silakan ajukan pertanyaan seputar dokumen-dokumen tersebut. 😊";
     }
 
@@ -721,7 +721,7 @@ class ChatbotService
 
         // Priority 2: Extract from answer text (fallback)
         
-        // ✅ Extract nojar (exactly 10 digits)
+        //  Extract nojar (exactly 10 digits)
         if (empty($entities['last_nojar'])) {
             if (preg_match('/\b(\d{10})\b/', $answer, $match)) {
                 $entities['last_nojar'] = $match[1];
@@ -729,7 +729,7 @@ class ChatbotService
             }
         }
         
-        // ✅ Extract pelanggan (improved regex)
+        //  Extract pelanggan (improved regex)
         if (empty($entities['last_pelanggan'])) {
             // Pattern: "pelanggan [NAMA BESAR]" atau "untuk pelanggan [NAMA]"
             if (preg_match('/(?:untuk\s+)?pelanggan\s+([A-Z][A-Z0-9\s&\.\(\)]+?)(?:\s+dengan|\s+yang|\s+di|\s+adalah|\.|\n|$)/i', $answer, $match)) {
@@ -741,13 +741,13 @@ class ChatbotService
             }
         }
 
-        // ✅ Extract SPK number (improved pattern + validation)
+        //  Extract SPK number (improved pattern + validation)
         if (empty($entities['last_spk'])) {
             // Pattern: "SPK 298785" atau "no_spk: ABC123" atau "SPK-2024-001"
             if (preg_match('/(?:SPK|no_spk)[:\s\-]+([A-Z0-9\-\/]+)/i', $answer, $match)) {
                 $spk = trim($match[1]);
                 
-                // ✅ CRITICAL: Validate SPK is NOT a nojar (10 digits)
+                //  CRITICAL: Validate SPK is NOT a nojar (10 digits)
                 $is_10_digit_nojar = preg_match('/^\d{10}$/', $spk);
                 
                 // SPK harus minimal 3 karakter, bukan "nojar", dan bukan 10 digit number
@@ -763,7 +763,7 @@ class ChatbotService
             }
         }
         
-        // ✅ Validate extracted entities
+        //  Validate extracted entities
         if (isset($entities['last_pelanggan'])) {
             $pelanggan = $entities['last_pelanggan'];
             
@@ -783,9 +783,9 @@ class ChatbotService
             }
         }
         
-        // ✅ Log final extracted entities
+        //  Log final extracted entities
         if (!empty($entities)) {
-            Log::info('✅ Final extracted entities', $entities);
+            Log::info(' Final extracted entities', $entities);
         }
 
         return $entities;

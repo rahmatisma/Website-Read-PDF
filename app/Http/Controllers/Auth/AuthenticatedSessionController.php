@@ -31,7 +31,7 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
-        // ✅ TAMBAHAN: Cek apakah user sudah diverifikasi oleh admin
+        //  TAMBAHAN: Cek apakah user sudah diverifikasi oleh admin
         $user = Auth::user();
         
         if (!$user->is_verified_by_admin) {
@@ -44,7 +44,7 @@ class AuthenticatedSessionController extends Controller
             ])->withInput($request->only('email'));
         }
 
-        // ✅ User sudah verified, lanjutkan login
+        //  User sudah verified, lanjutkan login
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));

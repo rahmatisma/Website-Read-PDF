@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\ChatbotService;
 use App\Services\EmbeddingService;
-use App\Services\AnswerValidatorService;  // ✅ NEW
+use App\Services\AnswerValidatorService;  //  NEW
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -16,16 +16,16 @@ class ChatbotController extends Controller
 {
     protected ChatbotService $chatbotService;
     protected EmbeddingService $embeddingService;
-    protected AnswerValidatorService $answerValidator;  // ✅ NEW
+    protected AnswerValidatorService $answerValidator;  //  NEW
 
     public function __construct(
         ChatbotService $chatbotService,
         EmbeddingService $embeddingService,
-        AnswerValidatorService $answerValidator  // ✅ NEW
+        AnswerValidatorService $answerValidator  //  NEW
     ) {
         $this->chatbotService = $chatbotService;
         $this->embeddingService = $embeddingService;
-        $this->answerValidator = $answerValidator;  // ✅ NEW
+        $this->answerValidator = $answerValidator;  //  NEW
     }
 
     /**
@@ -51,7 +51,7 @@ class ChatbotController extends Controller
             $conversationHistory = $request->input('conversation_history', []);
             $currentContext = $request->input('current_context', []);
 
-            // ✅✅✅ FIX: Extract entities dari query SEBELUM classify ✅✅✅
+            //  FIX: Extract entities dari query SEBELUM classify 
             $extractedFromQuery = $this->quickExtractEntities($query);
             
             // Override context dengan entities dari query
@@ -74,11 +74,11 @@ class ChatbotController extends Controller
             if (!empty($extractedFromQuery['spk'])) {
                 $currentContext['last_spk'] = $extractedFromQuery['spk'];
             }
-            // ✅✅✅ END OF FIX ✅✅✅
+            //  END OF FIX 
 
             Log::info('🤖 Chat request received', [
                 'query' => $query,
-                'context_before_chat' => $currentContext,  // ✅ Log context yang sudah di-update
+                'context_before_chat' => $currentContext,  //  Log context yang sudah di-update
             ]);
 
             // 🚀 Call ChatbotService (sudah ada validator di dalamnya)
@@ -96,7 +96,7 @@ class ChatbotController extends Controller
                 ], 200);
             }
 
-            Log::info('✅ Chat response generated', [
+            Log::info(' Chat response generated', [
                 'strategy' => $result['strategy'] ?? 'unknown',
                 'source' => $result['source'] ?? 'unknown',
                 'validation' => $result['validation'] ?? 'not_checked',
@@ -111,12 +111,12 @@ class ChatbotController extends Controller
                     'strategy' => $result['strategy'] ?? 'unknown',
                     'query_type' => $result['query_type'] ?? null,
                     'extracted_entities' => $result['extracted_entities'] ?? [],
-                    'validation' => $result['validation'] ?? 'passed',  // ✅ NEW
+                    'validation' => $result['validation'] ?? 'passed',  //  NEW
                 ],
             ], 200);
 
         } catch (Exception $e) {
-            Log::error('❌ Chat controller error', [
+            Log::error('Chat controller error', [
                 'error' => $e->getMessage(),
                 'query' => $request->input('query'),
                 'trace' => $e->getTraceAsString(),
@@ -130,7 +130,7 @@ class ChatbotController extends Controller
     }
 
     /**
-     * ✅ NEW: Quick entity extraction (simple regex, no LLM)
+     *  NEW: Quick entity extraction (simple regex, no LLM)
      */
     private function quickExtractEntities(string $query): array
     {
@@ -185,7 +185,7 @@ class ChatbotController extends Controller
             'has_context' => !empty($currentContext),
         ]);
 
-        // ✅ ALWAYS TRY NON-STREAMING FIRST (untuk SQL queries)
+        //  ALWAYS TRY NON-STREAMING FIRST (untuk SQL queries)
         try {
             $result = $this->chatbotService->chat(
                 $query,
@@ -194,13 +194,13 @@ class ChatbotController extends Controller
                 []
             );
 
-            // ✅ Jika strategy SQL dan berhasil, return direct (no streaming)
+            //  Jika strategy SQL dan berhasil, return direct (no streaming)
             if ($result['success'] && 
                 isset($result['strategy']) && 
                 $result['strategy'] === 'SQL' &&
                 in_array($result['source'], ['direct_sql', 'direct_sql_empty'])) {
                 
-                Log::info('✅ Using non-streaming response for SQL query');
+                Log::info(' Using non-streaming response for SQL query');
                 
                 return response()->json([
                     'success' => true,
@@ -221,7 +221,7 @@ class ChatbotController extends Controller
             ]);
         }
 
-        // ✅ CONTINUE WITH STREAMING (for RAG queries)
+        //  CONTINUE WITH STREAMING (for RAG queries)
         $flaskUrl = env('FLASK_API_URL', 'http://localhost:5000');
 
         return response()->stream(function () use ($flaskUrl, $query, $conversationHistory, $currentContext) {
@@ -247,7 +247,7 @@ class ChatbotController extends Controller
                     }
                     
                 } catch (\Exception $e) {
-                    Log::error('❌ RAG search failed', ['error' => $e->getMessage()]);
+                    Log::error('RAG search failed', ['error' => $e->getMessage()]);
                 }
                 
                 // Build history
@@ -259,7 +259,7 @@ class ChatbotController extends Controller
                     ];
                 }
 
-                // ✅ Call Flask streaming with STRICT mode
+                //  Call Flask streaming with STRICT mode
                 $ch = curl_init("{$flaskUrl}/chat-stream");
 
                 curl_setopt_array($ch, [
@@ -269,7 +269,7 @@ class ChatbotController extends Controller
                         'context' => $contextString,
                         'conversation_history' => $historyForOllama,
                         'model' => env('OLLAMA_CHAT_MODEL', 'llama3.1:8b'),
-                        'mode' => 'strict',  // ✅ NEW: Force strict mode
+                        'mode' => 'strict',  //  NEW: Force strict mode
                     ]),
                     CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
                     CURLOPT_RETURNTRANSFER => false,
@@ -289,7 +289,7 @@ class ChatbotController extends Controller
 
                 if ($success === false) {
                     $error = curl_error($ch);
-                    Log::error('❌ Streaming curl error', ['error' => $error]);
+                    Log::error('Streaming curl error', ['error' => $error]);
                     echo "data: " . json_encode(['error' => "Connection error: {$error}"]) . "\n\n";
                     flush();
                 }
@@ -297,7 +297,7 @@ class ChatbotController extends Controller
                 curl_close($ch);
 
             } catch (Exception $e) {
-                Log::error('❌ Streaming error', [
+                Log::error('Streaming error', [
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
@@ -377,7 +377,7 @@ class ChatbotController extends Controller
             'success' => true,
             'service' => 'Chatbot Service',
             'status' => 'online',
-            'version' => '4.0.0-anti-hallucination',  // ✅ Updated version
+            'version' => '4.0.0-anti-hallucination',  //  Updated version
             'flask_api' => [
                 'url' => $flaskUrl,
                 'status' => $flaskStatus,
@@ -388,8 +388,8 @@ class ChatbotController extends Controller
                 'sql_generation' => true,
                 'rag_search' => true,
                 'hybrid_mode' => true,
-                'answer_validation' => true,  // ✅ NEW
-                'anti_hallucination' => true,  // ✅ NEW
+                'answer_validation' => true,  //  NEW
+                'anti_hallucination' => true,  //  NEW
             ],
         ], 200);
     }

@@ -34,7 +34,7 @@ class RegenerateEmbeddings extends Command
 
         // Validasi type
         if (!in_array($type, ['jaringan', 'spk', 'both'])) {
-            $this->error("❌ Invalid type: {$type}");
+            $this->error("Invalid type: {$type}");
             $this->info("Valid types: jaringan, spk, both");
             return Command::FAILURE;
         }
@@ -68,7 +68,7 @@ class RegenerateEmbeddings extends Command
         // PROCESS SPK EMBEDDINGS
         // ================================
         if ($type === 'spk' || $type === 'both') {
-            $this->info("📋 Processing SPK embeddings...");
+            $this->info("Processing SPK embeddings...");
             $spkResults = $this->processSpk($limit, $force);
             $results['spk'] = $spkResults;
             $this->newLine();
@@ -77,7 +77,7 @@ class RegenerateEmbeddings extends Command
         // ================================
         // SUMMARY
         // ================================
-        $this->info("✅ Regeneration completed!");
+        $this->info(" Regeneration completed!");
         $this->newLine();
         
         $tableData = [];
@@ -144,7 +144,7 @@ class RegenerateEmbeddings extends Command
         $total = $jaringans->count();
         
         if ($total === 0) {
-            $this->info("✅ No Jaringan records to process");
+            $this->info(" No Jaringan records to process");
             return ['success' => 0, 'failed' => 0];
         }
         
@@ -163,7 +163,7 @@ class RegenerateEmbeddings extends Command
             } catch (Exception $e) {
                 $failed++;
                 $this->newLine();
-                $this->error("❌ Failed [{$jaringan->no_jaringan}]: {$e->getMessage()}");
+                $this->error("Failed [{$jaringan->no_jaringan}]: {$e->getMessage()}");
             }
             
             $progressBar->advance();
@@ -195,7 +195,7 @@ class RegenerateEmbeddings extends Command
         $total = $spks->count();
         
         if ($total === 0) {
-            $this->info("✅ No SPK records to process");
+            $this->info(" No SPK records to process");
             return ['success' => 0, 'failed' => 0];
         }
         
@@ -214,7 +214,7 @@ class RegenerateEmbeddings extends Command
             } catch (Exception $e) {
                 $failed++;
                 $this->newLine();
-                $this->error("❌ Failed [{$spk->no_spk}]: {$e->getMessage()}");
+                $this->error("Failed [{$spk->no_spk}]: {$e->getMessage()}");
             }
             
             $progressBar->advance();

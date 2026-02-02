@@ -23,7 +23,7 @@ class LogChatContext
         if ($request->is('api/chat*') && $response->getStatusCode() === 200) {
             $data = json_decode($response->getContent(), true);
             
-            Log::debug('📤 Outgoing chat response', [
+            Log::debug('Outgoing chat response', [
                 'extracted_entities' => $data['data']['extracted_entities'] ?? [],
                 'source' => $data['data']['source'] ?? 'unknown',
             ]);

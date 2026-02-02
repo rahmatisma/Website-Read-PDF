@@ -316,7 +316,7 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
                     <div className="py-12 text-center">
                         <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-yellow-500 border-t-transparent"></div>
                         <p className="text-muted-foreground">Dokumen sedang diproses oleh Python...</p>
-                        {isPolling && <p className="mt-2 text-sm text-muted-foreground">✅ Mengecek status otomatis setiap 3 detik</p>}
+                        {isPolling && <p className="mt-2 text-sm text-muted-foreground"> Mengecek status otomatis setiap 3 detik</p>}
                     </div>
                 );
 
@@ -1050,7 +1050,7 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
 
                         {/* Raw JSON Toggle */}
                         <details className="group">
-                            <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">📋 Lihat Raw JSON Data</summary>
+                            <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">Lihat Raw JSON Data</summary>
                             <Card className="mt-2">
                                 <CardContent className="pt-6">
                                     <pre className="max-h-96 overflow-auto rounded bg-muted p-4 text-xs">
@@ -1113,22 +1113,22 @@ export default function FormChecklistDetail({ upload: initialUpload, extractedDa
                                 <div>
                                     {upload.status === 'completed' && (
                                         <Badge variant="outline" className="border-green-500 text-green-600">
-                                            ✅ Selesai Diproses
+                                             Selesai Diproses
                                         </Badge>
                                     )}
                                     {upload.status === 'processing' && (
                                         <Badge variant="outline" className="animate-pulse border-yellow-500 text-yellow-600">
-                                            ⏳ Sedang Diproses
+                                             Sedang Diproses
                                         </Badge>
                                     )}
                                     {upload.status === 'uploaded' && (
                                         <Badge variant="outline" className="animate-pulse border-blue-500 text-blue-600">
-                                            📤 Menunggu Proses
+                                            Menunggu Proses
                                         </Badge>
                                     )}
                                     {upload.status === 'failed' && (
                                         <Badge variant="outline" className="border-red-500 text-red-600">
-                                            ❌ Gagal Diproses
+                                            Gagal Diproses
                                         </Badge>
                                     )}
                                 </div>

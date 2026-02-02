@@ -24,10 +24,10 @@ class GenerateEmbedding
                 'no_jaringan' => $event->noJaringan
             ]);
 
-            // ✅ GENERATE JARINGAN EMBEDDING DULU
+            //  GENERATE JARINGAN EMBEDDING DULU
             try {
                 $this->embeddingService->generateJaringanEmbedding($event->noJaringan);
-                Log::info('✅ Jaringan embedding generated', [
+                Log::info(' Jaringan embedding generated', [
                     'no_jaringan' => $event->noJaringan
                 ]);
             } catch (Exception $e) {
@@ -38,9 +38,9 @@ class GenerateEmbedding
                 ]);
             }
 
-            // ✅ GENERATE SPK EMBEDDING
+            //  GENERATE SPK EMBEDDING
             $this->embeddingService->generateSpkEmbedding($event->idSpk);
-            Log::info('✅ SPK embedding generated', [
+            Log::info(' SPK embedding generated', [
                 'id_spk' => $event->idSpk
             ]);
 
@@ -50,13 +50,13 @@ class GenerateEmbedding
             ]);
 
         } catch (Exception $e) {
-            Log::error('❌ Failed to generate embedding', [
+            Log::error('Failed to generate embedding', [
                 'id_spk' => $event->idSpk,
                 'no_jaringan' => $event->noJaringan,
                 'error' => $e->getMessage()
             ]);
             
-            // ❌ JANGAN throw exception supaya upload tidak gagal
+            // JANGAN throw exception supaya upload tidak gagal
             // throw $e;
         }
     }

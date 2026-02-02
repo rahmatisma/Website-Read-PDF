@@ -56,7 +56,7 @@ class IntentClassifierService
 
             $result = $response->json();
 
-            // ✅✅✅ PERUBAHAN DI SINI ✅✅✅
+            //  PERUBAHAN DI SINI 
             // Extract entities dari Flask (Flask return dengan key 'nojar', 'spk')
             $entitiesFromFlask = $result['entities'] ?? [];
             
@@ -67,16 +67,16 @@ class IntentClassifierService
                 'last_pelanggan' => $context['last_pelanggan'] ?? null,  // Keep from context
             ];
 
-            // ✅ Log jika ada entity baru yang di-extract
+            //  Log jika ada entity baru yang di-extract
             if (!empty($entitiesFromFlask)) {
                 Log::info('📝 Entities extracted by Flask', [
                     'raw_from_flask' => $entitiesFromFlask,
                     'normalized' => $normalizedEntities
                 ]);
             }
-            // ✅✅✅ END OF CHANGES ✅✅✅
+            //  END OF CHANGES 
 
-            Log::info('✅ Intent Classified', [
+            Log::info(' Intent Classified', [
                 'type' => $result['type'] ?? 'UNKNOWN',
                 'strategy' => $result['strategy'] ?? 'RAG',
                 'confidence' => $result['confidence'] ?? 0.5,
@@ -88,12 +88,12 @@ class IntentClassifierService
                 'strategy' => $result['strategy'] ?? 'RAG',
                 'confidence' => $result['confidence'] ?? 0.6,
                 'reasoning' => $result['reasoning'] ?? '',
-                'entities' => $normalizedEntities,  // ✅ UBAH: Return normalized entities
+                'entities' => $normalizedEntities,  //  UBAH: Return normalized entities
                 'rule_match' => $result['rule_match'] ?? false,
             ];
 
         } catch (Exception $e) {
-            Log::error('❌ Intent Classification Failed', [
+            Log::error('Intent Classification Failed', [
                 'error' => $e->getMessage()
             ]);
 

@@ -23,7 +23,7 @@ export default function UploadPDFBox() {
     } => {
         const lowerName = fileName.toLowerCase();
 
-        // ✅ FIXED: Block SPK files (karena ini halaman Form Checklist)
+        //  FIXED: Block SPK files (karena ini halaman Form Checklist)
         const strictSpkKeywords = [
             'spk survey',
             'spk_survey',
@@ -49,7 +49,7 @@ export default function UploadPDFBox() {
             };
         }
 
-        // ✅ Deteksi jika ada kata "spk" standalone (bukan bagian dari kata lain)
+        //  Deteksi jika ada kata "spk" standalone (bukan bagian dari kata lain)
         if (lowerName.includes(' spk ') || lowerName.startsWith('spk ') || lowerName.endsWith(' spk')) {
             return {
                 valid: false,
@@ -60,7 +60,7 @@ export default function UploadPDFBox() {
             };
         }
 
-        // ✅ Validasi positif: file yang mengandung keyword Form Checklist
+        //  Validasi positif: file yang mengandung keyword Form Checklist
         const checklistKeywords = [
             'form checklist',
             'form_checklist',
@@ -164,7 +164,7 @@ export default function UploadPDFBox() {
 
         setLoading(true);
 
-        const toastId = toast.loading('📤 Uploading dan validasi dokumen Form Checklist...', {
+        const toastId = toast.loading('Uploading dan validasi dokumen Form Checklist...', {
             classNames: {
                 toast: '!bg-gray-900 !border-2 !border-blue-400',
                 title: '!text-white',
@@ -175,7 +175,7 @@ export default function UploadPDFBox() {
         router.post('/documents/checklist', formData, {
             forceFormData: true,
             onSuccess: (page) => {
-                toast.success('✅ Upload berhasil! Dokumen sedang divalidasi...', {
+                toast.success(' Upload berhasil! Dokumen sedang divalidasi...', {
                     id: toastId,
                     duration: 4000,
                     description: 'Sistem akan memvalidasi halaman pertama. Cek tabel di bawah untuk status real-time.',
@@ -212,7 +212,7 @@ export default function UploadPDFBox() {
                     errorMessage = errorValues.join('\n');
                 }
 
-                toast.error('❌ Upload Gagal!', {
+                toast.error('Upload Gagal!', {
                     id: toastId,
                     duration: 5000,
                     description: errorMessage,
@@ -291,15 +291,15 @@ export default function UploadPDFBox() {
             {/* Enhanced Info Box */}
             <div className="mt-4 w-full max-w-md rounded-lg border border-emerald-400/30 bg-emerald-900/30 p-4">
                 <div className="mb-3">
-                    <p className="mb-2 text-xs font-semibold text-emerald-200">📋 Dokumen yang BOLEH diupload di halaman ini:</p>
+                    <p className="mb-2 text-xs font-semibold text-emerald-200">Dokumen yang BOLEH diupload di halaman ini:</p>
                     <ul className="ml-4 space-y-1 text-xs text-emerald-300">
-                        <li>✅ Form Checklist Wireline</li>
-                        <li>✅ Form Checklist Wireless</li>
+                        <li> Form Checklist Wireline</li>
+                        <li> Form Checklist Wireless</li>
                     </ul>
                 </div>
                 <div className="border-t border-emerald-400/20 pt-3">
                     <p className="text-xs text-emerald-300">
-                        ❌ <strong>SPK</strong> tidak bisa diupload di halaman ini.
+                        <strong>SPK</strong> tidak bisa diupload di halaman ini.
                         <br />
                         Silakan gunakan halaman <strong>"SPK"</strong>.
                     </p>

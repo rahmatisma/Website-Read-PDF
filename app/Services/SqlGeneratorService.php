@@ -57,14 +57,14 @@ class SqlGeneratorService
                 'entities_in_intent' => $intent['entities'] ?? []
             ]);
 
-            // ✅ REMOVE: Fallback logic tidak perlu lagi karena context sudah benar
+            //  REMOVE: Fallback logic tidak perlu lagi karena context sudah benar
             // Context sudah di-update di Controller dan ChatbotService
             
             // Call Flask /generate-sql
             $response = Http::timeout(60)->post("{$this->flaskApiUrl}/generate-sql", [
                 'query' => $query,
                 'intent' => $intent,
-                'context' => $context,  // ✅ Context pasti benar
+                'context' => $context,  //  Context pasti benar
             ]);
 
             if (!$response->successful()) {
@@ -82,9 +82,9 @@ class SqlGeneratorService
             // Validate SQL (TIDAK BERUBAH)
             $this->validateSQL($sql);
 
-            Log::info('✅ SQL Generated', [
+            Log::info(' SQL Generated', [
                 'sql_preview' => substr($sql, 0, 100) . '...',
-                'used_context' => $context  // ✅ TAMBAHAN: Log context yang dipakai
+                'used_context' => $context  //  TAMBAHAN: Log context yang dipakai
             ]);
 
             return [
@@ -93,9 +93,9 @@ class SqlGeneratorService
             ];
 
         } catch (Exception $e) {
-            Log::error('❌ SQL Generation Failed', [
+            Log::error('SQL Generation Failed', [
                 'error' => $e->getMessage(),
-                'context_at_failure' => $context  // ✅ TAMBAHAN: Log context saat error
+                'context_at_failure' => $context  //  TAMBAHAN: Log context saat error
             ]);
 
             return [
@@ -117,7 +117,7 @@ class SqlGeneratorService
             // Execute query
             $results = DB::select($sql);
 
-            Log::info('✅ SQL Executed Successfully', [
+            Log::info(' SQL Executed Successfully', [
                 'row_count' => count($results)
             ]);
 
@@ -128,7 +128,7 @@ class SqlGeneratorService
             ];
 
         } catch (Exception $e) {
-            Log::error('❌ SQL Execution Failed', [
+            Log::error('SQL Execution Failed', [
                 'sql' => substr($sql, 0, 200),
                 'error' => $e->getMessage()
             ]);
@@ -191,6 +191,6 @@ class SqlGeneratorService
             throw new Exception('SQL must use at least one valid table from the schema');
         }
         
-        Log::debug('✅ SQL validation passed');
+        Log::debug(' SQL validation passed');
     }
 }

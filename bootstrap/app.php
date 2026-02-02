@@ -18,9 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Exclude cookies dari enkripsi
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
-        // ✅ FIX: CSRF exception untuk chatbot streaming
+        //  FIX: CSRF exception untuk chatbot streaming
         $middleware->validateCsrfTokens(except: [
-            'chatbot/chat-stream',  // ✅ Ubah dari 'chatbot/stream' ke 'chatbot/chat-stream'
+            'chatbot/chat-stream',  //  Ubah dari 'chatbot/stream' ke 'chatbot/chat-stream'
             'chatbot/chat',
         ]);
 

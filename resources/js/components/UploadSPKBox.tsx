@@ -147,7 +147,7 @@ export default function UploadSPKBox() {
         setLoading(true);
 
         // 🎯 Toast loading dengan ID untuk update nanti
-        const toastId = toast.loading('📤 Uploading dan validasi dokumen SPK...', {
+        const toastId = toast.loading('Uploading dan validasi dokumen SPK...', {
             classNames: {
                 toast: '!bg-gray-900 !border-2 !border-blue-400',
                 title: '!text-white',
@@ -158,8 +158,8 @@ export default function UploadSPKBox() {
         router.post('/documents/spk', formData, {
             forceFormData: true,
             onSuccess: (page) => {
-                // ✅ Update toast menjadi success
-                toast.success('✅ Upload berhasil! Dokumen sedang divalidasi...', {
+                //  Update toast menjadi success
+                toast.success(' Upload berhasil! Dokumen sedang divalidasi...', {
                     id: toastId,
                     duration: 4000,
                     description: 'Sistem akan memvalidasi halaman pertama. Cek tabel di bawah untuk status real-time.',
@@ -173,7 +173,7 @@ export default function UploadSPKBox() {
 
                 setSelectedFile(null);
 
-                // ✅ Info tambahan
+                //  Info tambahan
                 setTimeout(() => {
                     toast.info('💡 Tips: Dokumen akan divalidasi dalam beberapa detik', {
                         duration: 3000,
@@ -190,7 +190,7 @@ export default function UploadSPKBox() {
             onError: (errors) => {
                 console.error('Upload errors:', errors);
 
-                // ❌ Parse error message
+                // Parse error message
                 let errorMessage = 'Upload gagal, coba lagi.';
 
                 if (typeof errors === 'object') {
@@ -199,7 +199,7 @@ export default function UploadSPKBox() {
                 }
 
                 // Update toast menjadi error
-                toast.error('❌ Upload Gagal!', {
+                toast.error('Upload Gagal!', {
                     id: toastId,
                     duration: 5000,
                     description: errorMessage,
@@ -278,17 +278,17 @@ export default function UploadSPKBox() {
             {/* Enhanced Info Box */}
             <div className="mt-4 w-full max-w-md rounded-lg bg-purple-900/30 border border-purple-400/30 p-4">
                 <div className="mb-3">
-                    <p className="mb-2 text-xs font-semibold text-purple-200">📋 Dokumen yang BOLEH diupload di halaman ini:</p>
+                    <p className="mb-2 text-xs font-semibold text-purple-200">Dokumen yang BOLEH diupload di halaman ini:</p>
                     <ul className="ml-4 space-y-1 text-xs text-purple-300">
-                        <li>✅ SPK Survey</li>
-                        <li>✅ SPK Instalasi</li>
-                        <li>✅ SPK Dismantle</li>
-                        <li>✅ SPK Aktivasi</li>
+                        <li> SPK Survey</li>
+                        <li> SPK Instalasi</li>
+                        <li> SPK Dismantle</li>
+                        <li> SPK Aktivasi</li>
                     </ul>
                 </div>
                 <div className="border-t border-purple-400/20 pt-3">
                     <p className="text-xs text-purple-300">
-                        ❌ <strong>Form Checklist</strong> tidak bisa diupload di halaman ini.
+                        <strong>Form Checklist</strong> tidak bisa diupload di halaman ini.
                         <br />
                         Silakan gunakan halaman <strong>"Form Checklist"</strong>.
                     </p>

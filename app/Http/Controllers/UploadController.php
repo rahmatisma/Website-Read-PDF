@@ -28,6 +28,7 @@ class UploadController extends Controller
         // Definisi kategori dokumen
         $spkTypes = ['spk_survey', 'spk_instalasi', 'spk_dismantle', 'spk_aktivasi'];
         $checklistTypes = ['checklist_wireline', 'checklist_wireless'];
+        $pmpopTypes = ['form_pm_pop', 'pm_pop'];
         
         $isValid = false;
         $message = '';
@@ -52,6 +53,19 @@ class UploadController extends Controller
                     $message = "Jenis dokumen tidak dapat dideteksi. Pastikan file PDF adalah Form Checklist yang valid.";
                 } else {
                     $message = "Jenis dokumen tidak sesuai untuk upload Form Checklist.";
+                }
+            }
+        } elseif ($expectedCategory === 'pmpop') { //  KATEGORI BARU
+            $isValid = in_array($detectedType, $pmpopTypes);
+            if (!$isValid) {
+                if (in_array($detectedType, $spkTypes)) {
+                    $message = "Dokumen ini adalah SPK, bukan Form PM POP! Silakan upload di halaman Dokumen PDF.";
+                } elseif (in_array($detectedType, $checklistTypes)) {
+                    $message = "Dokumen ini adalah Form Checklist, bukan Form PM POP! Silakan upload di halaman Form Checklist.";
+                } elseif ($detectedType === 'unknown') {
+                    $message = "Jenis dokumen tidak dapat dideteksi. Pastikan file PDF adalah Form PM POP yang valid.";
+                } else {
+                    $message = "Jenis dokumen tidak sesuai untuk upload Form PM POP.";
                 }
             }
         }
@@ -102,7 +116,7 @@ class UploadController extends Controller
             'expected_category' => 'spk' // ← TAMBAHAN: untuk validasi di Job
         ]);
 
-        // ✅ DISPATCH JOB KE QUEUE dengan parameter validasi
+        //  DISPATCH JOB KE QUEUE dengan parameter validasi
         ProcessDocumentJob::dispatch($upload->id_upload, 'spk');
 
         return redirect()->back()->with('success', 'Upload berhasil! Dokumen SPK sedang diproses di background. Refresh halaman untuk melihat status. 🚀');
@@ -147,10 +161,50 @@ class UploadController extends Controller
             'expected_category' => 'checklist' // ← TAMBAHAN: untuk validasi di Job
         ]);
 
-        // ✅ DISPATCH JOB KE QUEUE dengan parameter validasi
+        //  DISPATCH JOB KE QUEUE dengan parameter validasi
         ProcessDocumentJob::dispatch($upload->id_upload, 'checklist');
 
         return redirect()->back()->with('success', 'Upload form checklist berhasil! Dokumen sedang diproses di background. Refresh halaman untuk melihat status. 🚀');
+    }
+
+    public function storePMPOP(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:pdf|max:10240', // 10MB
+            'document_type' => 'required|string|max:50',
+        ]);
+
+        $file = $request->file('file');
+        $originalName = $file->getClientOriginalName();
+
+        // Simpan file ke storage/app/public/pmpop
+        $path = $file->storeAs('pmpop', $originalName, 'public');
+
+        // Simpan ke database dengan status 'uploaded'
+        $upload = Document::create([
+            'source_type' => 'user',
+            'id_user' => Auth::id(),
+            'source_system' => null,
+            'document_type' => 'form_pm_pop',
+            'file_name' => $originalName,
+            'file_path' => $path,
+            'file_type' => $file->getClientOriginalExtension(),
+            'file_size' => $file->getSize(),
+            'status' => 'uploaded',
+        ]);
+
+        Log::info('Form PM POP PDF uploaded successfully, dispatching background job', [
+            'upload_id' => $upload->id_upload,
+            'file_name' => $originalName,
+            'document_type' => 'form_pm_pop',
+            'file_size' => $file->getSize(),
+            'expected_category' => 'pmpop' // ← untuk validasi di Job
+        ]);
+
+        //  DISPATCH JOB KE QUEUE dengan parameter validasi
+        ProcessDocumentJob::dispatch($upload->id_upload, 'pmpop');
+
+        return redirect()->back()->with('success', 'Upload form PM POP berhasil! Dokumen sedang diproses di background. Refresh halaman untuk melihat status. 🚀');
     }
 
 

@@ -37,9 +37,9 @@ class EmbeddingService
                 'informasiGedung',
                 'sarpenRuangServer',
                 'lokasiAntena',
-                'perizinanGedung',        // ✅ PERBAIKI: dari perizinanBiayaGedung
+                'perizinanGedung',        //  PERBAIKI: dari perizinanBiayaGedung
                 'penempatanPerangkat',
-                'perizinanKawasan',       // ✅ PERBAIKI: dari perizinanBiayaKawasan
+                'perizinanKawasan',       //  PERBAIKI: dari perizinanBiayaKawasan
                 'kawasanUmum',
                 'dataSplitter',
                 'hhEksisting',
@@ -109,7 +109,7 @@ class EmbeddingService
             $embedding = $this->generateEmbedding($contentText);
 
             // Delete existing embeddings untuk jaringan ini (jika force regenerate)
-            // ✅ Cek dulu apakah sudah ada embedding
+            //  Cek dulu apakah sudah ada embedding
             $existingCount = \App\Models\JaringanEmbedding::where('no_jaringan', $noJaringan)->count();
 
             if ($existingCount > 0) {
@@ -117,7 +117,7 @@ class EmbeddingService
                     'no_jaringan' => $noJaringan,
                     'existing_count' => $existingCount
                 ]);
-                return; // ✅ Skip tanpa error
+                return; //  Skip tanpa error
             }
 
             // Save new embedding

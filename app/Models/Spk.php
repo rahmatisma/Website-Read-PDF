@@ -57,7 +57,7 @@ class SPK extends Model
     ];
 
     // ========================================
-    // RELATIONS - SEMUA SUDAH DIPERBAIKI ✅
+    // RELATIONS - SEMUA SUDAH DIPERBAIKI 
     // ========================================
 
     public function jaringan()
@@ -72,28 +72,28 @@ class SPK extends Model
 
     public function pelaksanaan()
     {
-        return $this->hasOne(SpkPelaksanaan::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkPelaksanaan::class, 'id_spk', 'id_spk'); // 
     }
 
     public function executionInfo()
     {
-        return $this->hasOne(SpkExecutionInfo::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkExecutionInfo::class, 'id_spk', 'id_spk'); // 
     }
 
     public function informasiGedung()
     {
-        return $this->hasOne(SpkInformasiGedung::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkInformasiGedung::class, 'id_spk', 'id_spk'); // 
     }
 
     public function sarpenRuangServer()
     {
-        return $this->hasOne(SpkSarpenRuangServer::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkSarpenRuangServer::class, 'id_spk', 'id_spk'); // 
     }
 
     public function sarpenTegangan()
     {
         return $this->hasManyThrough(
-            SpkSarpenRuangServer::class, // ✅
+            SpkSarpenRuangServer::class, // 
             'id_spk',
             'id_sarpen',
             'id_spk',
@@ -103,42 +103,42 @@ class SPK extends Model
 
     public function lokasiAntena()
     {
-        return $this->hasOne(SpkLokasiAntena::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkLokasiAntena::class, 'id_spk', 'id_spk'); // 
     }
 
     public function perizinanGedung()
     {
-        return $this->hasOne(SpkPerizinanBiayaGedung::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkPerizinanBiayaGedung::class, 'id_spk', 'id_spk'); // 
     }
 
     public function penempatanPerangkat()
     {
-        return $this->hasOne(SpkPenempatanPerangkat::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkPenempatanPerangkat::class, 'id_spk', 'id_spk'); // 
     }
 
     public function perizinanKawasan()
     {
-        return $this->hasOne(SpkPerizinanBiayaKawasan::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkPerizinanBiayaKawasan::class, 'id_spk', 'id_spk'); // 
     }
 
     public function kawasanUmum()
     {
-        return $this->hasOne(SpkKawasanUmum::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkKawasanUmum::class, 'id_spk', 'id_spk'); // 
     }
 
     public function dataSplitter()
     {
-        return $this->hasOne(SpkDataSplitter::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasOne(SpkDataSplitter::class, 'id_spk', 'id_spk'); // 
     }
 
     public function hhEksisting()
     {
-        return $this->hasMany(SpkHHEksisting::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasMany(SpkHHEksisting::class, 'id_spk', 'id_spk'); // 
     }
 
     public function hhBaru()
     {
-        return $this->hasMany(SpkHHBaru::class, 'id_spk', 'id_spk'); // ✅
+        return $this->hasMany(SpkHHBaru::class, 'id_spk', 'id_spk'); // 
     }
 
     public function dokumentasiFoto()

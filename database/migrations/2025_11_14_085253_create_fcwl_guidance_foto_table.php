@@ -35,13 +35,13 @@ return new class extends Migration
                 'kondisi_rak_penempatan',
                 'antenna_installation',
                 'outdoor_mounting',
-                'guidance_umum'  // ✅ Ditambahkan sesuai mapJenisFoto()
+                'guidance_umum'  //  Ditambahkan sesuai mapJenisFoto()
             ]);
 
             // Photo Path
             $table->string('path_foto', 1000);
 
-            // ✅ TAMBAHAN: Kolom urutan (PENTING!)
+            //  TAMBAHAN: Kolom urutan (PENTING!)
             $table->integer('urutan')->nullable();
 
             // Timestamp

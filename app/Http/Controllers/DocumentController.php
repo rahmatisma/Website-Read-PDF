@@ -93,7 +93,7 @@ class DocumentController extends Controller
             $query->whereDate('created_at', '<=', $date_to);
         }
 
-        // ✅ LOAD RELASI SPK + JARINGAN + EXECUTION INFO
+        //  LOAD RELASI SPK + JARINGAN + EXECUTION INFO
         $documents = $query->with([
             'spks' => function($q) {
                 $q->select('id_spk', 'no_spk', 'no_jaringan', 'jenis_spk', 'document_type', 'tanggal_spk', 'id_upload')
@@ -196,14 +196,14 @@ class DocumentController extends Controller
             })
             ->count();
         
-        // ✅ Form Checklist dari SPK
+        //  Form Checklist dari SPK
         $countChecklist = Document::where('id_user', $userId)
             ->whereHas('spks', function($q) {
                 $q->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless']);
             })
             ->count();
 
-        // ✅ Form PM POP
+        //  Form PM POP
         $countFormPmPop = Document::where('id_user', $userId)
             ->where(function($q) {
                 $q->where('document_type', 'form_pm_pop')
@@ -232,24 +232,24 @@ class DocumentController extends Controller
         }
 
         // ========================================
-        // ✅ STATISTIK SPK (Global - semua user)
+        //  STATISTIK SPK (Global - semua user)
         // ========================================
         // Total jenis SPK yang unik
         $countSPKTypes = SPK::where('document_type', 'spk')
             ->distinct('jenis_spk')
             ->count('jenis_spk');
 
-        // ✅ Total form checklist (wireline + wireless)
+        //  Total form checklist (wireline + wireless)
         $countFormChecklist = SPK::whereIn('document_type', [
             'form_checklist_wireline', 
             'form_checklist_wireless'
         ])->count();
 
-        // ✅ Total form PM POP (global)
+        //  Total form PM POP (global)
         $countFormPmPopGlobal = SPK::where('document_type', 'form_pm_pop')->count();
 
         // ========================================
-        // ✅ UPLOAD TREND (7 hari terakhir)
+        //  UPLOAD TREND (7 hari terakhir)
         // ========================================
         $uploadTrend = [];
         
@@ -307,13 +307,13 @@ class DocumentController extends Controller
             });
 
         return Inertia::render('dashboard', [
-            // ✅ User-specific stats (tambahkan ini)
+            //  User-specific stats (tambahkan ini)
             'countSPK'  => $countSPK,
             'countChecklist' => $countChecklist,
             'countFormPmPop' => $countFormPmPop,
             'countAll'  => $countAll,
             
-            // ✅ Global stats
+            //  Global stats
             'countUsersUnverified' => $countUsersUnverified,
             'countSPKTypes' => $countSPKTypes,
             'countFormChecklist' => $countFormChecklist,
@@ -325,7 +325,7 @@ class DocumentController extends Controller
     }
     
     /**
-     * ✅ GET DASHBOARD STATS (untuk real-time updates)
+     *  GET DASHBOARD STATS (untuk real-time updates)
      */
     public function getDashboardStats()
     {
@@ -349,7 +349,7 @@ class DocumentController extends Controller
         }
 
         // ========================================
-        // ✅ STATISTIK SPK
+        //  STATISTIK SPK
         // ========================================
         $countSPKTypes = SPK::where('document_type', 'spk')
             ->distinct('jenis_spk')
@@ -363,7 +363,7 @@ class DocumentController extends Controller
         $countFormPmPopGlobal = SPK::where('document_type', 'form_pm_pop')->count();
 
         // ========================================
-        // ✅ UPLOAD TREND
+        //  UPLOAD TREND
         // ========================================
         $uploadTrend = [];
         
@@ -429,7 +429,7 @@ class DocumentController extends Controller
     }
     
     /**
-     * ✅ HAPUS DOKUMEN - AUTO CASCADE DELETE dengan PENGECEKAN JARINGAN
+     *  HAPUS DOKUMEN - AUTO CASCADE DELETE dengan PENGECEKAN JARINGAN
      */
     public function destroy($id)
     {
@@ -591,14 +591,14 @@ class DocumentController extends Controller
             
             DB::commit();
             
-            Log::info('✅ SEMUA DATA BERHASIL DIHAPUS', [
+            Log::info(' SEMUA DATA BERHASIL DIHAPUS', [
                 'id_upload' => $id,
                 'jumlah_spk' => count($spks),
                 'jumlah_jaringan_dicek' => count($noJaringanList),
                 'success' => true
             ]);
             
-            return redirect()->back()->with('success', 'Dokumen, file PDF, folder ekstraksi, dan semua data terkait berhasil dihapus! ✅');
+            return redirect()->back()->with('success', 'Dokumen, file PDF, folder ekstraksi, dan semua data terkait berhasil dihapus! ');
             
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::rollBack();
@@ -648,7 +648,7 @@ class DocumentController extends Controller
     }
 
     /**
-     * ✅ DETAIL DOKUMEN
+     * DETAIL DOKUMEN - Auto-detect type
      */
     public function detail($id)
     {
@@ -677,11 +677,23 @@ class DocumentController extends Controller
                 ];
             }
 
+            //  DETEKSI JENIS DOKUMEN
             $isChecklist = $upload->spks()
                 ->whereIn('document_type', ['form_checklist_wireline', 'form_checklist_wireless'])
                 ->exists();
             
-            $component = $isChecklist ? 'Documents/FormChecklistDetail' : 'Documents/Detail';
+            //  TAMBAHKAN DETEKSI PM POP
+            $isPMPOP = $upload->document_type === 'form_pm_pop' || 
+                    $upload->spks()->where('document_type', 'form_pm_pop')->exists();
+            
+            //  TENTUKAN COMPONENT YANG AKAN DI-RENDER
+            $component = 'Documents/Detail'; // Default: SPK
+            
+            if ($isChecklist) {
+                $component = 'Documents/FormChecklistDetail';
+            } elseif ($isPMPOP) {
+                $component = 'Documents/FormPMPOPDetail'; // ← TAMBAHAN INI
+            }
             
             return Inertia::render($component, [
                 'upload' => [
@@ -717,7 +729,7 @@ class DocumentController extends Controller
     }
     
     /**
-     * ✅ GET STATUS SINGLE DOCUMENT
+     *  GET STATUS SINGLE DOCUMENT
      */
     public function getStatus($id)
     {
@@ -741,7 +753,7 @@ class DocumentController extends Controller
     }
 
     /**
-     * ✅ CHECK STATUS MULTIPLE DOCUMENTS
+     *  CHECK STATUS MULTIPLE DOCUMENTS
      */
     public function checkStatus(Request $request)
     {

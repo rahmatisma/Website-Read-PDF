@@ -6,6 +6,7 @@ use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\FormChecklistController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DokumenSearchController;
+use App\Http\Controllers\BatteryDataController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -38,12 +39,16 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
         // Upload endpoints
         Route::post('/spk', [UploadController::class, 'storeSPK'])->name('store.spk');
         Route::post('/checklist', [UploadController::class, 'storeChecklist'])->name('store.checklist');
+        Route::post('/pmpop', [UploadController::class, 'storePMPOP'])->name('store.pmpop');
 
         // Search routes
         Route::get('/search', [DokumenSearchController::class, 'index'])->name('search');
         Route::get('/search/api/search', [DokumenSearchController::class, 'search']);
         Route::get('/search/api/filter-options', [DokumenSearchController::class, 'getFilterOptions']);
         Route::get('/search/api/customer-summary', [DokumenSearchController::class, 'getCustomerSummary']);
+
+        // Search khusus PM POP (opsional)
+        Route::get('/pmpop/search', [DokumenSearchController::class, 'indexPMPOP'])->name('pmpop.search');
 
         // Detail & Actions (specific routes before wildcard)
         Route::get('/detail/{id}', [DocumentController::class, 'detail'])
@@ -52,18 +57,23 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
         Route::post('/retry/{id}', [UploadController::class, 'retry'])
             ->where('id', '[0-9]+')
             ->name('retry');
+        
+        // Delete routes
         Route::delete('/{id}', [DocumentController::class, 'destroy'])
             ->where('id', '[0-9]+')
             ->name('destroy');
+        Route::delete('/pmpop/{id}', [DocumentController::class, 'destroy'])
+            ->where('id', '[0-9]+')
+            ->name('pmpop.destroy');
 
         // Filter by type (MUST BE LAST - catch-all route)
         Route::get('/filter/{type}', [DocumentController::class, 'filter'])
-            ->where('type', 'spk|form-checklist|form-pm-pop') // ✅ Update regex
+            ->where('type', 'spk|form-checklist|form-pm-pop')
             ->name('filter');
     });
 
     // ========================================
-    // SMART SEARCH SYSTEM (NEW)
+    // SMART SEARCH SYSTEM
     // ========================================
     Route::prefix('search')->name('search.')->group(function () {
         // Main search page
@@ -115,6 +125,18 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
         
         // Dashboard
         Route::get('/dashboard/stats', [DocumentController::class, 'getDashboardStats'])->name('dashboard.stats');
+        
+        // Battery Data Routes
+        Route::prefix('battery')->group(function () {
+            Route::get('/chart-data/{inspectionFormId}', [BatteryDataController::class, 'getBatteryChartData'])
+                ->name('battery.chart-data');
+            
+            Route::get('/chart-data-by-upload/{uploadId}', [BatteryDataController::class, 'getBatteryChartDataByUpload'])
+                ->name('battery.chart-data-by-upload');
+            
+            Route::get('/bank/{batteryBankId}', [BatteryDataController::class, 'getBatteryBankDetail'])
+                ->name('battery.bank-detail');
+        });
     });
 
     // ========================================
@@ -159,6 +181,33 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
             Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
             Route::patch('/{user}/toggle-admin-verification', [UserController::class, 'toggleAdminVerification'])->name('toggleAdminVerification');
         });
+});
+
+// ========================================
+// DEBUG ENDPOINTS
+// ========================================
+Route::get('/debug-document-structure/{uploadId}', function($uploadId) {
+    try {
+        $document = \App\Models\Document::findOrFail($uploadId);
+        
+        $extractedData = is_string($document->extracted_data) 
+            ? json_decode($document->extracted_data, true) 
+            : $document->extracted_data;
+        
+        return response()->json([
+            'document_info' => [
+                'id' => $document->id_upload,
+                'file_name' => $document->file_name,
+                'document_type' => $document->document_type,
+                'status' => $document->status,
+            ],
+            'top_level_keys' => array_keys($extractedData ?? []),
+            'full_extracted_data' => $extractedData,
+        ], JSON_PRETTY_PRINT);
+        
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
 });
 
 // ========================================

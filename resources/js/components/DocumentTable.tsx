@@ -37,7 +37,7 @@ export default function DocumentTable({ documents, type, onDelete }: DocumentTab
             .map(doc => doc.id_upload);
         
         if (incompleteIds.length === 0) {
-            console.log('✅ No documents to poll');
+            console.log(' No documents to poll');
             setIsPolling(false);
             return;
         }
@@ -55,7 +55,7 @@ export default function DocumentTable({ documents, type, onDelete }: DocumentTab
                     ids: incompleteIds 
                 });
                 
-                console.log('✅ Status received:', response.data);
+                console.log(' Status received:', response.data);
 
                 setLocalDocuments(prevDocs => 
                     prevDocs.map(doc => {
@@ -64,9 +64,9 @@ export default function DocumentTable({ documents, type, onDelete }: DocumentTab
                         if (updated && updated.status !== doc.status) {
                             console.log(`📝 Doc ${doc.id_upload}: ${doc.status} → ${updated.status}`);
                             
-                            // ✅ Toast notification untuk perubahan status
+                            //  Toast notification untuk perubahan status
                             if (updated.status === 'completed') {
-                                toast.success(`✅ ${doc.file_name}`, {
+                                toast.success(` ${doc.file_name}`, {
                                     description: 'Dokumen berhasil diproses dan disimpan ke database!',
                                     duration: 4000,
                                     classNames: {
@@ -80,7 +80,7 @@ export default function DocumentTable({ documents, type, onDelete }: DocumentTab
                                 // Get error message dari extracted_data
                                 const errorMsg = doc.extracted_data?.error || 'Proses gagal';
                                 
-                                toast.error(`❌ ${doc.file_name}`, {
+                                toast.error(`${doc.file_name}`, {
                                     description: errorMsg,
                                     duration: 6000,
                                     classNames: {
@@ -102,7 +102,7 @@ export default function DocumentTable({ documents, type, onDelete }: DocumentTab
                 );
                 
                 if (!stillIncomplete) {
-                    console.log('✅ All documents completed/failed, stopping poll');
+                    console.log(' All documents completed/failed, stopping poll');
                     clearInterval(interval);
                     setIsPolling(false);
                     
@@ -111,7 +111,7 @@ export default function DocumentTable({ documents, type, onDelete }: DocumentTab
                     }, 1000);
                 }
             } catch (error) {
-                console.error('❌ Polling error:', error);
+                console.error('Polling error:', error);
             }
         }, 3000);
 
@@ -213,7 +213,7 @@ export default function DocumentTable({ documents, type, onDelete }: DocumentTab
 
     return (
         <div className="mt-6">
-            {/* ✅ Enhanced Polling Indicator */}
+            {/*  Enhanced Polling Indicator */}
             {isPolling && (
                 <div className="mb-4 px-4 py-3 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-lg">
                     <div className="flex items-center gap-3">

@@ -53,7 +53,7 @@ interface DashboardProps {
 export default function Dashboard() {
     const initialProps = usePage<DashboardProps>().props;
 
-    // ✅ State untuk semua data real-time
+    //  State untuk semua data real-time
     const [countUsersUnverified, setCountUsersUnverified] = useState(initialProps.countUsersUnverified);
     const [countSPKTypes, setCountSPKTypes] = useState(initialProps.countSPKTypes);
     const [countFormChecklist, setCountFormChecklist] = useState(initialProps.countFormChecklist);
@@ -64,7 +64,7 @@ export default function Dashboard() {
     const [unverifiedUsers, setUnverifiedUsers] = useState(initialProps.unverifiedUsers);
     const [isPolling, setIsPolling] = useState(false);
 
-    // ✅ Real-time polling untuk SEMUA data dashboard
+    //  Real-time polling untuk SEMUA data dashboard
     useEffect(() => {
         console.log('🚀 Dashboard Real-time Started');
         setIsPolling(true);
@@ -77,7 +77,7 @@ export default function Dashboard() {
                 const response = await axios.get('/api/dashboard/stats');
                 const data = response.data;
 
-                console.log('✅ Dashboard stats received:', data);
+                console.log(' Dashboard stats received:', data);
 
                 // Update semua state
                 setCountUsersUnverified(data.countUsersUnverified);
@@ -88,7 +88,7 @@ export default function Dashboard() {
                 setLocalDocuments(data.recentDocuments);
                 setUnverifiedUsers(data.unverifiedUsers);
             } catch (error) {
-                console.error('❌ Dashboard polling error:', error);
+                console.error('Dashboard polling error:', error);
             }
         }, 5000); // Poll setiap 5 detik
 
@@ -137,13 +137,13 @@ export default function Dashboard() {
 
         switch (status) {
             case 'completed':
-                return <span className="rounded-full bg-green-500/20 px-2 py-1 text-xs text-green-400">✅ Selesai</span>;
+                return <span className="rounded-full bg-green-500/20 px-2 py-1 text-xs text-green-400"> Selesai</span>;
             case 'processing':
                 return <span className="animate-pulse rounded-full bg-yellow-500/20 px-2 py-1 text-xs text-yellow-400">🔄 Proses</span>;
             case 'failed':
-                return <span className="rounded-full bg-red-500/20 px-2 py-1 text-xs text-red-400">❌ Gagal</span>;
+                return <span className="rounded-full bg-red-500/20 px-2 py-1 text-xs text-red-400">Gagal</span>;
             case 'uploaded':
-                return <span className="rounded-full bg-blue-500/20 px-2 py-1 text-xs text-blue-400">📤 Upload</span>;
+                return <span className="rounded-full bg-blue-500/20 px-2 py-1 text-xs text-blue-400">Upload</span>;
             default:
                 return null;
         }
@@ -153,7 +153,7 @@ export default function Dashboard() {
         <AppLayout>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
-                {/* ✅ Real-time Indicator */}
+                {/*  Real-time Indicator */}
                 {isPolling && (
                     <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -165,7 +165,7 @@ export default function Dashboard() {
 
                 {/* Statistics Cards */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {/* ✅ CHANGED: Unverified Users (bukan Verified) */}
+                    {/*  CHANGED: Unverified Users (bukan Verified) */}
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Unverified Users</CardTitle>

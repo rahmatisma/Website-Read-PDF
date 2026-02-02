@@ -43,7 +43,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // ✅ TAMBAHKAN INI:
+        //  TAMBAHKAN INI:
         Event::listen(
             \App\Events\SPKDataSaved::class,
             \App\Listeners\GenerateEmbedding::class,
