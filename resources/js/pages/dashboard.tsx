@@ -9,6 +9,8 @@ import { AlertCircle, Calendar, ChevronRight, ClipboardCheck, File, FileCheck, M
 import { useEffect, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
+import BatteryMonitoring from '@/components/Batterymonitoring';
+
 interface Document {
     id: number;
     fileName: string;
@@ -214,6 +216,7 @@ export default function Dashboard() {
                     </Card>
                 </div>
                 
+                <BatteryMonitoring />
 
                 {/* Upload Trend Chart */}
                 <Card>

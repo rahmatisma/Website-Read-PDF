@@ -214,13 +214,9 @@ class JsonToDatabase
 
                     $pmService = new FormPmPopService();
                     $result = $pmService->process($parsedData, $uploadId);
-                    
+
                     DB::commit();
-                    return [
-                        'success' => true,
-                        'message' => 'Form PM POP processing not yet implemented',
-                        'document_type' => $documentType
-                    ];
+                    return $result;
                 
                 default:
                     // Fallback ke SPK processing untuk backward compatibility

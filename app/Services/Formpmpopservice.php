@@ -165,13 +165,28 @@ class FormPmPopService
                 if (empty($measurement['voltage']) && empty($measurement['soh'])) {
                     continue;
                 }
-                
-                BatteryMeasurement::create([
-                    'battery_bank_id' => $batteryBank->id,
-                    'cell_number' => (int)$measurement['no'],
-                    'voltage' => $this->parseDecimal($measurement['voltage'] ?? null),
-                    'soh' => !empty($measurement['soh']) ? (int)$measurement['soh'] : null,
-                ]);
+
+                $cellNumber = (int)($measurement['no'] ?? 0);
+
+                // Skip kalau cell_number tidak valid
+                if ($cellNumber <= 0) {
+                    Log::warning('Skipping measurement: cell_number tidak valid', [
+                        'raw_no'  => $measurement['no'] ?? 'null',
+                        'bank_id' => $batteryBank->id,
+                    ]);
+                    continue;
+                }
+
+                BatteryMeasurement::updateOrCreate(
+                    [
+                        'battery_bank_id' => $batteryBank->id,
+                        'cell_number'     => $cellNumber,
+                    ],
+                    [
+                        'voltage' => $this->parseDecimal($measurement['voltage'] ?? null),
+                        'soh'     => !empty($measurement['soh']) ? (int)$measurement['soh'] : null,
+                    ]
+                );
             }
         }
         
@@ -723,6 +738,10 @@ class FormPmPopService
         if (empty($dateString)) return null;
         
         try {
+            // ✅ FIX: Normalize casing dulu sebelum replace
+            // "20 maret 2025" → "20 Maret 2025"
+            $dateString = ucwords(strtolower(trim($dateString)));
+
             // Bulan Indonesia mapping
             $indonesianMonths = [
                 'Januari' => 'January',
@@ -733,6 +752,7 @@ class FormPmPopService
                 'Juni' => 'June',
                 'Juli' => 'July',
                 'Agustus' => 'August',
+                'Agutus' => 'August',
                 'September' => 'September',
                 'Oktober' => 'October',
                 'November' => 'November',
@@ -751,7 +771,7 @@ class FormPmPopService
             
             // Try parsing
             $formats = [
-                'd F Y',     // "31 January 2025"
+                'd F Y',     // "20 March 2025"
                 'd/m/Y',
                 'd-m-Y',
                 'Y-m-d',
@@ -759,7 +779,10 @@ class FormPmPopService
             
             foreach ($formats as $format) {
                 try {
-                    return Carbon::createFromFormat($format, trim($englishDate));
+                    $date = Carbon::createFromFormat($format, trim($englishDate));
+                    if ($date) {
+                        return $date;
+                    }
                 } catch (\Exception $e) {
                     continue;
                 }

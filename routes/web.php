@@ -27,6 +27,10 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
     // ========================================
     Route::get('/dashboard', [DocumentController::class, 'dashboard'])->name('dashboard');
 
+    Route::get('/battery-dashboard', function () {
+            return Inertia::render('BatteryDashboard');
+        })->name('battery.dashboard');
+
     // ========================================
     // DOCUMENTS ROUTES
     // ========================================
@@ -136,6 +140,18 @@ Route::middleware(['auth', 'verified.admin'])->group(function () {
             
             Route::get('/bank/{batteryBankId}', [BatteryDataController::class, 'getBatteryBankDetail'])
                 ->name('battery.bank-detail');
+
+            Route::get('/dashboard-summary', [BatteryDataController::class, 'getAllBatteryDashboardData'])
+                ->name('battery.dashboard-summary');
+
+            Route::get('/locations', [BatteryDataController::class, 'getLocationsWithBattery'])
+                ->name('battery.locations');
+
+            Route::get('/locations/{locationId}/banks-and-cells', [BatteryDataController::class, 'getBanksAndCells'])
+                ->name('battery.banks-and-cells');
+
+            Route::get('/trend', [BatteryDataController::class, 'getBatteryTrend'])
+                ->name('battery.trend');
         });
     });
 
